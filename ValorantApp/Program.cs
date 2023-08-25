@@ -92,7 +92,7 @@ namespace ValorantApp
 
             await RegisterCommandsAsync();
 
-            await _client.LoginAsync(TokenType.Bot, "MTE0NDA0MDg5OTc5MDI1ODIxNg.GKx99u._BwYpkLP9BFDG7x65byviHjA3CRhvAFxTekCz0");
+            await _client.LoginAsync(TokenType.Bot, "");
             await _client.StartAsync();
 
             // Block the program until it is closed
