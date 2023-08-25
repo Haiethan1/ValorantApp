@@ -3,6 +3,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Configuration;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.NetworkInformation;
@@ -80,19 +81,22 @@ namespace ValorantApp
 
         public async Task RunBotAsync()
         {
-            var config = new DiscordSocketConfig()
+            //var configJson = File.ReadAllText("config.json");
+            //var config = JsonConvert.DeserializeObject<JToken>(configJson);
+            var token = ConfigurationManager.AppSettings["BotToken"];
+            var discordSocketConfig = new DiscordSocketConfig()
             {
                 // Other config options can be presented here.
                 GatewayIntents = GatewayIntents.All
             };
-            _client = new DiscordSocketClient(config);
+            _client = new DiscordSocketClient(discordSocketConfig);
             _commands = new CommandService();
 
             _client.Log += LogAsync;
 
             await RegisterCommandsAsync();
 
-            await _client.LoginAsync(TokenType.Bot, "");
+            await _client.LoginAsync(TokenType.Bot, token);
             await _client.StartAsync();
 
             // Block the program until it is closed
