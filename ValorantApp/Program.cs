@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Configuration;
+using System.Data.SQLite;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.NetworkInformation;
@@ -16,73 +17,48 @@ namespace ValorantApp
 {
     public class ValorantApp
     {
-
-        //public static void Main(string[] args)
-        //{
-        //    HenrikApi henrikApi = new HenrikApi("Ehtan", "NA1", "na");
-
-        //    var temp = henrikApi.Match().Result.Data;
-        //    var highestHeadshot = temp[0].Players.All_Players[0];
-
-        //    foreach (var player in temp[0].Players.All_Players)
-        //    {
-        //        var stats = player.Stats;
-        //        double headshot = stats.Headshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
-        //        var statsMax = highestHeadshot.Stats;
-        //        double headshotMax = statsMax.Headshots / (double)(statsMax.Headshots + statsMax.Bodyshots + statsMax.Legshots) * 100.0;
-
-        //        highestHeadshot = headshot > headshotMax ? player : highestHeadshot;
-        //        Console.WriteLine($"{player.Name} Headshot = {headshot.ToString("F")}%");
-        //    }
-
-        //    Console.WriteLine($"Highest Headshot player is {highestHeadshot.Name}");
-        //}
-
-        //private DiscordSocketClient _client;
-        //public static Task Main(string[] args) => new ValorantApp().MainAsync();
-
-        //public async Task MainAsync()
-        //{
-        //    _client = new DiscordSocketClient();
-
-        //    _client.Log += Log;
-
-        //    //  You can assign your bot token to a string, and pass that in to connect.
-        //    //  This is, however, insecure, particularly if you plan to have your code hosted in a public repository.
-        //    var token = "MTE0NDA0MDg5OTc5MDI1ODIxNg.GnBZAQ.dwaQ3SHhlJaKkmoqHU2QLpdKQPpoJx2h8wmt9o";
-
-        //    // Some alternative options would be to keep your token in an Environment Variable or a standalone file.
-        //    // var token = Environment.GetEnvironmentVariable("NameOfYourEnvironmentVariable");
-        //    // var token = File.ReadAllText("token.txt");
-        //    // var token = JsonConvert.DeserializeObject<AConfigurationClass>(File.ReadAllText("config.json")).Token;
-
-        //    await _client.LoginAsync(TokenType.Bot, token);
-        //    await _client.StartAsync();
-
-        //    CommandHandler _commandHandler = new CommandHandler(_client,)
-        //    //await 
-
-        //    // Block this task until the program is closed.
-        //    await Task.Delay(-1);
-        //}
-
-        //private Task Log(LogMessage msg)
-        //{
-        //    Console.WriteLine(msg.ToString());
-        //    return Task.CompletedTask;
-        //}
-
         private DiscordSocketClient _client;
         private CommandService _commands;
         private IServiceProvider _services;
 
         static void Main(string[] args)
-            => new ValorantApp().RunBotAsync().GetAwaiter().GetResult();
+        {
+            string connectionString = "Data Source=myDatabase.db;Version=3;";
+            using (var connection = new SQLiteConnection(connectionString))
+            {
+                connection.Open();
+
+                string createTableQuery = @"
+                CREATE TABLE IF NOT EXISTS ValorantUsers (
+                    Id INTEGER PRIMARY KEY NOT NULL,
+                    val_username TEXT NOT NULL,
+                    val_tagname TEXT NOT NULL,
+                    val_affinity TEXT NOT NULL,
+                    val_puuid TEXT
+                    
+                )";
+                using (var createTableCommand = new SQLiteCommand(createTableQuery, connection))
+                {
+                    createTableCommand.ExecuteNonQuery();
+                }
+
+                string insertDataQuery = "INSERT INTO ValorantUsers  (val_username, val_tagname, val_affinity) VALUES (@val_username, @val_tagname, @val_affinity)";
+                using (var insertDataCommand = new SQLiteCommand(insertDataQuery, connection))
+                {
+                    insertDataCommand.Parameters.AddWithValue("@val_username", "Ehtan");
+                    insertDataCommand.Parameters.AddWithValue("@val_tagname", "NA1");
+                    insertDataCommand.Parameters.AddWithValue("@val_affinity", "na");
+                    insertDataCommand.ExecuteNonQuery();
+                }
+
+                // You can query and manipulate data using similar commands.
+            }
+
+            new ValorantApp().RunBotAsync().GetAwaiter().GetResult();
+        }
 
         public async Task RunBotAsync()
         {
-            //var configJson = File.ReadAllText("config.json");
-            //var config = JsonConvert.DeserializeObject<JToken>(configJson);
             var token = ConfigurationManager.AppSettings["BotToken"];
             var discordSocketConfig = new DiscordSocketConfig()
             {
