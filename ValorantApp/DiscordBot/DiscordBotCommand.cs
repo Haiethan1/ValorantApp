@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using ValorantApp.HenrikJson;
 
 namespace ValorantApp.DiscordBot
 {
@@ -15,7 +16,7 @@ namespace ValorantApp.DiscordBot
         [Summary("Prints the headshots of all players in order.")]
         public async Task HeadshotCommand()
         {
-            HenrikApi henrikApi = new HenrikApi("Ehtan", "NA1", "na");
+            HenrikApi henrikApi = new HenrikApi("Ehtan", "NA1", "na", null);
 
             var temp = henrikApi.Match().Result.Data;
             //var highestHeadshot = temp[0].Players.All_Players[0];

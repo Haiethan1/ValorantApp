@@ -2,4 +2,5 @@ ValorantApp/bin/
 ValorantApp/obj/
 App.config
 .vs
+.editorconfig
 

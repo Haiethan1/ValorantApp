@@ -14,7 +14,7 @@ namespace ValorantApp.HenrikJson
         public bool? Bomb_Defused { get; set; }
         public MatchRoundsPlantEventsJson? Plant_Events { get; set; }
         public MatchRoundsDefuseEventsJson? Defuse_Events { get; set; }
-        public PlayerStatsJson[] Player_Stats { get; set; }
+        public MatchRoundPlayerStatsJson[] Player_Stats { get; set; }
     }
 
     #region SpikeEvents
@@ -44,7 +44,7 @@ namespace ValorantApp.HenrikJson
     #endregion
 
     #region Player Stats
-    public class PlayerStatsJson
+    public class MatchRoundPlayerStatsJson
     {
         public PlayerAbilityCastsJson Ability_Casts { get; set; }
         public string Player_Puuid { get; set; }

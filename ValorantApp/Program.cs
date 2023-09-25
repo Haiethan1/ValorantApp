@@ -10,6 +10,8 @@ using System.Net.Http.Json;
 using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Web;
+using ValorantApp.Database.Extensions;
+using ValorantApp.Database.Tables;
 using ValorantApp.DiscordBot;
 using ValorantApp.ValorantEnum;
 
@@ -23,36 +25,13 @@ namespace ValorantApp
 
         static void Main(string[] args)
         {
-            string connectionString = "Data Source=myDatabase.db;Version=3;";
-            using (var connection = new SQLiteConnection(connectionString))
-            {
-                connection.Open();
+            string connectionString = ConfigurationManager.ConnectionStrings["Database"].ConnectionString;
 
-                string createTableQuery = @"
-                CREATE TABLE IF NOT EXISTS ValorantUsers (
-                    Id INTEGER PRIMARY KEY NOT NULL,
-                    val_username TEXT NOT NULL,
-                    val_tagname TEXT NOT NULL,
-                    val_affinity TEXT NOT NULL,
-                    val_puuid TEXT
-                    
-                )";
-                using (var createTableCommand = new SQLiteCommand(createTableQuery, connection))
-                {
-                    createTableCommand.ExecuteNonQuery();
-                }
+            ITable.CreateTables(connectionString);
 
-                string insertDataQuery = "INSERT INTO ValorantUsers  (val_username, val_tagname, val_affinity) VALUES (@val_username, @val_tagname, @val_affinity)";
-                using (var insertDataCommand = new SQLiteCommand(insertDataQuery, connection))
-                {
-                    insertDataCommand.Parameters.AddWithValue("@val_username", "Ehtan");
-                    insertDataCommand.Parameters.AddWithValue("@val_tagname", "NA1");
-                    insertDataCommand.Parameters.AddWithValue("@val_affinity", "na");
-                    insertDataCommand.ExecuteNonQuery();
-                }
+            var temp = new BaseValorantProgram();
 
-                // You can query and manipulate data using similar commands.
-            }
+            temp.UpdateMatchAllUsers();
 
             new ValorantApp().RunBotAsync().GetAwaiter().GetResult();
         }

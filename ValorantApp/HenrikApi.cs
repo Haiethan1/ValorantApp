@@ -3,7 +3,10 @@ using Newtonsoft.Json;
 using System.Collections.Specialized;
 using System.Net.Http;
 using ValorantApp;
+using ValorantApp.Database.Tables;
+using ValorantApp.HenrikJson;
 using ValorantApp.ValorantEnum;
+using ValorantNET.Models;
 
 namespace ValorantApp
 {
@@ -12,39 +15,70 @@ namespace ValorantApp
         private HttpClient httpClient = new HttpClient();
 
 
-        private string username;
-        private string tagName;
-        private string affinity;
-        private string? puuid;
+        public string username;
+        public string tagName;
+        public string affinity;
+        public string puuid;
 
-        public HenrikApi(string username, string tagName, string affinity)
+        public HenrikApi(string username, string tagName, string affinity, string? puuid)
         {
             this.username = username;
             this.tagName = tagName;
             this.affinity = affinity;
 
-            var account = AccountQuery().Result.Data;
-            if (account?.Puuid == null)
+            if (puuid != null)
             {
-                throw new Exception("Puuid cannot be null");
+                this.puuid = puuid;
+            }
+            else
+            {
+                AccountJson? account = AccountQuery()?.Result.Data ?? null;
+                if (account?.Puuid == null)
+                {
+                    throw new Exception("Puuid cannot be null");
+                }
+                this.puuid = account.Puuid;
+            }
+            
+        }
+
+        private async Task<JsonObjectHenrik<AccountJson>>? AccountQuery()
+        {
+            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/account/{username}/{tagName}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
             }
 
-            puuid = account.Puuid;
+            return JsonConvert.DeserializeObject<JsonObjectHenrik<AccountJson>>(response.Content.ReadAsStringAsync().Result);
         }
 
-        private async Task<JsonObjectHenrik<AccountJson>> AccountQuery()
+        public async Task<JsonObjectHenrik<MmrJson>>? Mmr()
         {
-            var response = await httpClient.GetStringAsync($"https://api.henrikdev.xyz/valorant/v1/account/{username}/{tagName}");
-            return JsonConvert.DeserializeObject<JsonObjectHenrik<AccountJson>>(response);
+            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr/{affinity}/{puuid}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return JsonConvert.DeserializeObject<JsonObjectHenrik<MmrJson>>(response.Content.ReadAsStringAsync().Result);
         }
 
-        public async Task<JsonObjectHenrik<MmrJson>> Mmr()
+        public async Task<JsonObjectHenrik<List<MmrHistoryJson>>>? MmrHistory()
         {
-            var response = await httpClient.GetStringAsync($"https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr/{affinity}/{puuid}");
-            return JsonConvert.DeserializeObject<JsonObjectHenrik<MmrJson>>(response);
+            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr-history/{affinity}/{puuid}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return JsonConvert.DeserializeObject<JsonObjectHenrik<List<MmrHistoryJson>>>(response.Content.ReadAsStringAsync().Result);
         }
 
-        public async Task<JsonObjectHenrik<List<MatchJson>>> Match(Modes mode = Modes.Unknown, Maps map = Maps.Unknown, int size = 1)
+        public async Task<JsonObjectHenrik<List<MatchJson>>>? Match(Modes mode = Modes.Unknown, Maps map = Maps.Unknown, int size = 1)
         {
             string query = $"https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/{affinity}/{puuid}?";
             if (mode != Modes.Unknown)
@@ -56,19 +90,15 @@ namespace ValorantApp
                 query += $"&map={map.StringFromMap()}";
             }
             query += $"&size={size}";
-            //var query = new UriBuilder($"https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/{affinity}/{puuid}?size=1");
-            //var queryParam = new Dictionary<string, string>
-            //{
-            //    { "map", "Ascent" },
-            //    { "size", "1" },
-            //};
-            //NameValueCollection collection = new NameValueCollection();
-            //collection.Add("map", "Ascent");
-            //collection.Add("size", "1");
-            //query.Query = collection.ToString();
-            var response = await httpClient.GetStringAsync(query);
 
-            return JsonConvert.DeserializeObject<JsonObjectHenrik<List<MatchJson>>>(response);
+            var response = await httpClient.GetAsync(query);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return JsonConvert.DeserializeObject<JsonObjectHenrik<List<MatchJson>>>(response.Content.ReadAsStringAsync().Result);
         }
     }
 }

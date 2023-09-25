@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ValorantApp
+namespace ValorantApp.HenrikJson
 {
     public class MatchPlayersJson
     {
@@ -40,7 +40,7 @@ namespace ValorantApp
     #region Session
     public class PlayerSessionPlaytimeJson
     {
-        public int Minutes{ get; set; }
+        public int Minutes { get; set; }
         public int Seconds { get; set; }
         public int Milliseconds { get; set; }
     }
@@ -72,9 +72,9 @@ namespace ValorantApp
     #region Behavior
     public class PlayerBehaviorJson
     {
-        public int Afk_Rounds { get; set; }
+        public double Afk_Rounds { get; set; }
         public PlayerBehaviorFriendlyFireJson Friendly_Fire { get; set; }
-        public int Rounds_In_Spawn { get; set; }
+        public double Rounds_In_Spawn { get; set; }
     }
 
     public class PlayerBehaviorFriendlyFireJson

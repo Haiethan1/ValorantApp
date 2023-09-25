@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SQLite;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,9 +9,32 @@ namespace ValorantApp.Database.Tables
 {
     public class ValorantUsers
     {
-        public string val_username { get; set; }
-        public string val_tagname { get; set; }
-        public string val_affinity { get; set; }
-        public string? val_puuid { get; set; }
+        public string Val_username { get; set; }
+        public string Val_tagname { get; set; }
+        public string Val_affinity { get; set; }
+        public string Val_puuid { get; set; }
+
+        public ValorantUsers(string val_username, string val_tagname, string val_affinity, string val_puuid)
+        {
+            Val_username = val_username;
+            Val_tagname = val_tagname;
+            Val_affinity = val_affinity;
+            Val_puuid = val_puuid;
+        }
+
+        public static ValorantUsers CreateFromRow(SQLiteDataReader reader)
+        {
+            return new ValorantUsers(
+                val_username: reader.GetString(reader.GetOrdinal("val_username")),
+                val_tagname: reader.GetString(reader.GetOrdinal("val_tagname")),
+                val_affinity: reader.GetString(reader.GetOrdinal("val_affinity")),
+                val_puuid: reader.GetString(reader.GetOrdinal("val_puuid"))
+                );
+        }
+
+        public override string ToString()
+        {
+            return $"Valorant User: username={Val_username}, tagname={Val_tagname}, puuid={Val_puuid}";
+        }
     }
 }
