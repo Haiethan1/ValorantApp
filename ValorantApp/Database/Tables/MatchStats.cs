@@ -15,8 +15,9 @@ namespace ValorantApp.Database.Tables
         public string Val_puuid { get; private set; }
         public string Map { get; private set; }
         public string Mode { get; private set; }
+        public byte Rounds { get; private set; }
         public string Character { get; private set; }
-        public byte Rr_change { get; private set; }
+        public int Rr_change { get; private set; }
         public byte Double_Kills { get; private set; }
         public byte Triple_Kills { get; private set; }
         public byte Quad_Kills { get; private set; }
@@ -43,8 +44,9 @@ namespace ValorantApp.Database.Tables
             string valPuuid,
             string map,
             string mode,
+            byte rounds,
             string character,
-            byte rrChange,
+            int rrChange,
             byte doubleKills,
             byte tripleKills,
             byte quadKills,
@@ -71,6 +73,7 @@ namespace ValorantApp.Database.Tables
             Val_puuid = valPuuid;
             Map = map;
             Mode = mode;
+            Rounds = rounds;
             Character = character;
             Rr_change = rrChange;
             Double_Kills = doubleKills;
@@ -102,8 +105,9 @@ namespace ValorantApp.Database.Tables
                 reader.GetString(reader.GetOrdinal("val_puuid")),
                 reader.GetString(reader.GetOrdinal("map")),
                 reader.GetString(reader.GetOrdinal("mode")),
+                reader.GetByte(reader.GetOrdinal("rounds")),
                 reader.GetString(reader.GetOrdinal("character")),
-                reader.GetByte(reader.GetOrdinal("rr_change")),
+                reader.GetInt32(reader.GetOrdinal("rr_change")),
                 reader.GetByte(reader.GetOrdinal("double_kills")),
                 reader.GetByte(reader.GetOrdinal("triple_kills")),
                 reader.GetByte(reader.GetOrdinal("quad_kills")),
@@ -129,7 +133,7 @@ namespace ValorantApp.Database.Tables
 
         public override string ToString()
         {
-            return $"Match_id: {Match_id}, Val_puuid: {Val_puuid}, Map: {Map}, Mode: {Mode}, Character: {Character}, " +
+            return $"Match_id: {Match_id}, Val_puuid: {Val_puuid}, Map: {Map}, Mode: {Mode}, Rounds: {Rounds}, Character: {Character}, " +
                    $"Rr_change: {Rr_change}, Double_Kills: {Double_Kills}, Triple_Kills: {Triple_Kills}, " +
                    $"Quad_Kills: {Quad_Kills}, Aces: {Aces}, Kills: {Kills}, Knife_Kills: {Knife_Kills}, " +
                    $"Deaths: {Deaths}, Knife_Deaths: {Knife_Deaths}, Assists: {Assists}, Bodyshots: {Bodyshots}, " +

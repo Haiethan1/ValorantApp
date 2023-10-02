@@ -1,5 +1,7 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,39 +14,83 @@ namespace ValorantApp.DiscordBot
 {
     public class ValorantModule : ModuleBase<SocketCommandContext>
     {
-        [Command("Headshot")]
-        [Summary("Prints the headshots of all players in order.")]
+        private DiscordSocketClient _client;
+        private CommandService _commands;
+        private IServiceProvider _servicesProvider;
+        public ValorantModule(DiscordSocketClient client, CommandService commands, IServiceProvider servicesProvider)
+        {
+            _client = client;
+            _commands = commands;
+            _servicesProvider = servicesProvider;
+        }
+
+        [Command("Hello")]
+        [Summary("Tester hello world")]
         public async Task HeadshotCommand()
         {
-            HenrikApi henrikApi = new HenrikApi("Ehtan", "NA1", "na", null);
-
-            var temp = henrikApi.Match().Result.Data;
-            //var highestHeadshot = temp[0].Players.All_Players[0];
-
-            List<MatchPlayerJson> matchPlayers = new();
-
-            foreach (var player in temp[0].Players.All_Players)
-            {
-                if (DiscordPlayerNames.PlayerNames.Any(x => string.Equals(x, player.Name, StringComparison.OrdinalIgnoreCase)))
-                {
-                    matchPlayers.Add(player);
-                }
-            }
-
-            string result = "";
-            foreach (var player in matchPlayers)
-            {
-                var stats = player.Stats;
-                double headshot = stats.Headshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
-                result += $"{player.Name} Headshot = {headshot.ToString("F")}%\n";
-                //var statsMax = highestHeadshot.Stats;
-                //double headshotMax = statsMax.Headshots / (double)(statsMax.Headshots + statsMax.Bodyshots + statsMax.Legshots) * 100.0;
-
-                //highestHeadshot = headshot > headshotMax ? player : highestHeadshot;
-                //Console.WriteLine($"{player.Name} Headshot = {headshot.ToString("F")}%");
-            }
-
+            string result = "HelloWorld!";
             await ReplyAsync(result);
+        }
+
+        [Command("AddMe")]
+        [Summary("Add user")]
+        public async Task AddUser(
+            [Summary("The riotID")] string riotID
+            )
+        {
+            string result, username, tagname;
+            if(!IsUserAndTag(riotID, out username, out tagname))
+            {
+                result = "Valorant user was unable to be created";
+                await ReplyAsync(result);
+                return;
+            }
+
+            SocketUser userInfo = Context.User;
+            string? puuid = BaseValorantUser.CreateUser(username, tagname, "na", userInfo.Id)?.Puuid;
+            
+            if (puuid == null)
+            {
+                result = "Valorant user was unable to be created";
+                await ReplyAsync(result);
+                return;
+            }
+
+            BaseValorantProgram program = _servicesProvider.GetRequiredService<BaseValorantProgram>();
+
+            program.ReloadFromDB();
+            var user = program.GetValorantUser(puuid);
+
+            if (user == null)
+            {
+                result = "Valorant user was unable to be created";
+                await ReplyAsync(result);
+                return;
+            }
+
+            result = $"Valorant User {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname} created!";
+            await ReplyAsync(result);
+        }
+
+        private bool IsUserAndTag(string riotID, out string username, out string tagname)
+        {
+            username = "";
+            tagname = "";
+            if (riotID == null)
+            {
+                return false;
+            }
+
+            int splitHashTag = riotID.IndexOf("#");
+            if (splitHashTag < 0)
+            {
+                return false;
+            }
+
+            username = riotID.Substring(0, splitHashTag);
+            tagname = riotID.Substring(splitHashTag + 1);
+
+            return true;
         }
     }
 }

@@ -12,6 +12,9 @@ namespace ValorantApp
 {
     public class BaseValorantProgram
     {
+        // TODO add a db lock.
+        private static readonly object DbLock = new object();
+
         public BaseValorantProgram() 
         {
             // initialize users here to something? maybe create all users??
@@ -26,6 +29,15 @@ namespace ValorantApp
         #endregion
 
         #region Methods
+
+        #region Get
+
+        public BaseValorantUser? GetValorantUser(string puuid)
+        {
+            return Users.GetValueOrDefault(puuid);
+        }
+
+        #endregion
 
         #region Create users
 
@@ -64,7 +76,7 @@ namespace ValorantApp
             }
         }
 
-        public bool CreateUser(string username, string tagname)
+        public bool CreateUser(string puuid)
         {
             if (Users == null)
             {
@@ -73,7 +85,7 @@ namespace ValorantApp
 
             try
             {
-                ValorantUsers? valorantUser = ValorantUsersExtension.GetRow(username, tagname);
+                ValorantUsers? valorantUser = ValorantUsersExtension.GetRow(puuid);
                 if (valorantUser == null ||  Users.ContainsKey(valorantUser.Val_puuid))
                 {
                     return false;
@@ -109,8 +121,9 @@ namespace ValorantApp
 
         #region Check matches
 
-        public bool UpdateMatchAllUsers()
+        public bool UpdateMatchAllUsers(out Dictionary<string, MatchStats> userMatchStats)
         {
+            userMatchStats = new Dictionary<string, MatchStats>();
             if (Users == null || !Users.Any())
             {
                 return false;
@@ -120,9 +133,8 @@ namespace ValorantApp
 
             foreach (BaseValorantUser user in Users.Values)
             {
-                if (user == null || updatedUsers.Contains(user.Puuid))
+                if (user == null || updatedUsers.Contains(user.UserInfo.Val_puuid))
                 {
-                    // should check for time here
                     continue;
                 }
 
@@ -138,8 +150,9 @@ namespace ValorantApp
                 foreach (BaseValorantUser userInMatch in usersInMatch)
                 {
                     if (user == null
-                        || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.Puuid)
-                        || DateTimeOffset.FromUnixTimeSeconds(match.Metadata.Game_Start).DateTime.ToUniversalTime().AddMinutes(30) > DateTime.UtcNow
+                        || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.UserInfo.Val_puuid)
+                        // Just look at if match id does not exist for now.
+                        //|| DateTime.UtcNow > DateTimeOffset.FromUnixTimeSeconds(match.Metadata.Game_Start).DateTime.ToUniversalTime().AddMinutes(30)
                         )
                     {
                         continue;
@@ -152,14 +165,14 @@ namespace ValorantApp
                         continue;
                     }
 
-                    if (CheckMatch(match, mmrHistory, userInMatch.Puuid))
+                    if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
                     {
-                        updatedUsers.Add(userInMatch.Puuid);
-                        Console.WriteLine($"Match stats updated for {userInMatch.UserName}#{userInMatch.TagName}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched}");
+                        updatedUsers.Add(userInMatch.UserInfo.Val_puuid);
+                        Console.WriteLine($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched}");
                     }
                     else
                     {
-                        Console.WriteLine($"Match stats did not update for {userInMatch.UserName}#{userInMatch.TagName}.");
+                        Console.WriteLine($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
                     }
                 }
             }
@@ -167,52 +180,12 @@ namespace ValorantApp
             return true;
         }
 
-
-        /// <summary>
-        /// OBSOLETE -- don't use.
-        /// </summary>
-        /// <param name="puuid"></param>
-        /// <returns></returns>
-        public bool UpdateMatchForUser(string puuid)
-        {
-            if (String.IsNullOrEmpty(puuid) || !Users.ContainsKey(puuid))
-            {
-                return false;
-            }
-
-            BaseValorantUser user = Users[puuid];
-
-            if (user == null)
-            {
-                // should check for time here
-                return false;
-            }
-
-            MatchJson? match = user.GetLastCompMatch();
-            MmrHistoryJson? mmrHistory = user.GetMatchMMR(match?.Metadata.MatchId);
-
-            bool checkMatch = CheckMatch(match, mmrHistory, puuid);
-
-            if (checkMatch)
-            {
-                Console.WriteLine($"Match stats updated for {user.UserName}#{user.TagName}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched}");
-            }
-            else
-            {
-                Console.WriteLine($"Match stats did not update for {user.UserName}#{user.TagName}.");
-            }
-
-            return checkMatch;
-        }
-
-        private bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid)
+        private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, Dictionary<string, MatchStats> userMatchStats)
         {
             if (match == null || MmrHistory == null || string.IsNullOrEmpty(puuid))
             {
                 return false;
             }
-
-            // check match id if already in db?..
 
             MatchStats? matchStats = MatchStatsExtension.CreateFromJson(match, MmrHistory, puuid);
 
@@ -221,6 +194,7 @@ namespace ValorantApp
                 return false;
             }
 
+            userMatchStats.Add(puuid, matchStats);
             MatchStatsExtension.InsertRow(matchStats);
             return true;
         }

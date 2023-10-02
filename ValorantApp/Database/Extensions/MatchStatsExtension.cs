@@ -22,6 +22,7 @@ namespace ValorantApp.Database.Extensions
                     val_puuid TEXT NOT NULL,
                     map TEXT NOT NULL,
                     mode TEXT NOT NULL,
+                    rounds TINYTINT NOT NULL,
                     character TEXT NOT NULL,
                     rr_change TINYINT,
                     double_kills TINYINT NOT NULL,
@@ -57,13 +58,13 @@ namespace ValorantApp.Database.Extensions
 
             string InsertRowQuery = @"
                 INSERT OR IGNORE INTO MatchStats (
-                    match_id, val_puuid, map, mode, character,
+                    match_id, val_puuid, map, mode, rounds, character,
                     rr_change, double_kills, triple_kills, quad_kills, aces, kills, knife_kills, 
                     deaths, knife_deaths, assists, bodyshots, headshots, score, damage,
                     c_casts, q_casts, e_casts, x_casts, damage_to_allies, damage_from_allies, game_length
                 ) 
                 VALUES (
-                    @Match_id, @Val_puuid, @Map, @Mode, @Character, 
+                    @Match_id, @Val_puuid, @Map, @Mode, @Rounds, @Character, 
                     @Rr_change, @Double_kills, @Triple_kills, @Quad_kills, @Aces, @Kills, @Knife_kills,
                     @Deaths, @Knife_deaths, @Assists, @Bodyshots, @Headshots, @Score, @Damage, 
                     @C_casts, @Q_casts, @E_casts, @X_casts, @Damage_to_allies, @Damage_from_allies, @Game_length
@@ -74,6 +75,7 @@ namespace ValorantApp.Database.Extensions
             command.Parameters.AddWithValue("@Val_puuid", matchStats.Val_puuid);
             command.Parameters.AddWithValue("@Map", matchStats.Map);
             command.Parameters.AddWithValue("@Mode", matchStats.Mode);
+            command.Parameters.AddWithValue("@Rounds", matchStats.Rounds);
             command.Parameters.AddWithValue("@Character", matchStats.Character);
             command.Parameters.AddWithValue("@Rr_change", matchStats.Rr_change);
             command.Parameters.AddWithValue("@Double_kills", matchStats.Double_Kills);
@@ -112,6 +114,7 @@ namespace ValorantApp.Database.Extensions
                     val_puuid = @Val_puuid,
                     map = @Map,
                     mode = @Mode,
+                    rounds = @Rounds
                     character = @Character,
                     rr_change = @Rr_change,
                     double_kills = @Double_kills,
@@ -142,6 +145,7 @@ namespace ValorantApp.Database.Extensions
                     command.Parameters.AddWithValue("@Val_puuid", matchStats.Val_puuid);
                     command.Parameters.AddWithValue("@Map", matchStats.Map);
                     command.Parameters.AddWithValue("@Mode", matchStats.Mode);
+                    command.Parameters.AddWithValue("@Rounds", matchStats.Rounds);
                     command.Parameters.AddWithValue("@Character", matchStats.Character);
                     command.Parameters.AddWithValue("@Rr_change", matchStats.Rr_change);
                     command.Parameters.AddWithValue("@Double_kills", matchStats.Double_Kills);
@@ -251,8 +255,8 @@ namespace ValorantApp.Database.Extensions
             }
 
             return new MatchStats(
-                metadata.MatchId, puuid, metadata.Map, metadata.Mode_Id, player.Character, (byte)mmr.mmr_change_to_last_game, doubleKills, tripleKills, quadKills, aces,
-                (byte)stats.Kills, knifeKills, (byte)stats.Deaths, knifeDeaths, (byte)stats.Assists, bodyshot, headshot, (byte)stats.Score,
+                metadata.MatchId, puuid, metadata.Map, metadata.Mode_Id, (byte)metadata.Rounds_Played, player.Character, mmr.mmr_change_to_last_game, doubleKills, tripleKills, quadKills, aces,
+                (byte)stats.Kills, knifeKills, (byte)stats.Deaths, knifeDeaths, (byte)stats.Assists, bodyshot, headshot, (short)stats.Score,
                 (short)player.Damage_Made, (byte)(abilities.C_Cast ?? 0), (byte)(abilities.Q_Cast ?? 0), (byte)(abilities.E_Cast ?? 0), (byte)(abilities.X_Cast ?? 0), damageToAllies, damageFromAllies, gameLength
                 );
         }

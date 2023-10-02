@@ -22,6 +22,7 @@ namespace ValorantApp.Database.Extensions
                     val_tagname TEXT NOT NULL,
                     val_affinity TEXT NOT NULL,
                     val_puuid TEXT NOT NULL,
+                    disc_id INTEGER NOT NULL,
                     PRIMARY KEY (val_puuid)
                 );";
 
@@ -33,14 +34,15 @@ namespace ValorantApp.Database.Extensions
             using var connection = new SQLiteConnection(connectionString);
             connection.Open();
             string InsertRowQuery = @"
-                INSERT OR IGNORE INTO ValorantUsers (val_username, val_tagname, val_affinity, val_puuid)
-                VALUES (@val_username, @val_tagname, @val_affinity, @val_puuid)";
+                INSERT OR IGNORE INTO ValorantUsers (val_username, val_tagname, val_affinity, val_puuid, disc_id)
+                VALUES (@val_username, @val_tagname, @val_affinity, @val_puuid, @disc_id)";
 
             using var insertCommand = new SQLiteCommand(InsertRowQuery, connection);
             insertCommand.Parameters.AddWithValue("@val_username", user.Val_username);
             insertCommand.Parameters.AddWithValue("@val_tagname", user.Val_tagname);
             insertCommand.Parameters.AddWithValue("@val_affinity", user.Val_affinity);
             insertCommand.Parameters.AddWithValue("@val_puuid", user.Val_puuid);
+            insertCommand.Parameters.AddWithValue("@disc_id", user.Disc_id);
             int result = insertCommand.ExecuteNonQuery();
 
             return result > 0;
@@ -51,7 +53,7 @@ namespace ValorantApp.Database.Extensions
             using var connection = new SQLiteConnection(connectionString);
             connection.Open();
             string UpdateRowQuery = @"
-                UPDATE ValorantUsers SET val_username = @val_username, val_tagname = @val_tagname, val_affinity = @val_affinity
+                UPDATE ValorantUsers SET val_username = @val_username, val_tagname = @val_tagname, val_affinity = @val_affinity, disc_id = @disc_id
                 WHERE val_puuid = @oldpuuid";
 
             using var insertCommand = new SQLiteCommand(UpdateRowQuery, connection);
@@ -59,32 +61,27 @@ namespace ValorantApp.Database.Extensions
             insertCommand.Parameters.AddWithValue("@val_tagname", newUser.Val_tagname);
             insertCommand.Parameters.AddWithValue("@val_affinity", newUser.Val_affinity);
             insertCommand.Parameters.AddWithValue("@oldPuuid", oldPuuid);
+            insertCommand.Parameters.AddWithValue("@disc_id", newUser.Disc_id);
             int result = insertCommand.ExecuteNonQuery();
 
             return result > 0;
         }
 
-        public static ValorantUsers? GetRow(string val_username, string val_tagname)
+        public static ValorantUsers GetRow(string puuid)
         {
             using SQLiteConnection connection = new(connectionString);
             connection.Open();
-
-            string sql = "SELECT * FROM ValorantUsers WHERE val_username = @val_username AND val_tagname = @val_tagname";
+            // TODO make sql queries not lock db
+            string sql = "SELECT * FROM ValorantUsers WHERE val_puuid = @val_puuid";
 
             using SQLiteCommand command = new(sql, connection);
-            command.Parameters.AddWithValue("@val_username", val_username);
-            command.Parameters.AddWithValue("@val_tagname", val_tagname);
+            command.Parameters.AddWithValue("@val_puuid", puuid);
 
             using SQLiteDataReader reader = command.ExecuteReader();
-            if (reader.Read())
-            {
-                return ValorantUsers.CreateFromRow(reader);
-            }
-            else
-            {
-                // No matching row found.
-                return null;
-            }
+
+            reader.Read();
+
+            return ValorantUsers.CreateFromRow(reader);
         }
 
         public static List<ValorantUsers> GetAllRows()

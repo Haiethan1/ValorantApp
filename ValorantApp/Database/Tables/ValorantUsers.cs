@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SQLite;
 using System.Linq;
 using System.Text;
@@ -13,13 +14,15 @@ namespace ValorantApp.Database.Tables
         public string Val_tagname { get; set; }
         public string Val_affinity { get; set; }
         public string Val_puuid { get; set; }
+        public ulong Disc_id { get; set; }
 
-        public ValorantUsers(string val_username, string val_tagname, string val_affinity, string val_puuid)
+        public ValorantUsers(string val_username, string val_tagname, string val_affinity, string val_puuid, ulong disc_id)
         {
             Val_username = val_username;
             Val_tagname = val_tagname;
             Val_affinity = val_affinity;
             Val_puuid = val_puuid;
+            Disc_id = disc_id;
         }
 
         public static ValorantUsers CreateFromRow(SQLiteDataReader reader)
@@ -28,13 +31,14 @@ namespace ValorantApp.Database.Tables
                 val_username: reader.GetString(reader.GetOrdinal("val_username")),
                 val_tagname: reader.GetString(reader.GetOrdinal("val_tagname")),
                 val_affinity: reader.GetString(reader.GetOrdinal("val_affinity")),
-                val_puuid: reader.GetString(reader.GetOrdinal("val_puuid"))
+                val_puuid: reader.GetString(reader.GetOrdinal("val_puuid")),
+                disc_id: (ulong)reader.GetInt64(reader.GetOrdinal("disc_id"))
                 );
         }
 
         public override string ToString()
         {
-            return $"Valorant User: username={Val_username}, tagname={Val_tagname}, puuid={Val_puuid}";
+            return $"Valorant User: username={Val_username}, tagname={Val_tagname}, puuid={Val_puuid}, discord ID={Disc_id}";
         }
     }
 }

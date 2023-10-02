@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ValorantApp.Database.Extensions;
+using ValorantApp.Database.Tables;
 using ValorantApp.ValorantEnum;
 
 namespace ValorantApp
@@ -11,54 +13,40 @@ namespace ValorantApp
     {
         public BaseValorantUser(string username, string tagName, string affinity, string? puuid = null) {
             HenrikApi = new HenrikApi(username, tagName, affinity, puuid);
+            this.puuid = HenrikApi.puuid;
 
             Console.WriteLine("Valorant user created");
         }
 
         #region Globals
 
-        private HenrikApi HenrikApi { get; set; }
+        private string puuid;
 
         public string Puuid
         {
-            get
-            {
-                if (HenrikApi == null)
-                {
-                    return string.Empty;
-                }
-
-                return HenrikApi.puuid;
-            }
+            get { return puuid; }
         }
 
-        public string UserName
+        private ValorantUsers? userInfo;
+
+        public ValorantUsers UserInfo
         {
             get
             {
-                if (HenrikApi == null)
+                if (userInfo == null)
                 {
-                    return string.Empty;
+                    userInfo = ValorantUsersExtension.GetRow(puuid);
                 }
 
-                return HenrikApi.username;
+                return userInfo;
             }
         }
 
-        public string TagName
-        {
-            get
-            {
-                if (HenrikApi == null)
-                {
-                    return string.Empty;
-                }
-
-                return HenrikApi.tagName;
-            }
-        }
+        private HenrikApi HenrikApi { get; set; }
 
         #endregion
+
+        #region Methods
 
         #region Henrik API
 
@@ -105,6 +93,31 @@ namespace ValorantApp
 
             return matchJsons.FirstOrDefault();
         }
+
+        #endregion
+
+        #region Create user
+
+        /// <summary>
+        /// This will create a NEW user. Use this method when the user is not in the DB yet.
+        /// </summary>
+        /// <param name="username"></param>
+        /// <param name="tagName"></param>
+        /// <param name="affinity"></param>
+        /// <param name="discId"></param>
+        /// <param name="puuid"></param>
+        /// <returns></returns>
+        public static BaseValorantUser? CreateUser(string username, string tagName, string affinity, ulong discId, string? puuid = null)
+        {
+            BaseValorantUser user = new BaseValorantUser(username, tagName, affinity, puuid);
+            ValorantUsers userDb = new ValorantUsers(username, tagName, affinity, user.Puuid, discId);
+
+            bool inserted = ValorantUsersExtension.InsertRow(userDb);
+
+            return inserted ? user : null;
+        }
+
+        #endregion
 
         #endregion
     }
