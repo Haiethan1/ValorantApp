@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data.SQLite;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Data.Sqlite;
 using ValorantApp.Database.Tables;
-using ValorantApp.HenrikJson;
 
 namespace ValorantApp.Database.Extensions
 {
@@ -53,7 +46,7 @@ namespace ValorantApp.Database.Extensions
 
         public static void InsertRow(MatchStats matchStats)
         {
-            using SQLiteConnection connection = new(connectionString);
+            using SqliteConnection connection = new(connectionString);
             connection.Open();
 
             string InsertRowQuery = @"
@@ -70,7 +63,7 @@ namespace ValorantApp.Database.Extensions
                     @C_casts, @Q_casts, @E_casts, @X_casts, @Damage_to_allies, @Damage_from_allies, @Game_length
                 )";
 
-            using SQLiteCommand command = new SQLiteCommand(InsertRowQuery, connection);
+            using SqliteCommand command = new SqliteCommand(InsertRowQuery, connection);
             command.Parameters.AddWithValue("@Match_id", matchStats.Match_id);
             command.Parameters.AddWithValue("@Val_puuid", matchStats.Val_puuid);
             command.Parameters.AddWithValue("@Map", matchStats.Map);
@@ -104,7 +97,7 @@ namespace ValorantApp.Database.Extensions
 
         public static void UpdateRow(MatchStats matchStats)
         {
-            using (SQLiteConnection connection = new SQLiteConnection(connectionString))
+            using (SqliteConnection connection = new SqliteConnection(connectionString))
             {
                 connection.Open();
 
@@ -139,7 +132,7 @@ namespace ValorantApp.Database.Extensions
                     game_length = @Game_length
                 WHERE match_id = @Match_id";
 
-                using (SQLiteCommand command = new(UpdateRowQuery, connection))
+                using (SqliteCommand command = new(UpdateRowQuery, connection))
                 {
                     command.Parameters.AddWithValue("@Match_id", matchStats.Match_id);
                     command.Parameters.AddWithValue("@Val_puuid", matchStats.Val_puuid);
@@ -176,16 +169,16 @@ namespace ValorantApp.Database.Extensions
 
         public static bool MatchIdExistsForUser(string matchId, string puuid)
         {
-            using SQLiteConnection connection = new(connectionString);
+            using SqliteConnection connection = new(connectionString);
             connection.Open();
 
             string sql = "SELECT * FROM MatchStats WHERE val_puuid = @val_puuid AND match_id = @match_id";
 
-            using SQLiteCommand command = new(sql, connection);
+            using SqliteCommand command = new(sql, connection);
             command.Parameters.AddWithValue("@val_puuid", puuid);
             command.Parameters.AddWithValue("@match_id", matchId);
 
-            using SQLiteDataReader reader = command.ExecuteReader();
+            using SqliteDataReader reader = command.ExecuteReader();
             return reader.Read();
         }
 

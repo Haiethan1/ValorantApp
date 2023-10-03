@@ -2,19 +2,10 @@
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System.Configuration;
-using System.Data.SQLite;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Net.NetworkInformation;
 using System.Reflection;
-using System.Web;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
-using ValorantApp.DiscordBot;
-using ValorantApp.ValorantEnum;
 
 namespace ValorantApp
 {

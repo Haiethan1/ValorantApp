@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.SQLite;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Formats.Asn1.AsnWriter;
-using static ValorantNET.Models.Content;
+﻿using Microsoft.Data.Sqlite;
 
 namespace ValorantApp.Database.Tables
 {
@@ -98,7 +91,7 @@ namespace ValorantApp.Database.Tables
             Game_Length = gameLength;
         }
 
-        public static MatchStats CreateFromRow(SQLiteDataReader reader)
+        public static MatchStats CreateFromRow(SqliteDataReader reader)
         {
             return new MatchStats(
                 reader.GetString(reader.GetOrdinal("match_id")),

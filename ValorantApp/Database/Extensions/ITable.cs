@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.SQLite;
-using System.Linq;
+﻿using Microsoft.Data.Sqlite;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace ValorantApp.Database.Extensions
 {
@@ -14,14 +10,14 @@ namespace ValorantApp.Database.Extensions
             try
             {
                 StringBuilder createTableQuery = new StringBuilder();
-                using var connection = new SQLiteConnection(connectionString);
+                using var connection = new SqliteConnection(connectionString);
                 connection.Open();
 
                 createTableQuery.AppendLine(ValorantUsersExtension.CreateTable());
                 createTableQuery.AppendLine(MatchStatsExtension.CreateTable());
 
 
-                using var createTableCommand = new SQLiteCommand(createTableQuery.ToString(), connection);
+                using var createTableCommand = new SqliteCommand(createTableQuery.ToString(), connection);
                 createTableCommand.ExecuteNonQuery();
 
             }

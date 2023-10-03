@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SQLite;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Data.Sqlite;
 
 namespace ValorantApp.Database.Tables
 {
@@ -25,7 +19,7 @@ namespace ValorantApp.Database.Tables
             Disc_id = disc_id;
         }
 
-        public static ValorantUsers CreateFromRow(SQLiteDataReader reader)
+        public static ValorantUsers CreateFromRow(SqliteDataReader reader)
         {
             return new ValorantUsers(
                 val_username: reader.GetString(reader.GetOrdinal("val_username")),
