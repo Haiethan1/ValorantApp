@@ -182,15 +182,15 @@ namespace ValorantApp.Database.Extensions
             return reader.Read();
         }
 
-        public static MatchStats? CreateFromJson(MatchJson match, MmrHistoryJson mmr, string puuid)
+        public static MatchStats? CreateFromJson(MatchJson? match, MmrHistoryJson? mmr, string puuid)
         {
-            if (match == null || mmr == null)
+            if (match == null)
             {
                 return null;
             }
 
             var player = match.Players.All_Players.FirstOrDefault(x => x.Puuid == puuid);
-            if (player == null || match.Metadata.MatchId != mmr.match_id)
+            if (player == null)
             {
                 return null;
             }
@@ -248,7 +248,7 @@ namespace ValorantApp.Database.Extensions
             }
 
             return new MatchStats(
-                metadata.MatchId, puuid, metadata.Map, metadata.Mode_Id, (byte)metadata.Rounds_Played, player.Character, mmr.mmr_change_to_last_game, doubleKills, tripleKills, quadKills, aces,
+                metadata.MatchId, puuid, metadata.Map, metadata.Mode_Id, (byte)metadata.Rounds_Played, player.Character, mmr?.mmr_change_to_last_game ?? 0, doubleKills, tripleKills, quadKills, aces,
                 (byte)stats.Kills, knifeKills, (byte)stats.Deaths, knifeDeaths, (byte)stats.Assists, bodyshot, headshot, (short)stats.Score,
                 (short)player.Damage_Made, (byte)(abilities.C_Cast ?? 0), (byte)(abilities.Q_Cast ?? 0), (byte)(abilities.E_Cast ?? 0), (byte)(abilities.X_Cast ?? 0), damageToAllies, damageFromAllies, gameLength
                 );

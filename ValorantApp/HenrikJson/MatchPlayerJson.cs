@@ -40,9 +40,9 @@ namespace ValorantApp.HenrikJson
     #region Session
     public class PlayerSessionPlaytimeJson
     {
-        public int Minutes { get; set; }
-        public int Seconds { get; set; }
-        public int Milliseconds { get; set; }
+        public int? Minutes { get; set; }
+        public int? Seconds { get; set; }
+        public int? Milliseconds { get; set; }
     }
     #endregion
 

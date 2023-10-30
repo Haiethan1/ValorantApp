@@ -77,9 +77,9 @@ namespace ValorantApp
             return HenrikApi.Match(mode, map, size)?.Result.Data;
         }
 
-        public MatchJson? GetLastCompMatch()
+        public MatchJson? GetLastMatch()
         {
-            List<MatchJson>? matchJsons = GetMatch(Modes.Competitive, Maps.Unknown, 1);
+            List<MatchJson>? matchJsons = GetMatch(Modes.Unknown, Maps.Unknown, 1);
 
             if (matchJsons == null || matchJsons.Count == 0)
             {

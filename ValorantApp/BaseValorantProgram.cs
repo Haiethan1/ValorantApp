@@ -131,43 +131,50 @@ namespace ValorantApp
                 {
                     continue;
                 }
-
-                MatchJson? match = user.GetLastCompMatch();
-
-                if (match == null)
+                try
                 {
-                    continue;
+
+                    MatchJson? match = user.GetLastMatch();
+
+                    if (match == null)
+                    {
+                        continue;
+                    }
+                
+                    IEnumerable<BaseValorantUser> usersInMatch = CheckValorantUsersInMatch(match, updatedUsers);
+
+                    foreach (BaseValorantUser userInMatch in usersInMatch)
+                    {
+                        if (user == null
+                            || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.UserInfo.Val_puuid)
+                            // Just look at if match id does not exist for now.
+                            //|| DateTime.UtcNow > DateTimeOffset.FromUnixTimeSeconds(match.Metadata.Game_Start).DateTime.ToUniversalTime().AddMinutes(30)
+                            )
+                        {
+                            continue;
+                        }
+
+                        MmrHistoryJson? mmrHistory = userInMatch.GetMatchMMR(match?.Metadata.MatchId);
+
+                        if (mmrHistory == null && match.Metadata.Mode == "Competitive")
+                        {
+                            continue;
+                        }
+
+                        if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
+                        {
+                            updatedUsers.Add(userInMatch.UserInfo.Val_puuid);
+                            Console.WriteLine($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
+                        }
+                    }
                 }
-
-                IEnumerable<BaseValorantUser> usersInMatch = CheckValorantUsersInMatch(match, updatedUsers);
-
-                foreach (BaseValorantUser userInMatch in usersInMatch)
+                catch (Exception ex)
                 {
-                    if (user == null
-                        || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.UserInfo.Val_puuid)
-                        // Just look at if match id does not exist for now.
-                        //|| DateTime.UtcNow > DateTimeOffset.FromUnixTimeSeconds(match.Metadata.Game_Start).DateTime.ToUniversalTime().AddMinutes(30)
-                        )
-                    {
-                        continue;
-                    }
-
-                    MmrHistoryJson? mmrHistory = userInMatch.GetMatchMMR(match?.Metadata.MatchId);
-
-                    if (mmrHistory == null)
-                    {
-                        continue;
-                    }
-
-                    if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
-                    {
-                        updatedUsers.Add(userInMatch.UserInfo.Val_puuid);
-                        Console.WriteLine($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched}");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
-                    }
+                    Console.WriteLine($"Error: {ex.Message} - when updating user {user.UserInfo.Val_username}");
                 }
             }
 
@@ -176,7 +183,7 @@ namespace ValorantApp
 
         private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, Dictionary<string, MatchStats> userMatchStats)
         {
-            if (match == null || MmrHistory == null || string.IsNullOrEmpty(puuid))
+            if (match == null || (MmrHistory == null && match.Metadata.Mode == "Competitive") || string.IsNullOrEmpty(puuid))
             {
                 return false;
             }
