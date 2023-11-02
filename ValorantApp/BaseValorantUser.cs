@@ -7,7 +7,7 @@ namespace ValorantApp
     public class BaseValorantUser
     {
         public BaseValorantUser(string username, string tagName, string affinity, string? puuid = null) {
-            HenrikApi = new HenrikApi(username, tagName, affinity, puuid);
+            HenrikApi = new HenrikApi(username, tagName, affinity, puuid, new HttpClient());
             this.puuid = HenrikApi.puuid;
 
             Console.WriteLine("Valorant user created");
