@@ -32,11 +32,8 @@ namespace ValorantAppTests
             return new HenrikApi(_username, _tagName, _affinity, _puuid, _httpClient);
         }
 
-        [TestMethod]
-        public void AccountQueryTest_Success()
+        private void SetEndpoint(string endpoint)
         {
-            string endpoint = $"https://api.henrikdev.xyz/valorant/v1/account/{_username}/{_tagName}";
-            // Arrange
             _handlerMock
                 .Protected()
                 .Setup<Task<HttpResponseMessage>>(
@@ -50,7 +47,13 @@ namespace ValorantAppTests
                     Content = new StringContent(V1AccountMock)
                 })
                 .Verifiable();
+        }
 
+        [TestMethod]
+        public void AccountQueryTest_Success()
+        {
+            string endpoint = $"https://api.henrikdev.xyz/valorant/v1/account/{_username}/{_tagName}";
+            SetEndpoint(endpoint);
             HenrikApi api = CreateHenrikApi();
             
 
