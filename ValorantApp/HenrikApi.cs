@@ -6,7 +6,7 @@ namespace ValorantApp
 {
     public class HenrikApi
     {
-        private HttpClient httpClient = new HttpClient();
+        private HttpClient httpClient;
 
 
         public string username;
@@ -14,11 +14,12 @@ namespace ValorantApp
         public string affinity;
         public string puuid;
 
-        public HenrikApi(string username, string tagName, string affinity, string? puuid)
+        public HenrikApi(string username, string tagName, string affinity, string? puuid, HttpClient HttpClient)
         {
             this.username = username;
             this.tagName = tagName;
             this.affinity = affinity;
+            this.httpClient = HttpClient;
 
             if (puuid != null)
             {
@@ -36,7 +37,7 @@ namespace ValorantApp
             
         }
 
-        private async Task<JsonObjectHenrik<AccountJson>>? AccountQuery()
+        public async Task<JsonObjectHenrik<AccountJson>>? AccountQuery()
         {
             var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/account/{username}/{tagName}");
 
