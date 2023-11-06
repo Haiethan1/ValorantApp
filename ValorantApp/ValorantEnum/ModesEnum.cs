@@ -37,6 +37,9 @@ namespace ValorantApp.ValorantEnum
         [Description("SwiftPlay")]
         SwiftPlay,
 
+        [Description("Premier")]
+        Premier,
+
 
         [Description("Unknown")]
         Unknown,
@@ -70,6 +73,8 @@ namespace ValorantApp.ValorantEnum
                     return Modes.Spikerush;
                 case "SwiftPlay":
                     return Modes.SwiftPlay;
+                case "Premier":
+                    return Modes.Premier;
                 default:
                     return Modes.Unknown;
             }
@@ -101,6 +106,8 @@ namespace ValorantApp.ValorantEnum
                     return "Spikerush";
                 case Modes.SwiftPlay:
                     return "SwiftPlay";
+                case Modes.Premier:
+                    return "Premier";
                 default:
                     return "";
             }

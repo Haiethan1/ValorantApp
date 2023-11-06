@@ -8,30 +8,30 @@ namespace ValorantApp
 {
     public class MmrHistoryJson
     {
-        public int currenttier { get; set; }
-        public string currenttierpatched { get; set; }
-        public Images images { get; set; }
-        public string match_id { get; set; }
-        public Map map { get; set; }
-        public string season_id { get; set; }
-        public int ranking_in_tier { get; set; }
-        public int mmr_change_to_last_game { get; set; }
-        public int elo { get; set; }
-        public string date { get; set; }
-        public long date_raw { get; set; }
+        public int Currenttier { get; set; }
+        public string? Currenttierpatched { get; set; }
+        public Images? Images { get; set; }
+        public string? Match_id { get; set; }
+        public Map? Map { get; set; }
+        public string? Season_id { get; set; }
+        public int Ranking_in_tier { get; set; }
+        public int Mmr_change_to_last_game { get; set; }
+        public int Elo { get; set; }
+        public string? Date { get; set; }
+        public long Date_raw { get; set; }
     }
 
     public class Images
     {
-        public string small { get; set; }
-        public string large { get; set; }
-        public string triangle_down { get; set; }
-        public string triangle_up { get; set; }
+        public string? Small { get; set; }
+        public string? Large { get; set; }
+        public string? Triangle_down { get; set; }
+        public string? Triangle_up { get; set; }
     }
 
     public class Map
     {
-        public string name { get; set; }
-        public string id { get; set; }
+        public string? Name { get; set; }
+        public string? Id { get; set; }
     }
 }

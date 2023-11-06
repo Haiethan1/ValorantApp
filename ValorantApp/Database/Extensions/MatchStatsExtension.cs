@@ -1,5 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
 using ValorantApp.Database.Tables;
+using ValorantApp.GenericExtensions;
+using ValorantApp.HenrikJson;
 
 namespace ValorantApp.Database.Extensions
 {
@@ -184,22 +186,26 @@ namespace ValorantApp.Database.Extensions
 
         public static MatchStats? CreateFromJson(MatchJson? match, MmrHistoryJson? mmr, string puuid)
         {
-            if (match == null)
+            if (match == null
+                || match.Players == null
+                || match.Players.All_Players == null
+                || match.Metadata?.MatchId == null
+                )
             {
                 return null;
             }
 
-            var player = match.Players.All_Players.FirstOrDefault(x => x.Puuid == puuid);
+            MatchPlayerJson? player = match.Players.All_Players.FirstOrDefault(x => x.Puuid == puuid);
             if (player == null)
             {
                 return null;
             }
 
-            var metadata = match.Metadata;
-            var abilities = player.Ability_Casts;
-            var stats = player.Stats;
-            double headshot = stats.Headshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
-            double bodyshot = stats.Bodyshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
+            MatchMetadataJson? metadata = match.Metadata;
+            PlayerAbilityCastsJson? abilities = player.Ability_Casts;
+            PlayerStatsJson? stats = player.Stats;
+            double headshot = stats == null ? 0 : stats.Headshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
+            double bodyshot = stats == null ? 0 : stats.Bodyshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
 
             byte doubleKills = 0;
             byte tripleKills = 0;
@@ -211,9 +217,9 @@ namespace ValorantApp.Database.Extensions
             short damageFromAllies = 0;
             uint gameLength = (uint)metadata.Game_Length;
 
-            foreach (var temp in match.Rounds)
+            foreach (var temp in match.Rounds ?? Array.Empty<MatchRoundsJson>())
             {
-                var playerRoundStats = temp.Player_Stats.FirstOrDefault(x => x.Player_Puuid == puuid);
+                var playerRoundStats = temp.Player_Stats?.FirstOrDefault(x => x.Player_Puuid == puuid);
                 if (playerRoundStats == null)
                 {
                     continue;
@@ -248,9 +254,9 @@ namespace ValorantApp.Database.Extensions
             }
 
             return new MatchStats(
-                metadata.MatchId, puuid, metadata.Map, metadata.Mode_Id, (byte)metadata.Rounds_Played, player.Character, mmr?.mmr_change_to_last_game ?? 0, doubleKills, tripleKills, quadKills, aces,
-                (byte)stats.Kills, knifeKills, (byte)stats.Deaths, knifeDeaths, (byte)stats.Assists, bodyshot, headshot, (short)stats.Score,
-                (short)player.Damage_Made, (byte)(abilities.C_Cast ?? 0), (byte)(abilities.Q_Cast ?? 0), (byte)(abilities.E_Cast ?? 0), (byte)(abilities.X_Cast ?? 0), damageToAllies, damageFromAllies, gameLength
+                metadata.MatchId, puuid, metadata.Map.Safe(), metadata.Mode_Id.Safe(), (byte)metadata.Rounds_Played, player.Character.Safe(), mmr?.Mmr_change_to_last_game ?? 0, doubleKills, tripleKills, quadKills, aces,
+                (byte)(stats?.Kills ?? 0), knifeKills, (byte)(stats?.Deaths ?? 0), knifeDeaths, (byte)(stats?.Assists ?? 0), bodyshot, headshot, (short)(stats?.Score ?? 0),
+                (short)player.Damage_Made, (byte)(abilities?.C_Cast ?? 0), (byte)(abilities?.Q_Cast ?? 0), (byte)(abilities?.E_Cast ?? 0), (byte)(abilities?.X_Cast ?? 0), damageToAllies, damageFromAllies, gameLength
                 );
         }
     }
