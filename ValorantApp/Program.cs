@@ -2,6 +2,7 @@
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Configuration;
 using System.Reflection;
 using ValorantApp.Database.Extensions;
@@ -129,7 +130,7 @@ namespace ValorantApp
                 }
 
                 var channel = _client.GetChannel(_channelToMessage) as ISocketMessageChannel;
-                if (channel != null)
+                if (channel != null && !string.IsNullOrEmpty(messageStats))
                 {
                     await channel.SendMessageAsync(messageStats);
                 }
