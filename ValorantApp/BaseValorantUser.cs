@@ -69,7 +69,7 @@ namespace ValorantApp
                 return null;
             }
 
-            return mmrHistoryJsons.FirstOrDefault(mmrHistory => mmrHistory.match_id == matchId);
+            return mmrHistoryJsons.FirstOrDefault(mmrHistory => mmrHistory.Match_id == matchId);
         }
 
         private List<MatchJson>? GetMatch(Modes mode = Modes.Unknown, Maps map = Maps.Unknown, int size = 1)
