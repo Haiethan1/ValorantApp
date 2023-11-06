@@ -1,5 +1,6 @@
 ﻿using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
+using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
 
 namespace ValorantApp
@@ -136,7 +137,8 @@ namespace ValorantApp
 
                     MatchJson? match = user.GetLastMatch();
 
-                    if (match == null)
+                    if (match == null
+                        || match.Metadata?.MatchId == null)
                     {
                         continue;
                     }
@@ -146,6 +148,7 @@ namespace ValorantApp
                     foreach (BaseValorantUser userInMatch in usersInMatch)
                     {
                         if (user == null
+                            || match == null
                             || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.UserInfo.Val_puuid)
                             // Just look at if match id does not exist for now.
                             //|| DateTime.UtcNow > DateTimeOffset.FromUnixTimeSeconds(match.Metadata.Game_Start).DateTime.ToUniversalTime().AddMinutes(30)
@@ -156,7 +159,7 @@ namespace ValorantApp
 
                         MmrHistoryJson? mmrHistory = userInMatch.GetMatchMMR(match?.Metadata.MatchId);
 
-                        if (mmrHistory == null && match.Metadata.Mode == "Competitive")
+                        if (match == null || (mmrHistory == null && match.Metadata.Mode == "Competitive"))
                         {
                             continue;
                         }
@@ -164,7 +167,7 @@ namespace ValorantApp
                         if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
                         {
                             updatedUsers.Add(userInMatch.UserInfo.Val_puuid);
-                            Console.WriteLine($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched}");
+                            Console.WriteLine($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched.Safe()}");
                         }
                         else
                         {
@@ -183,7 +186,11 @@ namespace ValorantApp
 
         private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, Dictionary<string, MatchStats> userMatchStats)
         {
-            if (match == null || (MmrHistory == null && match.Metadata.Mode == "Competitive") || string.IsNullOrEmpty(puuid))
+            if (match == null 
+                || match.Metadata?.Mode == null 
+                || (MmrHistory == null && match.Metadata.Mode == "Competitive") 
+                || string.IsNullOrEmpty(puuid)
+                )
             {
                 return false;
             }
@@ -209,9 +216,13 @@ namespace ValorantApp
 
             List<BaseValorantUser> usersInMatch = new();
 
-            foreach (MatchPlayerJson matchPlayer in match.Players.All_Players)
+            foreach (MatchPlayerJson matchPlayer in match.Players?.All_Players ?? Array.Empty<MatchPlayerJson>())
             {
-                if (matchPlayer == null || updatedPuuids.Contains(matchPlayer.Puuid) || !Users.ContainsKey(matchPlayer.Puuid))
+                if (matchPlayer == null 
+                    || matchPlayer.Puuid == null 
+                    || updatedPuuids.Contains(matchPlayer.Puuid) 
+                    || !Users.ContainsKey(matchPlayer.Puuid)
+                    )
                 {
                     continue;
                 }
