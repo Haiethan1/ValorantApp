@@ -60,7 +60,7 @@ namespace ValorantApp.Database.Extensions
             return result > 0;
         }
 
-        public static ValorantUsers GetRow(string puuid)
+        public static ValorantUsers? GetRow(string puuid)
         {
             using SqliteConnection connection = new(connectionString);
             connection.Open();
@@ -72,7 +72,30 @@ namespace ValorantApp.Database.Extensions
 
             using SqliteDataReader reader = command.ExecuteReader();
 
-            reader.Read();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return ValorantUsers.CreateFromRow(reader);
+        }
+
+        public static ValorantUsers? GetRowDiscordId(ulong id)
+        {
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+            // TODO make sql queries not lock db
+            string sql = "SELECT * FROM ValorantUsers WHERE disc_id = @disc_id";
+
+            using SqliteCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@disc_id", id);
+
+            using SqliteDataReader reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return null;
+            }
 
             return ValorantUsers.CreateFromRow(reader);
         }

@@ -1,6 +1,10 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
+using ValorantApp.Database.Extensions;
+using ValorantApp.Database.Tables;
+using ValorantApp.GenericExtensions;
 
 namespace ValorantApp.DiscordBot
 {
@@ -22,6 +26,51 @@ namespace ValorantApp.DiscordBot
         {
             string result = "HelloWorld!";
             await ReplyAsync(result);
+        }
+
+        [Command("mmr")]
+        [Summary("Get the mmr of the user")]
+        public async Task GetMMROfDiscordUser()
+        {
+            SocketUser userInfo = Context.User;
+            ValorantUsers? valorantUserDB = ValorantUsersExtension.GetRowDiscordId(userInfo.Id);
+            if (valorantUserDB == null)
+            {
+                await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+                return;
+            }
+
+            BaseValorantProgram program = _servicesProvider.GetRequiredService<BaseValorantProgram>();
+            BaseValorantUser? valorantUser = program.GetValorantUser(valorantUserDB.Val_puuid);
+            if (valorantUser == null)
+            {
+                await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+                return;
+            }
+
+            MmrV2Json? mmr = valorantUser.GetMMR();
+            if (mmr == null)
+            {
+                await ReplyAsync($"Could not find mmr stats for Discord User {userInfo.Username}");
+                return;
+            }
+            var embed = new EmbedBuilder()
+                .WithThumbnailUrl($"{mmr.Current_Data.Images?.Small.Safe() ?? ""}")
+                .WithAuthor
+                (new EmbedAuthorBuilder
+                    {
+                        Name = $"{valorantUser.UserInfo.Val_username}#{valorantUser.UserInfo.Val_tagname}"
+                    }
+                )
+                .WithTitle(mmr.Current_Data.CurrentTierPatched.Safe())
+                .WithDescription($"Current RR: {mmr.Current_Data.CurrentTier%100}")
+                .WithFooter
+                (new EmbedFooterBuilder
+                    {
+                        Text = $"RR Change to last game: {mmr.Current_Data.Mmr_Change_To_Last_Game}"
+                    }
+                );
+            await ReplyAsync(embed: embed.Build());
         }
 
         [Command("AddMe")]

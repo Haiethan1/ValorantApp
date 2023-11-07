@@ -49,16 +49,16 @@ namespace ValorantApp
             return JsonConvert.DeserializeObject<JsonObjectHenrik<AccountJson>>(response.Content.ReadAsStringAsync().Result);
         }
 
-        public async Task<JsonObjectHenrik<MmrJson>>? Mmr()
+        public async Task<JsonObjectHenrik<MmrV2Json>>? Mmr()
         {
-            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr/{affinity}/{puuid}");
+            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v2/by-puuid/mmr/{affinity}/{puuid}");
 
             if (!response.IsSuccessStatusCode)
             {
                 return null;
             }
 
-            return JsonConvert.DeserializeObject<JsonObjectHenrik<MmrJson>>(response.Content.ReadAsStringAsync().Result);
+            return JsonConvert.DeserializeObject<JsonObjectHenrik<MmrV2Json>>(response.Content.ReadAsStringAsync().Result);
         }
 
         public async Task<JsonObjectHenrik<List<MmrHistoryJson>>>? MmrHistory()
