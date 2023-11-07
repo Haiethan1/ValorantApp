@@ -77,6 +77,23 @@ namespace ValorantApp.Database.Extensions
             return ValorantUsers.CreateFromRow(reader);
         }
 
+        public static ValorantUsers GetRowDiscordId(ulong id)
+        {
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+            // TODO make sql queries not lock db
+            string sql = "SELECT * FROM ValorantUsers WHERE disc_id = @disc_id";
+
+            using SqliteCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@disc_id", id);
+
+            using SqliteDataReader reader = command.ExecuteReader();
+
+            reader.Read();
+
+            return ValorantUsers.CreateFromRow(reader);
+        }
+
         public static List<ValorantUsers> GetAllRows()
         {
             List<ValorantUsers> users = new List<ValorantUsers>();
