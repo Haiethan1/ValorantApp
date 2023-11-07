@@ -45,7 +45,7 @@ namespace ValorantApp
 
         #region Henrik API
 
-        public MmrJson? GetMMR()
+        public MmrV2Json? GetMMR()
         {
             return HenrikApi.Mmr()?.Result.Data;
         }
