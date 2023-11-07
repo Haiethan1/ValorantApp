@@ -60,7 +60,7 @@ namespace ValorantApp.Database.Extensions
             return result > 0;
         }
 
-        public static ValorantUsers GetRow(string puuid)
+        public static ValorantUsers? GetRow(string puuid)
         {
             using SqliteConnection connection = new(connectionString);
             connection.Open();
@@ -72,12 +72,15 @@ namespace ValorantApp.Database.Extensions
 
             using SqliteDataReader reader = command.ExecuteReader();
 
-            reader.Read();
+            if (!reader.Read())
+            {
+                return null;
+            }
 
             return ValorantUsers.CreateFromRow(reader);
         }
 
-        public static ValorantUsers GetRowDiscordId(ulong id)
+        public static ValorantUsers? GetRowDiscordId(ulong id)
         {
             using SqliteConnection connection = new(connectionString);
             connection.Open();
@@ -89,7 +92,10 @@ namespace ValorantApp.Database.Extensions
 
             using SqliteDataReader reader = command.ExecuteReader();
 
-            reader.Read();
+            if (!reader.Read())
+            {
+                return null;
+            }
 
             return ValorantUsers.CreateFromRow(reader);
         }
