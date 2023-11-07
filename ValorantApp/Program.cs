@@ -44,7 +44,7 @@ namespace ValorantApp
         {
             _program = program;
             _servicesProvider = servicesProvider;
-            _channelToMessage = 1158083743278432378;
+            _channelToMessage = ulong.Parse(ConfigurationManager.AppSettings["ChannelToMessage"] ?? "");
             _commands = commands;
             _client = client;
         }
