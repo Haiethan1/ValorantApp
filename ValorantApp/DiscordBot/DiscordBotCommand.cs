@@ -63,7 +63,7 @@ namespace ValorantApp.DiscordBot
                     }
                 )
                 .WithTitle(mmr.Current_Data.CurrentTierPatched.Safe())
-                .WithDescription($"Current RR: {mmr.Current_Data.CurrentTier%100}")
+                .WithDescription($"Current RR: {mmr.Current_Data.Ranking_In_Tier%100}")
                 .WithFooter
                 (new EmbedFooterBuilder
                     {
