@@ -115,8 +115,11 @@ namespace ValorantApp
                 Dictionary<string, MatchStats> usersMatchStats = new();
                 _program.UpdateMatchAllUsers(out usersMatchStats);
 
+                List<KeyValuePair<string, MatchStats>> sortedList = usersMatchStats.ToList();
+                sortedList.Sort((x, y) =>  x.Value.Score.CompareTo(y.Value.Score));
+
                 string messageStats = "";
-                foreach (KeyValuePair<string, MatchStats> matchStats in usersMatchStats)
+                foreach (KeyValuePair<string, MatchStats> matchStats in sortedList)
                 {
                     BaseValorantUser? user = _program.GetValorantUser(matchStats.Key);
                     if (user == null)
@@ -126,7 +129,7 @@ namespace ValorantApp
 
                     MatchStats stats = matchStats.Value;
 
-                    messageStats += $"<@{user.UserInfo.Disc_id}> Match stats - Map: {stats.Map}, RR change: {stats.Rr_change}, Headshot: {stats.Headshots:0.00}%, Score: {stats.Score/stats.Rounds}\n";
+                    messageStats += $"<@{user.UserInfo.Disc_id}> Match stats - Map: {stats.Map}, RR change: {stats.Rr_change}, Headshot: {stats.Headshots:0.00}%, Score: {stats.Score/stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\n";
                 }
 
                 var channel = _client.GetChannel(_channelToMessage) as ISocketMessageChannel;
