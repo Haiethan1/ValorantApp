@@ -20,6 +20,54 @@ namespace ValorantApp.DiscordBot
             _servicesProvider = servicesProvider;
         }
 
+        [Command("Getlastmatch")]
+        [Summary("Developer only delete last match")]
+        public async Task GetLastMatch()
+        {
+            SocketUser userInfo = Context.User;
+            if (userInfo.Id != 158031143231422466)
+            {
+                return;
+            }
+
+            if (GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+            {
+                await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+                return;
+            }
+
+            Dictionary<string, MatchStats> matchStats;
+            program.UpdateMatchAllUsers(out matchStats);
+
+            await ReplyAsync("");
+        }
+
+        [Command("Deletelastmatch")]
+        [Summary("Developer only delete last match")]
+        public async Task DeleteLastMatch()
+        {
+            SocketUser userInfo = Context.User;
+            if (userInfo.Id != 158031143231422466)
+            {
+                return;
+            }
+
+            if (GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+            {
+                await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+                return;
+            }
+
+            MatchJson? lastMatch = valorantUser.GetLastMatch();
+            if (lastMatch == null)
+            {
+                await ReplyAsync("Could not find last match");
+                return;
+            }
+            
+            await ReplyAsync(MatchStatsExtension.DeleteMatch(lastMatch?.Metadata?.MatchId ?? "") ? "Deleted last match" : "Could not find last match in DB");
+        }
+
         [Command("Hello")]
         [Summary("Tester hello world")]
         public async Task HeadshotCommand()
@@ -33,16 +81,8 @@ namespace ValorantApp.DiscordBot
         public async Task GetMMROfDiscordUser()
         {
             SocketUser userInfo = Context.User;
-            ValorantUsers? valorantUserDB = ValorantUsersExtension.GetRowDiscordId(userInfo.Id);
-            if (valorantUserDB == null)
-            {
-                await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
-                return;
-            }
 
-            BaseValorantProgram program = _servicesProvider.GetRequiredService<BaseValorantProgram>();
-            BaseValorantUser? valorantUser = program.GetValorantUser(valorantUserDB.Val_puuid);
-            if (valorantUser == null)
+            if (GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
             {
                 await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
                 return;
@@ -130,6 +170,27 @@ namespace ValorantApp.DiscordBot
 
             username = riotID.Substring(0, splitHashTag);
             tagname = riotID.Substring(splitHashTag + 1);
+
+            return true;
+        }
+
+        private bool GetUserAndProgram(SocketUser userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser)
+        {
+            program = null;
+            valorantUser = null;
+
+            ValorantUsers? valorantUserDB = ValorantUsersExtension.GetRowDiscordId(userInfo.Id);
+            if (valorantUserDB == null)
+            {
+                return false;
+            }
+
+            program = _servicesProvider.GetRequiredService<BaseValorantProgram>();
+            valorantUser = program.GetValorantUser(valorantUserDB.Val_puuid);
+            if (valorantUser == null)
+            {
+                return false;
+            }
 
             return true;
         }

@@ -116,7 +116,7 @@ namespace ValorantApp
                 _program.UpdateMatchAllUsers(out usersMatchStats);
 
                 List<KeyValuePair<string, MatchStats>> sortedList = usersMatchStats.ToList();
-                sortedList.Sort((x, y) =>  x.Value.Score.CompareTo(y.Value.Score));
+                sortedList.Sort((x, y) =>  y.Value.Score.CompareTo(x.Value.Score));
 
                 string messageStats = "";
                 foreach (KeyValuePair<string, MatchStats> matchStats in sortedList)
