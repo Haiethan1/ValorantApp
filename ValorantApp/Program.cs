@@ -7,6 +7,8 @@ using System.Configuration;
 using System.Reflection;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
+using ValorantApp.Valorant;
+using ValorantApp.Valorant.Enums;
 
 namespace ValorantApp
 {
@@ -44,7 +46,7 @@ namespace ValorantApp
         {
             _program = program;
             _servicesProvider = servicesProvider;
-            _channelToMessage = 1158083743278432378;
+            _channelToMessage = ulong.Parse(ConfigurationManager.AppSettings["ChannelToMessage"] ?? "");
             _commands = commands;
             _client = client;
         }
@@ -112,30 +114,103 @@ namespace ValorantApp
             // will need to send in discord bot information.
             try
             {
-                Dictionary<string, MatchStats> usersMatchStats = new();
-                _program.UpdateMatchAllUsers(out usersMatchStats);
-
-                List<KeyValuePair<string, MatchStats>> sortedList = usersMatchStats.ToList();
-                sortedList.Sort((x, y) =>  x.Value.Score.CompareTo(y.Value.Score));
-
-                string messageStats = "";
-                foreach (KeyValuePair<string, MatchStats> matchStats in sortedList)
+                ISocketMessageChannel? channel = (ISocketMessageChannel)_client.GetChannel(_channelToMessage);
+                if (channel == null)
                 {
-                    BaseValorantUser? user = _program.GetValorantUser(matchStats.Key);
-                    if (user == null)
+                    return;
+                }
+
+                Dictionary<string, MatchStats> usersMatchStats;
+                _program.UpdateMatchAllUsers(out usersMatchStats);
+                
+                if (usersMatchStats == null || usersMatchStats.Count == 0)
+                {
+                    return;
+                }
+
+                HashSet<string> matchIds = new HashSet<string>();
+                foreach (MatchStats matchStats in usersMatchStats.Values)
+                {
+                    matchIds.Add(matchStats.Match_id);
+                }
+
+                foreach (string matchid in matchIds)
+                {
+                    List<KeyValuePair<string, MatchStats>> sortedList = usersMatchStats.Where(x => x.Value.Match_id == matchid).ToList();
+                    sortedList.Sort((x, y) => y.Value.Score.CompareTo(x.Value.Score));
+
+                    if (sortedList.Count == 0)
                     {
                         continue;
                     }
 
-                    MatchStats stats = matchStats.Value;
+                    if (sortedList.Count == 1)
+                    {
+                        KeyValuePair<string, MatchStats> match = sortedList.First();
+                        MatchStats stats = match.Value;
 
-                    messageStats += $"<@{user.UserInfo.Disc_id}> Match stats - Map: {stats.Map}, RR change: {stats.Rr_change}, Headshot: {stats.Headshots:0.00}%, Score: {stats.Score/stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\n";
-                }
+                        BaseValorantUser? user = _program.GetValorantUser(match.Key);
+                        if (user == null)
+                        {
+                            continue;
+                        }
 
-                var channel = _client.GetChannel(_channelToMessage) as ISocketMessageChannel;
-                if (channel != null && !string.IsNullOrEmpty(messageStats))
-                {
-                    await channel.SendMessageAsync(messageStats);
+                        string userUpdated = $"<@{user.UserInfo.Disc_id}>";
+                        
+                        EmbedBuilder embed = new EmbedBuilder()
+                            .WithThumbnailUrl($"{AgentsExtension.AgentFromString(stats.Character).ImageURLFromAgent()}")
+                            .WithAuthor
+                            (new EmbedAuthorBuilder
+                            {
+                                Name = $"{ModesExtension.ModeFromString(stats.Mode.ToLower()).StringFromMode()} - {stats.Map}"
+                            }
+                            )
+                            .WithTitle($"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}")
+                            .WithDescription($"Combat Score: {stats.Score/stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}")
+                            .WithColor(stats.Rr_change > 0 ? Color.Green : Color.Green);
+
+                        if (channel != null)
+                        {
+                            await channel.SendMessageAsync(userUpdated, embed: embed.Build());
+                        }
+                    }
+                    else
+                    {
+                        string userUpdated = "";
+                        MatchStats setupMatchStats = sortedList.First().Value;
+                        EmbedBuilder embed = new EmbedBuilder()
+                            .WithThumbnailUrl(MapsExtension.MapFromString(setupMatchStats.Map).ImageUrlFromMap())
+                            .WithAuthor
+                            (new EmbedAuthorBuilder
+                            {
+                                Name = $"{ModesExtension.ModeFromString(setupMatchStats.Mode.ToLower()).StringFromMode()} - {setupMatchStats.Map}"
+                            }
+                            )
+                            .WithColor(setupMatchStats.Rr_change > 0 ? Color.Green : Color.Red);
+
+                        foreach (KeyValuePair<string, MatchStats> matchStats in sortedList)
+                        {
+                            BaseValorantUser? user = _program.GetValorantUser(matchStats.Key);
+                            if (user == null)
+                            {
+                                continue;
+                            }
+
+                            userUpdated += $"<@{user.UserInfo.Disc_id}> ";
+
+                            EmbedFieldBuilder embedField = new EmbedFieldBuilder();
+
+                            MatchStats stats = matchStats.Value;
+                            embedField.Name = $"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}";
+                            embedField.Value = $"Combat Score: {stats.Score / stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}";
+                            embed.AddField(embedField);
+                        }
+
+                        if (channel != null && !string.IsNullOrEmpty(userUpdated))
+                        {
+                            await channel.SendMessageAsync(userUpdated, embed: embed.Build());
+                        }
+                    }
                 }
             }
             catch (Exception ex)

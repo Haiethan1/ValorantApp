@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using ValorantApp;
 using ValorantApp.HenrikJson;
+using ValorantApp.Valorant.Enums;
 
 namespace ValorantAppTests
 {
@@ -141,7 +142,7 @@ namespace ValorantAppTests
             SetEndpoint(endpoint, V3Matches_Premier);
             HenrikApi api = CreateHenrikApi();
 
-            var matchJson = api.Match(mode: ValorantApp.ValorantEnum.Modes.Premier)?.Result.Data;
+            var matchJson = api.Match(mode: Modes.Premier)?.Result.Data;
             Assert.IsNotNull(matchJson);
             CheckMatchNulls(matchJson);
         }

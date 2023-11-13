@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 
-namespace ValorantApp.ValorantEnum
+namespace ValorantApp.Valorant.Enums
 {
     public enum Modes
     {
@@ -49,31 +49,31 @@ namespace ValorantApp.ValorantEnum
     {
         public static Modes ModeFromString(string str)
         {
-            switch(str)
+            switch (str)
             {
-                case "Competitive":
+                case "competitive":
                     return Modes.Competitive;
-                case "Unrated":
+                case "unrated":
                     return Modes.Unrated;
-                case "Custom":
+                case "custom":
                     return Modes.Custom;
-                case "Deathmatch":
+                case "deathmatch":
                     return Modes.Deathmatch;
-                case "Escalation":
+                case "escalation":
                     return Modes.Escalation;
-                case "TeamDeathmatch":
+                case "teamdeathmatch":
                     return Modes.TeamDeathmatch;
-                case "NewMap":
+                case "newmap":
                     return Modes.NewMap;
-                case "Replication":
+                case "replication":
                     return Modes.Replication;
-                case "SnowBallFight":
+                case "snowballfight":
                     return Modes.SnowBallFight;
-                case "Spikerush":
+                case "spikerush":
                     return Modes.Spikerush;
-                case "SwiftPlay":
+                case "swiftplay":
                     return Modes.SwiftPlay;
-                case "Premier":
+                case "premier":
                     return Modes.Premier;
                 default:
                     return Modes.Unknown;

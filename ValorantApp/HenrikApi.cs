@@ -1,6 +1,6 @@
 ﻿
 using Newtonsoft.Json;
-using ValorantApp.ValorantEnum;
+using ValorantApp.Valorant.Enums;
 
 namespace ValorantApp
 {

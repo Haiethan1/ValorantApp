@@ -169,6 +169,20 @@ namespace ValorantApp.Database.Extensions
             }
         }
 
+        // Shouldn't really be used.. just for testing
+        public static bool DeleteMatch(string matchId)
+        {
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+
+            string sql = "DELETE FROM MatchStats WHERE match_id LIKE @matchid;";
+
+            using SqliteCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@matchid", matchId);
+
+            return command.ExecuteNonQuery() > 0;
+        }
+
         public static bool MatchIdExistsForUser(string matchId, string puuid)
         {
             using SqliteConnection connection = new(connectionString);

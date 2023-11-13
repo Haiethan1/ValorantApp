@@ -1,12 +1,13 @@
 ﻿using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
-using ValorantApp.ValorantEnum;
+using ValorantApp.Valorant.Enums;
 
-namespace ValorantApp
+namespace ValorantApp.Valorant
 {
     public class BaseValorantUser
     {
-        public BaseValorantUser(string username, string tagName, string affinity, string? puuid = null) {
+        public BaseValorantUser(string username, string tagName, string affinity, string? puuid = null)
+        {
             HenrikApi = new HenrikApi(username, tagName, affinity, puuid, new HttpClient());
             this.puuid = HenrikApi.puuid;
 
