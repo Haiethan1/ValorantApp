@@ -3,14 +3,14 @@ using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
 
-namespace ValorantApp
+namespace ValorantApp.Valorant
 {
     public class BaseValorantProgram
     {
         // TODO add a db lock.
         private static readonly object DbLock = new object();
 
-        public BaseValorantProgram() 
+        public BaseValorantProgram()
         {
             // initialize users here to something? maybe create all users??
             Users = new();
@@ -81,7 +81,7 @@ namespace ValorantApp
             try
             {
                 ValorantUsers? valorantUser = ValorantUsersExtension.GetRow(puuid);
-                if (valorantUser == null ||  Users.ContainsKey(valorantUser.Val_puuid))
+                if (valorantUser == null || Users.ContainsKey(valorantUser.Val_puuid))
                 {
                     return false;
                 }
@@ -142,7 +142,7 @@ namespace ValorantApp
                     {
                         continue;
                     }
-                
+
                     IEnumerable<BaseValorantUser> usersInMatch = CheckValorantUsersInMatch(match, updatedUsers);
 
                     foreach (BaseValorantUser userInMatch in usersInMatch)
@@ -159,7 +159,7 @@ namespace ValorantApp
 
                         MmrHistoryJson? mmrHistory = userInMatch.GetMatchMMR(match?.Metadata.MatchId);
 
-                        if (match == null || (mmrHistory == null && match.Metadata.Mode == "Competitive"))
+                        if (match == null || mmrHistory == null && match.Metadata.Mode == "Competitive")
                         {
                             continue;
                         }
@@ -186,9 +186,9 @@ namespace ValorantApp
 
         private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, Dictionary<string, MatchStats> userMatchStats)
         {
-            if (match == null 
-                || match.Metadata?.Mode == null 
-                || (MmrHistory == null && match.Metadata.Mode == "Competitive") 
+            if (match == null
+                || match.Metadata?.Mode == null
+                || MmrHistory == null && match.Metadata.Mode == "Competitive"
                 || string.IsNullOrEmpty(puuid)
                 )
             {
@@ -218,9 +218,9 @@ namespace ValorantApp
 
             foreach (MatchPlayerJson matchPlayer in match.Players?.All_Players ?? Array.Empty<MatchPlayerJson>())
             {
-                if (matchPlayer == null 
-                    || matchPlayer.Puuid == null 
-                    || updatedPuuids.Contains(matchPlayer.Puuid) 
+                if (matchPlayer == null
+                    || matchPlayer.Puuid == null
+                    || updatedPuuids.Contains(matchPlayer.Puuid)
                     || !Users.ContainsKey(matchPlayer.Puuid)
                     )
                 {
