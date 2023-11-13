@@ -188,7 +188,7 @@ namespace ValorantApp.Valorant
         {
             if (match == null
                 || match.Metadata?.Mode == null
-                || MmrHistory == null && match.Metadata.Mode == "Competitive"
+                || (MmrHistory == null && match.Metadata.Mode == "Competitive")
                 || string.IsNullOrEmpty(puuid)
                 )
             {

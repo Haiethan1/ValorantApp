@@ -80,8 +80,7 @@ namespace ValorantApp.Valorant
 
         public MatchJson? GetLastMatch()
         {
-            // don't add this to the commit.
-            List<MatchJson>? matchJsons = GetMatch(Modes.Competitive, Maps.Unknown, 1);
+            List<MatchJson>? matchJsons = GetMatch(Modes.Unknown, Maps.Unknown, 1);
 
             if (matchJsons == null || matchJsons.Count == 0)
             {
