@@ -167,7 +167,7 @@ namespace ValorantApp
                             )
                             .WithTitle($"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}")
                             .WithDescription($"Combat Score: {stats.Score/stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}")
-                            .WithColor(stats.Rr_change > 0 ? Color.Green : Color.Green);
+                            .WithColor(stats.Rr_change >= 0 && stats.Rr_change < 5 ? Color.DarkerGrey : stats.Rr_change > 0 ? Color.Green : Color.Red);
 
                         if (channel != null)
                         {
@@ -178,6 +178,7 @@ namespace ValorantApp
                     {
                         string userUpdated = "";
                         MatchStats setupMatchStats = sortedList.First().Value;
+                        int rrChange = 0;
                         EmbedBuilder embed = new EmbedBuilder()
                             .WithThumbnailUrl(MapsExtension.MapFromString(setupMatchStats.Map).ImageUrlFromMap())
                             .WithAuthor
@@ -185,8 +186,7 @@ namespace ValorantApp
                             {
                                 Name = $"{ModesExtension.ModeFromString(setupMatchStats.Mode.ToLower()).StringFromMode()} - {setupMatchStats.Map}"
                             }
-                            )
-                            .WithColor(setupMatchStats.Rr_change > 0 ? Color.Green : Color.Red);
+                            );
 
                         foreach (KeyValuePair<string, MatchStats> matchStats in sortedList)
                         {
@@ -204,7 +204,11 @@ namespace ValorantApp
                             embedField.Name = $"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}";
                             embedField.Value = $"Combat Score: {stats.Score / stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}";
                             embed.AddField(embedField);
+                            rrChange += stats.Rr_change;
                         }
+
+                        rrChange = rrChange / sortedList.Count;
+                        embed.WithColor(rrChange >= 0 && rrChange < 5 ? Color.DarkerGrey : rrChange > 0 ? Color.Green : Color.Red);
 
                         if (channel != null && !string.IsNullOrEmpty(userUpdated))
                         {
