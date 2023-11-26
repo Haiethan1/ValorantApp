@@ -40,7 +40,8 @@ namespace ValorantApp.Database.Extensions
                     damage_to_allies SMALLINT NOT NULL,
                     damage_from_allies SMALLINT NOT NULL,
                     game_length INTEGER NOT NULL DEFAULT 0 CHECK(game_length >= 0),
-                    game_start_patched TEXT
+                    game_start_patched TEXT,
+                    mvp INTEGER NOT NULL DEFAULT 0,
                     PRIMARY KEY (match_id, val_puuid)
                 );";
 
@@ -57,13 +58,13 @@ namespace ValorantApp.Database.Extensions
                     match_id, val_puuid, map, mode, rounds, character,
                     rr_change, double_kills, triple_kills, quad_kills, aces, kills, knife_kills, 
                     deaths, knife_deaths, assists, bodyshots, headshots, score, damage,
-                    c_casts, q_casts, e_casts, x_casts, damage_to_allies, damage_from_allies, game_length, game_start_patched
+                    c_casts, q_casts, e_casts, x_casts, damage_to_allies, damage_from_allies, game_length, game_start_patched, mvp
                 ) 
                 VALUES (
                     @Match_id, @Val_puuid, @Map, @Mode, @Rounds, @Character, 
                     @Rr_change, @Double_kills, @Triple_kills, @Quad_kills, @Aces, @Kills, @Knife_kills,
                     @Deaths, @Knife_deaths, @Assists, @Bodyshots, @Headshots, @Score, @Damage, 
-                    @C_casts, @Q_casts, @E_casts, @X_casts, @Damage_to_allies, @Damage_from_allies, @Game_length, @Game_start_patched
+                    @C_casts, @Q_casts, @E_casts, @X_casts, @Damage_to_allies, @Damage_from_allies, @Game_length, @Game_start_patched, @MVP
                 )";
 
             using SqliteCommand command = new SqliteCommand(InsertRowQuery, connection);
@@ -95,6 +96,7 @@ namespace ValorantApp.Database.Extensions
             command.Parameters.AddWithValue("@Damage_from_allies", matchStats.Damage_From_Allies);
             command.Parameters.AddWithValue("@Game_length", matchStats.Game_Length);
             command.Parameters.AddWithValue("@Game_start_patched", matchStats.Game_Start_Patched);
+            command.Parameters.AddWithValue("@MVP", matchStats.MVP);
 
             command.ExecuteNonQuery();
         }
@@ -134,7 +136,8 @@ namespace ValorantApp.Database.Extensions
                     damage_to_allies = @Damage_to_allies,
                     damage_from_allies = @Damage_from_allies,
                     game_length = @Game_length,
-                    game_start_patched = @Game_start_patched
+                    game_start_patched = @Game_start_patched,
+                    mvp = @MVP
                 WHERE match_id = @Match_id";
 
                 using (SqliteCommand command = new(UpdateRowQuery, connection))
@@ -167,6 +170,7 @@ namespace ValorantApp.Database.Extensions
                     command.Parameters.AddWithValue("@Damage_from_allies", matchStats.Damage_From_Allies);
                     command.Parameters.AddWithValue("@Game_length", matchStats.Game_Length);
                     command.Parameters.AddWithValue("@Game_start_patched", matchStats.Game_Start_Patched);
+                    command.Parameters.AddWithValue("@MVP", matchStats.MVP);
 
                     command.ExecuteNonQuery();
                 }
@@ -231,8 +235,23 @@ namespace ValorantApp.Database.Extensions
             }
 
             PlayerStatsJson? stats = player.Stats;
+            
             double headshot = stats == null ? 0 : stats.Headshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
             double bodyshot = stats == null ? 0 : stats.Bodyshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
+
+            int score = stats?.Score ?? 0;
+            bool mvp = true;
+            foreach (var mvpPlayer in match.Players.All_Players)
+            {
+                if (mvpPlayer == null)
+                {
+                    continue;
+                }
+                if ((mvpPlayer.Stats?.Score ?? 0) > score)
+                {
+                    mvp = false;
+                }
+            }
 
             byte doubleKills = 0;
             byte tripleKills = 0;
@@ -282,9 +301,9 @@ namespace ValorantApp.Database.Extensions
 
             return new MatchStats(
                 metadata.MatchId, puuid, metadata.Map.Safe(), metadata.Mode_Id.Safe(), (byte)metadata.Rounds_Played, player.Character.Safe(), mmr?.Mmr_change_to_last_game ?? 0, doubleKills, tripleKills, quadKills, aces
-                , (byte)(stats?.Kills ?? 0), knifeKills, (byte)(stats?.Deaths ?? 0), knifeDeaths, (byte)(stats?.Assists ?? 0), bodyshot, headshot, (short)(stats?.Score ?? 0)
+                , (byte)(stats?.Kills ?? 0), knifeKills, (byte)(stats?.Deaths ?? 0), knifeDeaths, (byte)(stats?.Assists ?? 0), bodyshot, headshot, (short)score
                 , (short)player.Damage_Made, (byte)(abilities?.C_Cast ?? 0), (byte)(abilities?.Q_Cast ?? 0), (byte)(abilities?.E_Cast ?? 0), (byte)(abilities?.X_Cast ?? 0), damageToAllies, damageFromAllies, gameLength
-                , gameStartPatched
+                , gameStartPatched, mvp
                 );
         }
     }
