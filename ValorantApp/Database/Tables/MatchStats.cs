@@ -31,6 +31,7 @@ namespace ValorantApp.Database.Tables
         public short Damage_To_Allies { get; private set; }
         public short Damage_From_Allies { get; private set; }
         public uint Game_Length { get; private set; }
+        public DateTime? Game_Start_Patched { get; private set; }
 
         public MatchStats(
             string matchId,
@@ -59,7 +60,8 @@ namespace ValorantApp.Database.Tables
             byte xCasts,
             short damageToAllies,
             short damageFromAllies,
-            uint gameLength
+            uint gameLength,
+            DateTime? gameStartPatched
             )
         {
             Match_id = matchId;
@@ -89,6 +91,7 @@ namespace ValorantApp.Database.Tables
             Damage_To_Allies = damageToAllies;
             Damage_From_Allies = damageFromAllies;
             Game_Length = gameLength;
+            Game_Start_Patched = gameStartPatched;
         }
 
         public static MatchStats CreateFromRow(SqliteDataReader reader)
@@ -120,7 +123,8 @@ namespace ValorantApp.Database.Tables
                 reader.GetByte(reader.GetOrdinal("x_casts")),
                 reader.GetInt16(reader.GetOrdinal("damage_to_allies")),
                 reader.GetInt16(reader.GetOrdinal("damage_from_allies")),
-                (uint)reader.GetInt32(reader.GetOrdinal("game_length"))
+                (uint)reader.GetInt32(reader.GetOrdinal("game_length")),
+                reader.IsDBNull(reader.GetOrdinal("game_start_patched")) ? null : reader.GetDateTime(reader.GetOrdinal("game_start_patched"))
             );
         }
 
@@ -132,7 +136,7 @@ namespace ValorantApp.Database.Tables
                    $"Deaths: {Deaths}, Knife_Deaths: {Knife_Deaths}, Assists: {Assists}, Bodyshots: {Bodyshots}, " +
                    $"Headshots: {Headshots}, Score: {Score}, Damage: {Damage}, C_casts: {C_casts}, Q_casts: {Q_casts}, " +
                    $"E_casts: {E_casts}, X_casts: {X_casts}, Damage_To_Allies: {Damage_To_Allies}, " +
-                   $"Damage_From_Allies: {Damage_From_Allies}, Game_Length: {Game_Length}";
+                   $"Damage_From_Allies: {Damage_From_Allies}, Game_Length: {Game_Length}, Game_Start_Patched: {Game_Start_Patched ?? DateTime.MinValue}";
         }
     }
 }
