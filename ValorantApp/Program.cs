@@ -165,7 +165,7 @@ namespace ValorantApp
                                 Name = $"{stats.Game_Start_Patched?.ToString("MMM. d\\t\\h, h:mm tt")}, {TimeSpan.FromSeconds(stats.Game_Length).TotalMinutes} minutes\n{ModesExtension.ModeFromString(stats.Mode.ToLower()).StringFromMode()} - {stats.Map}"
                             }
                             )
-                            .WithTitle($"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}")
+                            .WithTitle($"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}{(stats.MVP ? " :sparkles:" : "")}")
                             .WithDescription($"Combat Score: {stats.Score/stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}")
                             .WithColor(stats.Rr_change >= 0 && stats.Rr_change < 5 ? Color.DarkerGrey : stats.Rr_change > 0 ? Color.Green : Color.Red);
 
@@ -201,7 +201,7 @@ namespace ValorantApp
                             EmbedFieldBuilder embedField = new EmbedFieldBuilder();
 
                             MatchStats stats = matchStats.Value;
-                            embedField.Name = $"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}";
+                            embedField.Name = $"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}{(stats.MVP ? " :sparkles:" : "")}";
                             embedField.Value = $"Combat Score: {stats.Score / stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}";
                             embed.AddField(embedField);
                             rrChange += stats.Rr_change;
