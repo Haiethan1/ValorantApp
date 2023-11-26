@@ -162,7 +162,7 @@ namespace ValorantApp
                             .WithAuthor
                             (new EmbedAuthorBuilder
                             {
-                                Name = $"{ModesExtension.ModeFromString(stats.Mode.ToLower()).StringFromMode()} - {stats.Map}"
+                                Name = $"{stats.Game_Start_Patched?.ToString("MMM. d\\t\\h, h:mm tt")}, {TimeSpan.FromSeconds(stats.Game_Length).TotalMinutes} minutes\n{ModesExtension.ModeFromString(stats.Mode.ToLower()).StringFromMode()} - {stats.Map}"
                             }
                             )
                             .WithTitle($"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}")
@@ -184,7 +184,7 @@ namespace ValorantApp
                             .WithAuthor
                             (new EmbedAuthorBuilder
                             {
-                                Name = $"{ModesExtension.ModeFromString(setupMatchStats.Mode.ToLower()).StringFromMode()} - {setupMatchStats.Map}"
+                                Name = $"{setupMatchStats.Game_Start_Patched?.ToString("MMM. d\\t\\h, h:mm tt")}, {TimeSpan.FromSeconds(setupMatchStats.Game_Length).TotalMinutes} minutes\n{ModesExtension.ModeFromString(setupMatchStats.Mode.ToLower()).StringFromMode()} - {setupMatchStats.Map}"
                             }
                             );
 
