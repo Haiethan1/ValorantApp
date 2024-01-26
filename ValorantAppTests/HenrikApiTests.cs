@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
 using System;
@@ -7,6 +8,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using ValorantApp;
 using ValorantApp.HenrikJson;
+using ValorantApp.Valorant;
 using ValorantApp.Valorant.Enums;
 
 namespace ValorantAppTests
@@ -36,7 +38,8 @@ namespace ValorantAppTests
         private HenrikApi CreateHenrikApi()
         {
             _httpClient = new HttpClient(_handlerMock.Object);
-            return new HenrikApi(_username, _tagName, _affinity, _puuid, _httpClient);
+            var mock = new Mock<ILogger<BaseValorantProgram>>();
+            return new HenrikApi(_username, _tagName, _affinity, _puuid, _httpClient, null, mock.Object);
         }
 
         private void SetEndpoint(string endpoint, string content)

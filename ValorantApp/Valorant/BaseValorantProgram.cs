@@ -1,4 +1,6 @@
-﻿using ValorantApp.Database.Extensions;
+﻿using Microsoft.Extensions.Logging;
+using Serilog.Core;
+using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
@@ -10,16 +12,19 @@ namespace ValorantApp.Valorant
         // TODO add a db lock.
         private static readonly object DbLock = new object();
 
-        public BaseValorantProgram()
+        public BaseValorantProgram(ILogger<BaseValorantProgram> logger)
         {
             // initialize users here to something? maybe create all users??
             Users = new();
+            Logger = logger;
             CreateAllUsers();
         }
 
         #region Globals
 
         private Dictionary<string, BaseValorantUser> Users { get; set; }
+
+        private ILogger<BaseValorantProgram> Logger { get; set; }
 
         #endregion
 
@@ -59,7 +64,7 @@ namespace ValorantApp.Valorant
                         continue;
                     }
 
-                    Users.Add(user.Val_puuid, new BaseValorantUser(user.Val_username, user.Val_tagname, user.Val_affinity, user.Val_puuid));
+                    Users.Add(user.Val_puuid, new BaseValorantUser(user.Val_username, user.Val_tagname, user.Val_affinity, Logger, user.Val_puuid));
                 }
 
                 return true;
@@ -86,7 +91,7 @@ namespace ValorantApp.Valorant
                     return false;
                 }
 
-                Users.Add(valorantUser.Val_puuid, new BaseValorantUser(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, valorantUser.Val_puuid));
+                Users.Add(valorantUser.Val_puuid, new BaseValorantUser(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, Logger, valorantUser.Val_puuid));
 
                 return true;
             }
@@ -125,6 +130,7 @@ namespace ValorantApp.Valorant
             }
 
             HashSet<string> updatedUsers = new();
+            Dictionary<string, Task<MatchJson?>> matchTasks = GetAllUsersMatchStats().Result;
 
             foreach (BaseValorantUser user in Users.Values)
             {
@@ -134,8 +140,7 @@ namespace ValorantApp.Valorant
                 }
                 try
                 {
-
-                    MatchJson? match = user.GetLastMatch();
+                    MatchJson? match = matchTasks[user.Puuid].Result;
 
                     if (match == null
                         || match.Metadata?.MatchId == null)
@@ -157,27 +162,27 @@ namespace ValorantApp.Valorant
                             continue;
                         }
 
-                        MmrHistoryJson? mmrHistory = userInMatch.GetMatchMMR(match?.Metadata.MatchId);
+                        // this should be in a loop
+                        //for (int i = 0; i < 5; i++)
+                        //{
 
-                        if (match == null || mmrHistory == null && match.Metadata.Mode == "Competitive")
-                        {
-                            continue;
-                        }
+                        //}
+                        MmrHistoryJson? mmrHistory = userInMatch.GetMatchMMR(match?.Metadata.MatchId);
 
                         if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
                         {
                             updatedUsers.Add(userInMatch.UserInfo.Val_puuid);
-                            Console.WriteLine($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched.Safe()}");
+                            Logger.LogInformation($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched.Safe()}");
                         }
                         else
                         {
-                            Console.WriteLine($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
+                            Logger.LogInformation($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error: {ex.Message} - when updating user {user.UserInfo.Val_username}");
+                    Logger.LogError($"Error: {ex.Message} - when updating user {user.UserInfo.Val_username}");
                 }
             }
 
@@ -188,7 +193,6 @@ namespace ValorantApp.Valorant
         {
             if (match == null
                 || match.Metadata?.Mode == null
-                || (MmrHistory == null && match.Metadata.Mode == "Competitive")
                 || string.IsNullOrEmpty(puuid)
                 )
             {
@@ -231,6 +235,18 @@ namespace ValorantApp.Valorant
             }
 
             return usersInMatch;
+        }
+
+        private async Task<Dictionary<string, Task<MatchJson?>>> GetAllUsersMatchStats()
+        {
+            Dictionary<string, Task<MatchJson?>> matchTasks = new();
+            foreach (BaseValorantUser user in Users.Values)
+            {
+                matchTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatch()));
+            }
+
+            await Task.WhenAll(matchTasks.Values.ToArray());
+            return matchTasks;
         }
 
         #endregion
