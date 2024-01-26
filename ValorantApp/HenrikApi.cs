@@ -1,25 +1,36 @@
 ﻿
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System;
+using System.Net.Http.Headers;
+using ValorantApp.GenericExtensions;
+using ValorantApp.Valorant;
 using ValorantApp.Valorant.Enums;
 
 namespace ValorantApp
 {
     public class HenrikApi
     {
-        private HttpClient httpClient;
-
+        private HttpClient httpClient { get; set; }
+        private ILogger<BaseValorantProgram> Logger { get; set; }
 
         public string username;
         public string tagName;
         public string affinity;
         public string puuid;
 
-        public HenrikApi(string username, string tagName, string affinity, string? puuid, HttpClient HttpClient)
+        public HenrikApi(string username, string tagName, string affinity, string? puuid, HttpClient HttpClient, string? apiToken, ILogger<BaseValorantProgram> logger)
         {
             this.username = username;
             this.tagName = tagName;
             this.affinity = affinity;
-            this.httpClient = HttpClient;
+            httpClient = HttpClient;
+            Logger = logger;
+
+            if (apiToken != null && apiToken.Length > 0)
+            {
+                httpClient.DefaultRequestHeaders.Add("Authorization", apiToken);
+            }
 
             if (puuid != null)
             {
@@ -39,7 +50,10 @@ namespace ValorantApp
 
         public async Task<JsonObjectHenrik<AccountJson>>? AccountQuery()
         {
-            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/account/{username}/{tagName}");
+            string url = $"https://api.henrikdev.xyz/valorant/v1/account/{username}/{tagName}";
+            var response = await httpClient.GetAsync(url);
+
+            Logger.ApiInformation(url + $". Response code {response.StatusCode}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -51,7 +65,10 @@ namespace ValorantApp
 
         public async Task<JsonObjectHenrik<MmrV2Json>>? Mmr()
         {
-            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v2/by-puuid/mmr/{affinity}/{puuid}");
+            string url = $"https://api.henrikdev.xyz/valorant/v2/by-puuid/mmr/{affinity}/{puuid}";
+            var response = await httpClient.GetAsync(url);
+
+            Logger.ApiInformation(url + $". Response code {response.StatusCode}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -63,7 +80,10 @@ namespace ValorantApp
 
         public async Task<JsonObjectHenrik<List<MmrHistoryJson>>>? MmrHistory()
         {
-            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr-history/{affinity}/{puuid}");
+            string url = $"https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr-history/{affinity}/{puuid}";
+            var response = await httpClient.GetAsync(url);
+
+            Logger.ApiInformation(url + $". Response code {response.StatusCode}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -75,18 +95,20 @@ namespace ValorantApp
 
         public async Task<JsonObjectHenrik<List<MatchJson>>>? Match(Modes mode = Modes.Unknown, Maps map = Maps.Unknown, int size = 1)
         {
-            string query = $"https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/{affinity}/{puuid}?";
+            string url = $"https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/{affinity}/{puuid}?";
             if (mode != Modes.Unknown)
             {
-                query += $"&mode={mode.StringFromMode()}";
+                url += $"&mode={mode.StringFromMode()}";
             }
             if (map != Maps.Unknown)
             {
-                query += $"&map={map.StringFromMap()}";
+                url += $"&map={map.StringFromMap()}";
             }
-            query += $"&size={size}";
+            url += $"&size={size}";
 
-            var response = await httpClient.GetAsync(query);
+            var response = await httpClient.GetAsync(url);
+
+            Logger.ApiInformation(url + $". Response code {response.StatusCode}");
 
             if (!response.IsSuccessStatusCode)
             {

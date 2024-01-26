@@ -10,8 +10,8 @@ namespace ValorantApp.Valorant.Enums
         [Description("Unrated")]
         Unrated,
 
-        [Description("Custom")]
-        Custom,
+        [Description("CustomGame")]
+        CustomGame,
 
         [Description("Deathmatch")]
         Deathmatch,
@@ -49,14 +49,14 @@ namespace ValorantApp.Valorant.Enums
     {
         public static Modes ModeFromString(string str)
         {
-            switch (str)
+            switch (str.ToLower().Replace(" ", ""))
             {
                 case "competitive":
                     return Modes.Competitive;
                 case "unrated":
                     return Modes.Unrated;
-                case "custom":
-                    return Modes.Custom;
+                case "customgame":
+                    return Modes.CustomGame;
                 case "deathmatch":
                     return Modes.Deathmatch;
                 case "escalation":
@@ -88,8 +88,8 @@ namespace ValorantApp.Valorant.Enums
                     return "Competitive";
                 case Modes.Unrated:
                     return "Unrated";
-                case Modes.Custom:
-                    return "Custom";
+                case Modes.CustomGame:
+                    return "CustomGame";
                 case Modes.Deathmatch:
                     return "Deathmatch";
                 case Modes.Escalation:

@@ -2,6 +2,7 @@
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
+using ValorantApp.Valorant.Enums;
 
 namespace ValorantApp.Database.Extensions
 {
@@ -177,6 +178,65 @@ namespace ValorantApp.Database.Extensions
             }
         }
 
+        public static OverallMatchStats? GetSumOfMatchStats(string valPuuid, Maps? map, Agents? agent, Modes? mode, DateTime? fromDate, DateTime? toDate)
+        {
+            using SqliteConnection connection = new SqliteConnection(connectionString);
+            connection.Open();
+
+            string UpdateRowQuery = @"
+                SELECT 
+                    val_puuid,
+		            SUM(rounds) as sum_of_rounds,
+                    SUM(rr_change) as sum_of_rr_change,
+                    SUM(double_kills) as sum_of_double_kills,
+                    SUM(triple_kills) as sum_of_triple_kills,
+                    SUM(quad_kills) as sum_of_quad_kills,
+                    SUM(aces) as sum_of_aces,
+                    SUM(kills) as sum_of_kills,
+                    SUM(knife_kills) as sum_of_knife_kills,
+                    SUM(deaths) as sum_of_deaths,
+                    SUM(knife_deaths) as sum_of_knife_deaths,
+                    SUM(assists) as sum_of_assists,
+                    AVG(bodyshots) as sum_of_bodyshots,
+                    AVG(headshots) as sum_of_headshots,
+                    SUM(score) as sum_of_score,
+                    SUM(damage) as sum_of_damage,
+                    SUM(c_casts) as sum_of_c_casts,
+                    SUM(q_casts) as sum_of_q_casts,
+                    SUM(e_casts) as sum_of_e_casts,
+                    SUM(x_casts) as sum_of_x_casts,
+                    SUM(damage_to_allies) as sum_of_damage_to_allies,
+                    SUM(damage_from_allies) as sum_of_damage_from_allies,
+                    SUM(game_length) as sum_of_game_length,
+                    SUM(mvp) as sum_of_mvp
+	            FROM 
+		            MatchStats 
+	            WHERE 
+		            val_puuid = @val_puuid
+		            AND (@map IS NULL OR map = @map)
+		            AND (@character IS NULL OR character = @character)
+		            AND (@mode IS NULL OR mode = @mode)
+		            AND (@from_date IS NULL OR game_start_patched >= @from_date)
+		            AND (@to_date IS NULL OR game_start_patched <= @to_date)";
+
+            using SqliteCommand command = new(UpdateRowQuery, connection);
+            command.Parameters.AddWithValue("@val_puuid", valPuuid);
+            command.Parameters.AddWithValue("@map", map == null ? DBNull.Value : map.ToDescriptionString());
+            command.Parameters.AddWithValue("@character", agent == null ? DBNull.Value : agent.ToDescriptionString());
+            command.Parameters.AddWithValue("@mode", mode == null ? DBNull.Value : mode.ToDescriptionString());
+            command.Parameters.AddWithValue("@from_date", fromDate == null ? DBNull.Value : fromDate);
+            command.Parameters.AddWithValue("@to_date", toDate == null ? DBNull.Value : toDate);
+
+            using SqliteDataReader reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return OverallMatchStats.CreateFromRow(reader);
+        }
+
         // Shouldn't really be used.. just for testing
         public static bool DeleteMatch(string matchId)
         {
@@ -235,9 +295,10 @@ namespace ValorantApp.Database.Extensions
             }
 
             PlayerStatsJson? stats = player.Stats;
-            
-            double headshot = stats == null ? 0 : stats.Headshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
-            double bodyshot = stats == null ? 0 : stats.Bodyshots / (double)(stats.Headshots + stats.Bodyshots + stats.Legshots) * 100.0;
+
+            double totalshots = stats == null ? 0 : stats.Headshots + stats.Bodyshots + stats.Legshots;
+            double headshot = stats == null || totalshots == 0 ? 0 : stats.Headshots / totalshots * 100.0;
+            double bodyshot = stats == null || totalshots == 0 ? 0 : stats.Bodyshots / totalshots * 100.0;
 
             int score = stats?.Score ?? 0;
             bool mvp = true;
@@ -300,7 +361,7 @@ namespace ValorantApp.Database.Extensions
             }
 
             return new MatchStats(
-                metadata.MatchId, puuid, metadata.Map.Safe(), metadata.Mode_Id.Safe(), (byte)metadata.Rounds_Played, player.Character.Safe(), mmr?.Mmr_change_to_last_game ?? 0, doubleKills, tripleKills, quadKills, aces
+                metadata.MatchId, puuid, metadata.Map.Safe(), metadata.Mode.Safe(), (byte)metadata.Rounds_Played, player.Character.Safe(), mmr?.Mmr_change_to_last_game ?? 0, doubleKills, tripleKills, quadKills, aces
                 , (byte)(stats?.Kills ?? 0), knifeKills, (byte)(stats?.Deaths ?? 0), knifeDeaths, (byte)(stats?.Assists ?? 0), bodyshot, headshot, (short)score
                 , (short)player.Damage_Made, (byte)(abilities?.C_Cast ?? 0), (byte)(abilities?.Q_Cast ?? 0), (byte)(abilities?.E_Cast ?? 0), (byte)(abilities?.X_Cast ?? 0), damageToAllies, damageFromAllies, gameLength
                 , gameStartPatched, mvp

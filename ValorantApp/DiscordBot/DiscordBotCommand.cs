@@ -2,6 +2,7 @@
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
@@ -14,12 +15,17 @@ namespace ValorantApp.DiscordBot
         private DiscordSocketClient _client;
         private CommandService _commands;
         private IServiceProvider _servicesProvider;
-        public ValorantModule(DiscordSocketClient client, CommandService commands, IServiceProvider servicesProvider)
+        private ILogger<ValorantApp> _logger;
+
+        public ValorantModule(DiscordSocketClient client, CommandService commands, IServiceProvider servicesProvider, ILogger<ValorantApp> logger)
         {
             _client = client;
             _commands = commands;
             _servicesProvider = servicesProvider;
+            _logger = logger;
         }
+
+        #region APIs
 
         [Command("Hello")]
         [Summary("Tester hello world")]
@@ -31,10 +37,8 @@ namespace ValorantApp.DiscordBot
 
         [Command("mmr")]
         [Summary("Get the mmr of the user")]
-        public async Task GetMMROfDiscordUser()
+        public async Task GetMMROfDiscordUser(SocketUser userInfo)
         {
-            SocketUser userInfo = Context.User;
-
             if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
             {
                 await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
@@ -66,6 +70,43 @@ namespace ValorantApp.DiscordBot
             await ReplyAsync(embed: embed.Build());
         }
 
+        [Command("mmr")]
+        [Summary("Get the mmr of the user")]
+        public async Task GetMMROfDiscordUser()
+        {
+            SocketUser userInfo = Context.User;
+
+            if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+            {
+                await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+                return;
+            }
+
+            MmrV2Json? mmr = valorantUser.GetMMR();
+            if (mmr == null)
+            {
+                await ReplyAsync($"Could not find mmr stats for Discord User {userInfo.Username}");
+                return;
+            }
+            var embed = new EmbedBuilder()
+                .WithThumbnailUrl($"{mmr.Current_Data.Images?.Small.Safe() ?? ""}")
+                .WithAuthor
+                (new EmbedAuthorBuilder
+                {
+                    Name = $"{valorantUser.UserInfo.Val_username}#{valorantUser.UserInfo.Val_tagname}"
+                }
+                )
+                .WithTitle(mmr.Current_Data.CurrentTierPatched.Safe())
+                .WithDescription($"Current RR: {mmr.Current_Data.Ranking_In_Tier % 100}")
+                .WithFooter
+                (new EmbedFooterBuilder
+                {
+                    Text = $"RR Change to last game: {mmr.Current_Data.Mmr_Change_To_Last_Game}"
+                }
+                );
+            await ReplyAsync(embed: embed.Build());
+        }
+
         [Command("AddMe")]
         [Summary("Add user")]
         public async Task AddUser(
@@ -81,7 +122,7 @@ namespace ValorantApp.DiscordBot
             }
 
             SocketUser userInfo = Context.User;
-            string? puuid = BaseValorantUser.CreateUser(username, tagname, "na", userInfo.Id)?.Puuid;
+            string? puuid = BaseValorantUser.CreateUser(username, tagname, "na", userInfo.Id, _servicesProvider.GetService<ILogger<BaseValorantProgram>>())?.Puuid;
             
             if (puuid == null)
             {
@@ -105,6 +146,52 @@ namespace ValorantApp.DiscordBot
             result = $"Valorant User {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname} created!";
             await ReplyAsync(result);
         }
+
+        [Command("allstats")]
+        [Summary("Gets all stats of the user")]
+        public async Task GetOverallMatchStats()
+        {
+            SocketUser userInfo = Context.User;
+
+            if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+            {
+                await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+                return;
+            }
+            OverallMatchStats? stats = MatchStatsExtension.GetSumOfMatchStats(valorantUser.Puuid, null, null, null, null, null);
+            if (stats == null)
+            {
+                await ReplyAsync($"Could not find overall stats for Discord User {userInfo.Username}");
+                return;
+            }
+
+            // TODO remove this. for testing
+            _logger.LogInformation("Match stats found");
+
+            var embed = new EmbedBuilder()
+                .WithDescription(stats.ToString());
+            //var embed = new EmbedBuilder()
+            //    .WithThumbnailUrl($"{mmr.Current_Data.Images?.Small.Safe() ?? ""}")
+            //    .WithAuthor
+            //    (new EmbedAuthorBuilder
+            //    {
+            //        Name = $"{valorantUser.UserInfo.Val_username}#{valorantUser.UserInfo.Val_tagname}"
+            //    }
+            //    )
+            //    .WithTitle(mmr.Current_Data.CurrentTierPatched.Safe())
+            //    .WithDescription($"Current RR: {mmr.Current_Data.Ranking_In_Tier % 100}")
+            //    .WithFooter
+            //    (new EmbedFooterBuilder
+            //    {
+            //        Text = $"RR Change to last game: {mmr.Current_Data.Mmr_Change_To_Last_Game}"
+            //    }
+            //    );
+            await ReplyAsync(embed: embed.Build());
+        }
+
+        #endregion APIs
+
+        #region Helpers
 
         private bool IsUserAndTag(string riotID, out string username, out string tagname)
         {
@@ -148,7 +235,18 @@ namespace ValorantApp.DiscordBot
             return true;
         }
 
+        #endregion Helpers
+
         #region Testing
+
+        [Command("spawner")]
+        public async Task Spawn()
+        {
+            var builder = new ComponentBuilder()
+                .WithButton("label", "custom-id");
+
+            await ReplyAsync("Here is a button!", components: builder.Build());
+        }
 
         [Summary("Developer only delete last match")]
         private async Task GetLastMatch()
@@ -290,6 +388,70 @@ namespace ValorantApp.DiscordBot
             //await ReplyAsync(embed: embed.Build());
         }
 
+        [Command("heatmap")]
+        public async Task SendHeatmaps()
+        {
+            // TODO
+            //SocketUser userInfo = Context.User;
+            //if (userInfo.Id != 158031143231422466)
+            //{
+            //    return;
+            //}
+
+            //if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+            //{
+            //    await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+            //    return;
+            //}
+
+            //// Assuming you have a method to get or generate heatmap images
+            //List<string> heatmapPaths = GetHeatmapImagePaths();
+
+            //// Limit the number of images per embedded message
+            //int imagesPerEmbed = 5;
+
+            //for (int i = 0; i < heatmapPaths.Count; i += imagesPerEmbed)
+            //{
+            //    int remainingImages = Math.Min(imagesPerEmbed, heatmapPaths.Count - i);
+            //    var imageStreams = heatmapPaths.Skip(i).Take(remainingImages).Select(path => new FileStream(path, FileMode.Open));
+
+            //    // Create an embedded message
+            //    var embedBuilder = new EmbedBuilder
+            //    {
+            //        Title = "Heatmaps for Rounds",
+            //        Color = Color.Green,
+            //    };
+
+            //    // Add fields for each heatmap
+            //    for (int j = 0; j < remainingImages; j++)
+            //    {
+            //        embedBuilder.AddField($"Round {i + j + 1}", $"[Heatmap {j + 1}](attachment://{j + 1}.png)");
+            //    }
+
+            //    // Send the embedded message with images as attachments
+            //    var message = await Context.Channel.SendFilesAsync(imageStreams, imageStreams.Select((stream, index) => $"{index + 1}.png").ToArray(), embed: embedBuilder.Build()).FirstOrDefault();
+
+            //    // Close the streams after sending
+            //    foreach (var stream in imageStreams)
+            //    {
+            //        stream.Close();
+            //    }
+
+            //    // Add reactions for navigation
+            //    if (message != null)
+            //    {
+            //        await message.AddReactionsAsync(new IEmote[] { new Emoji("⬅️"), new Emoji("➡️") });
+            //    }
+            //}
+        }
+
+        private List<string> GetHeatmapImagePaths()
+        {
+            // Your logic to get or generate heatmap image paths
+            // Example: return a list of paths to heatmap images
+            return new List<string> { "path/to/heatmap1.png", "path/to/heatmap2.png", /* ... */ };
+        }
+
         [Summary("Developer only delete last match")]
         private async Task DeleteLastMatch()
         {
@@ -313,6 +475,41 @@ namespace ValorantApp.DiscordBot
             }
 
             await ReplyAsync(MatchStatsExtension.DeleteMatch(lastMatch?.Metadata?.MatchId ?? "") ? "Deleted last match" : "Could not find last match in DB");
+        }
+
+        [Command("ApiRateLimit")]
+        [Summary("Developer only check rate limit")]
+        private async Task ApiRateLimit()
+        {
+            SocketUser userInfo = Context.User;
+            if (userInfo.Id != 158031143231422466)
+            {
+                return;
+            }
+
+            if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+            {
+                await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+                return;
+            }
+
+            int apiCallCount = 0;
+            while(true || apiCallCount == 100)
+            {
+                apiCallCount++;
+                MmrV2Json? lastMatch = valorantUser.GetMMR();
+                if (lastMatch == null)
+                {
+                    break;
+                }
+            }
+            //if (lastMatch == null)
+            //{
+            //    await ReplyAsync("Could not find last match");
+            //    return;
+            //}
+
+            await ReplyAsync($"Called mmr api #{apiCallCount}");
         }
 
         #endregion
