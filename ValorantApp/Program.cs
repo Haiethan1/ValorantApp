@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using System;
+using System.Collections.Concurrent;
 using System.Configuration;
 using System.Linq;
 using System.Reflection;
@@ -161,7 +162,7 @@ namespace ValorantApp
                     return;
                 }
 
-                Dictionary<string, MatchStats> usersMatchStats;
+                ConcurrentDictionary<string, MatchStats> usersMatchStats;
                 _program.UpdateMatchAllUsers(out usersMatchStats);
                 
                 if (usersMatchStats == null || usersMatchStats.Count == 0)

@@ -3,6 +3,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
@@ -263,7 +264,7 @@ namespace ValorantApp.DiscordBot
                 return;
             }
 
-            Dictionary<string, MatchStats> matchStats;
+            ConcurrentDictionary<string, MatchStats> matchStats;
             program.UpdateMatchAllUsers(out matchStats);
             if (matchStats == null)
             {

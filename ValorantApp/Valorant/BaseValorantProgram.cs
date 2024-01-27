@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog.Core;
+using System.Collections.Concurrent;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
@@ -22,7 +23,7 @@ namespace ValorantApp.Valorant
 
         #region Globals
 
-        private Dictionary<string, BaseValorantUser> Users { get; set; }
+        private ConcurrentDictionary<string, BaseValorantUser> Users { get; set; }
 
         private ILogger<BaseValorantProgram> Logger { get; set; }
 
@@ -64,14 +65,14 @@ namespace ValorantApp.Valorant
                         continue;
                     }
 
-                    Users.Add(user.Val_puuid, new BaseValorantUser(user.Val_username, user.Val_tagname, user.Val_affinity, Logger, user.Val_puuid));
+                    Users.TryAdd(user.Val_puuid, new BaseValorantUser(user.Val_username, user.Val_tagname, user.Val_affinity, Logger, user.Val_puuid));
                 }
 
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Logger.LogError(ex.Message);
                 return false;
             }
         }
@@ -91,13 +92,13 @@ namespace ValorantApp.Valorant
                     return false;
                 }
 
-                Users.Add(valorantUser.Val_puuid, new BaseValorantUser(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, Logger, valorantUser.Val_puuid));
+                Users.TryAdd(valorantUser.Val_puuid, new BaseValorantUser(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, Logger, valorantUser.Val_puuid));
 
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Logger.LogError(ex.Message);
                 return false;
             }
         }
@@ -121,9 +122,9 @@ namespace ValorantApp.Valorant
 
         #region Check matches
 
-        public bool UpdateMatchAllUsers(out Dictionary<string, MatchStats> userMatchStats)
+        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, MatchStats> userMatchStats)
         {
-            userMatchStats = new Dictionary<string, MatchStats>();
+            userMatchStats = new ConcurrentDictionary<string, MatchStats>();
             if (Users == null || !Users.Any())
             {
                 return false;
@@ -189,7 +190,7 @@ namespace ValorantApp.Valorant
             return true;
         }
 
-        private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, Dictionary<string, MatchStats> userMatchStats)
+        private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, MatchStats> userMatchStats)
         {
             if (match == null
                 || match.Metadata?.Mode == null
@@ -206,7 +207,7 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
-            userMatchStats.Add(puuid, matchStats);
+            userMatchStats.TryAdd(puuid, matchStats);
             MatchStatsExtension.InsertRow(matchStats);
             return true;
         }
