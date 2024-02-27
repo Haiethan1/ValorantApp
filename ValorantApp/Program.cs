@@ -1,13 +1,17 @@
 ﻿using Discord;
 using Discord.Commands;
+using Discord.Interactions;
+using Discord.Net;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Concurrent;
 using System.Configuration;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
@@ -60,10 +64,16 @@ namespace ValorantApp
                 .CreateLogger();
 
             var services = new ServiceCollection();
+            services.AddHttpClient("HenrikApiClient", client =>
+            {
+                client.BaseAddress = new Uri("https://api.henrikdev.xyz/valorant/");
+                client.DefaultRequestHeaders.Add("Authorization", ConfigurationManager.AppSettings["HenrikToken"]);
+            });
             services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
             services.AddSingleton<BaseValorantProgram>();
             services.AddSingleton(new DiscordSocketClient(discordSocketConfig));
             services.AddSingleton<CommandService>();
+            services.AddSingleton<InteractionService>();
             services.AddSingleton<ValorantApp>();
             
             //services.AddLogging()

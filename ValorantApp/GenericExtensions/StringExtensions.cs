@@ -13,5 +13,13 @@ namespace ValorantApp.GenericExtensions
             // TODO - log this if it is null. Log the name of the variable.
             return input ?? "";
         }
+
+        public static bool IsNullOrEmpty(this string? input)
+        {
+            if (input == null) return true;
+            if (input.Length == 0) return true;
+
+            return false;
+        }
     }
 }
