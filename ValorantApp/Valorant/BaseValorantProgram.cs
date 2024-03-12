@@ -13,10 +13,13 @@ namespace ValorantApp.Valorant
         // TODO add a db lock.
         private static readonly object DbLock = new object();
 
-        public BaseValorantProgram(ILogger<BaseValorantProgram> logger)
+        private readonly IHttpClientFactory _httpClientFactory;
+
+        public BaseValorantProgram(IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
         {
             // initialize users here to something? maybe create all users??
             Users = new();
+            _httpClientFactory = httpClientFactory;
             Logger = logger;
             CreateAllUsers();
         }
@@ -65,7 +68,7 @@ namespace ValorantApp.Valorant
                         continue;
                     }
 
-                    Users.TryAdd(user.Val_puuid, new BaseValorantUser(user.Val_username, user.Val_tagname, user.Val_affinity, Logger, user.Val_puuid));
+                    Users.TryAdd(user.Val_puuid, new BaseValorantUser(user.Val_username, user.Val_tagname, user.Val_affinity, _httpClientFactory, Logger, user.Val_puuid));
                 }
 
                 return true;
@@ -92,7 +95,7 @@ namespace ValorantApp.Valorant
                     return false;
                 }
 
-                Users.TryAdd(valorantUser.Val_puuid, new BaseValorantUser(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, Logger, valorantUser.Val_puuid));
+                Users.TryAdd(valorantUser.Val_puuid, new BaseValorantUser(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, _httpClientFactory, Logger, valorantUser.Val_puuid));
 
                 return true;
             }
@@ -122,16 +125,18 @@ namespace ValorantApp.Valorant
 
         #region Check matches
 
-        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, MatchStats> userMatchStats)
+        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, (MatchStats, Matches)> userMatchStats)
         {
-            userMatchStats = new ConcurrentDictionary<string, MatchStats>();
+            userMatchStats = new ConcurrentDictionary<string, (MatchStats, Matches)>();
             if (Users == null || !Users.Any())
             {
                 return false;
             }
 
             HashSet<string> updatedUsers = new();
-            Dictionary<string, Task<MatchJson?>> matchTasks = GetAllUsersMatchStats().Result;
+            var MatchStatsAndMMRHistories = GetAllUsersMatchStats().Result;
+            Dictionary<string, Task<MatchJson?>> matchTasks = MatchStatsAndMMRHistories.Item1;
+            Dictionary<string, MmrHistoryJson> matchHistories = MatchStatsAndMMRHistories.Item2;
 
             foreach (BaseValorantUser user in Users.Values)
             {
@@ -141,6 +146,10 @@ namespace ValorantApp.Valorant
                 }
                 try
                 {
+                    if (!matchTasks.ContainsKey(user.Puuid))
+                    {
+                        continue;
+                    }
                     MatchJson? match = matchTasks[user.Puuid].Result;
 
                     if (match == null
@@ -168,7 +177,7 @@ namespace ValorantApp.Valorant
                         //{
 
                         //}
-                        MmrHistoryJson? mmrHistory = userInMatch.GetMatchMMR(match?.Metadata.MatchId);
+                        MmrHistoryJson? mmrHistory = matchHistories.ContainsKey(userInMatch.Puuid) ? matchHistories[userInMatch.Puuid] : userInMatch.GetMatchMMR(match?.Metadata.MatchId);
 
                         if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
                         {
@@ -190,7 +199,7 @@ namespace ValorantApp.Valorant
             return true;
         }
 
-        private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, MatchStats> userMatchStats)
+        private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, (MatchStats, Matches)> userMatchStats)
         {
             if (match == null
                 || match.Metadata?.Mode == null
@@ -207,7 +216,28 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
-            userMatchStats.TryAdd(puuid, matchStats);
+            Matches? matches = null;
+            if (MatchesExtension.MatchIdExistsForUser(matchStats.Match_id))
+            {
+                matches = MatchesExtension.GetRow(matchStats.Match_id);
+            }
+            else
+            {
+                matches = MatchesExtension.CreateFromJson(match);
+
+                if (matches == null)
+                {
+                    return false;
+                }
+                MatchesExtension.InsertRow(matches);
+            }
+
+            if (matches == null)
+            {
+                return false;
+            }
+
+            userMatchStats.TryAdd(puuid, (matchStats, matches));
             MatchStatsExtension.InsertRow(matchStats);
             return true;
         }
@@ -238,8 +268,44 @@ namespace ValorantApp.Valorant
             return usersInMatch;
         }
 
-        private async Task<Dictionary<string, Task<MatchJson?>>> GetAllUsersMatchStats()
+        private async Task<(Dictionary<string, Task<MatchJson?>>, Dictionary<string, MmrHistoryJson>)> GetAllUsersMatchStats()
         {
+            //Dictionary<string,MmrHistoryJson> mmrHistories = new Dictionary<string, MmrHistoryJson>();
+            //Dictionary<string, Task<MmrHistoryJson?>> mmrHistoryTasks = new();
+            //foreach (BaseValorantUser user in Users.Values)
+            //{
+            //    mmrHistoryTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatchMMR()));
+            //}
+
+            //await Task.WhenAll(mmrHistoryTasks.Values.ToArray());
+
+            //HashSet<string> usersInNewMatch = new HashSet<string>();
+
+            //foreach(KeyValuePair<string, Task<MmrHistoryJson?>> mmrHistoryTask in mmrHistoryTasks)
+            //{
+            //    MmrHistoryJson? mmr = mmrHistoryTask.Value.Result;
+            //    if (mmr == null 
+            //        || mmr.Match_id == null 
+            //        || MatchStatsExtension.MatchIdExistsForUser(mmr.Match_id, mmrHistoryTask.Key))
+            //    {
+            //        continue;
+            //    }
+            //    usersInNewMatch.Add(mmrHistoryTask.Key);
+            //    mmrHistories.Add(mmrHistoryTask.Key, mmr);
+            //}
+
+            //Dictionary<string, Task<MatchJson?>> matchTasks = new();
+            //foreach (BaseValorantUser user in Users.Values)
+            //{
+            //    if (!usersInNewMatch.Contains(user.Puuid))
+            //    {
+            //        continue;
+            //    }
+            //    matchTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatch()));
+            //}
+
+            //await Task.WhenAll(matchTasks.Values.ToArray());
+            //return (matchTasks, mmrHistories);
             Dictionary<string, Task<MatchJson?>> matchTasks = new();
             foreach (BaseValorantUser user in Users.Values)
             {
@@ -247,7 +313,7 @@ namespace ValorantApp.Valorant
             }
 
             await Task.WhenAll(matchTasks.Values.ToArray());
-            return matchTasks;
+            return (matchTasks, new Dictionary<string, MmrHistoryJson>() );
         }
 
         #endregion

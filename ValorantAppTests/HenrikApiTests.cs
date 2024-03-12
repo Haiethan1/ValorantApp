@@ -24,6 +24,7 @@ namespace ValorantAppTests
         private MockRepository _mockRepository;
 
         private Mock<HttpMessageHandler> _handlerMock;
+        private Mock<IHttpClientFactory> _httpClientFactoryMock;
         private HttpClient _httpClient;
 
         #region Initialize / Helpers
@@ -33,13 +34,16 @@ namespace ValorantAppTests
         {
             _mockRepository = new(MockBehavior.Default);
             _handlerMock = _mockRepository.Create<HttpMessageHandler>();
+            _httpClientFactoryMock = _mockRepository.Create<IHttpClientFactory>();
         }
 
         private HenrikApi CreateHenrikApi()
         {
             _httpClient = new HttpClient(_handlerMock.Object);
+            _httpClient.BaseAddress = new Uri("https://api.henrikdev.xyz/valorant/");
+            _httpClientFactoryMock.Setup(x => x.CreateClient("HenrikApiClient")).Returns(_httpClient);
             var mock = new Mock<ILogger<BaseValorantProgram>>();
-            return new HenrikApi(_username, _tagName, _affinity, _puuid, _httpClient, null, mock.Object);
+            return new HenrikApi(_username, _tagName, _affinity, _puuid, _httpClientFactoryMock.Object, mock.Object);
         }
 
         private void SetEndpoint(string endpoint, string content)

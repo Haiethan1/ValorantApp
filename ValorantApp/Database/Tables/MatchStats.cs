@@ -6,8 +6,11 @@ namespace ValorantApp.Database.Tables
     {
         public string Match_id { get; private set; }
         public string Val_puuid { get; private set; }
+        [Obsolete]
         public string Map { get; private set; }
+        [Obsolete]
         public string Mode { get; private set; }
+        [Obsolete]
         public byte Rounds { get; private set; }
         public string Character { get; private set; }
         public int Rr_change { get; private set; }
@@ -30,9 +33,13 @@ namespace ValorantApp.Database.Tables
         public byte X_casts { get; private set; }
         public short Damage_To_Allies { get; private set; }
         public short Damage_From_Allies { get; private set; }
+        [Obsolete]
         public uint Game_Length { get; private set; }
+        [Obsolete]
         public DateTime? Game_Start_Patched { get; private set; }
         public bool MVP { get; private set; }
+        public byte? Current_Tier { get; private set; }
+        public string? Team { get; private set; }
 
         public MatchStats(
             string matchId,
@@ -63,7 +70,9 @@ namespace ValorantApp.Database.Tables
             short damageFromAllies,
             uint gameLength,
             DateTime? gameStartPatched,
-            bool mvp
+            bool mvp,
+            byte? currentTier,
+            string? team
             )
         {
             Match_id = matchId;
@@ -95,6 +104,8 @@ namespace ValorantApp.Database.Tables
             Game_Length = gameLength;
             Game_Start_Patched = gameStartPatched;
             MVP = mvp;
+            Current_Tier = currentTier;
+            Team = team;
         }
 
         public static MatchStats CreateFromRow(SqliteDataReader reader)
@@ -128,7 +139,9 @@ namespace ValorantApp.Database.Tables
                 reader.GetInt16(reader.GetOrdinal("damage_from_allies")),
                 (uint)reader.GetInt32(reader.GetOrdinal("game_length")),
                 reader.IsDBNull(reader.GetOrdinal("game_start_patched")) ? null : reader.GetDateTime(reader.GetOrdinal("game_start_patched")),
-                reader.GetBoolean(reader.GetOrdinal("mvp"))
+                reader.GetBoolean(reader.GetOrdinal("mvp")),
+                reader.IsDBNull(reader.GetOrdinal("current_tier")) ? null : reader.GetByte(reader.GetOrdinal("current_tier")),
+                reader.IsDBNull(reader.GetOrdinal("team")) ? null : reader.GetString(reader.GetOrdinal("team"))
             );
         }
 
@@ -140,7 +153,8 @@ namespace ValorantApp.Database.Tables
                    $"Deaths: {Deaths}, Knife_Deaths: {Knife_Deaths}, Assists: {Assists}, Bodyshots: {Bodyshots}, " +
                    $"Headshots: {Headshots}, Score: {Score}, Damage: {Damage}, C_casts: {C_casts}, Q_casts: {Q_casts}, " +
                    $"E_casts: {E_casts}, X_casts: {X_casts}, Damage_To_Allies: {Damage_To_Allies}, " +
-                   $"Damage_From_Allies: {Damage_From_Allies}, Game_Length: {Game_Length}, Game_Start_Patched: {Game_Start_Patched ?? DateTime.MinValue}, MVP: {MVP}";
+                   $"Damage_From_Allies: {Damage_From_Allies}, Game_Length: {Game_Length}, Game_Start_Patched: {Game_Start_Patched ?? DateTime.MinValue}" +
+                   $", MVP: {MVP}, Current_Tier: {Current_Tier}, Team: {Team}";
         }
     }
 

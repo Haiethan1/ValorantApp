@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Configuration;
+using System.Net.Http;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.Valorant.Enums;
@@ -8,9 +9,9 @@ namespace ValorantApp.Valorant
 {
     public class BaseValorantUser
     {
-        public BaseValorantUser(string username, string tagName, string affinity, ILogger<BaseValorantProgram> logger, string? puuid = null)
+        public BaseValorantUser(string username, string tagName, string affinity, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger, string? puuid = null)
         {
-            HenrikApi = new HenrikApi(username, tagName, affinity, puuid, new HttpClient(), ConfigurationManager.AppSettings["HenrikToken"], logger);
+            HenrikApi = new HenrikApi(username, tagName, affinity, puuid, httpClientFactory, logger);
             this.puuid = HenrikApi.puuid;
             Logger = logger;
 
@@ -78,6 +79,18 @@ namespace ValorantApp.Valorant
             return mmrHistoryJsons.FirstOrDefault(mmrHistory => mmrHistory.Match_id == matchId);
         }
 
+        public MmrHistoryJson? GetLastMatchMMR()
+        {
+            List<MmrHistoryJson>? mmrHistoryJsons = GetMMRHistory();
+
+            if (mmrHistoryJsons == null || mmrHistoryJsons.Count == 0)
+            {
+                return null;
+            }
+
+            return mmrHistoryJsons.MaxBy(mmrHistory => mmrHistory.Date_raw);
+        }
+
         private List<MatchJson>? GetMatch(Modes mode = Modes.Unknown, Maps map = Maps.Unknown, int size = 1)
         {
             return HenrikApi.Match(mode, map, size)?.Result?.Data;
@@ -109,9 +122,9 @@ namespace ValorantApp.Valorant
         /// <param name="logger"></param>
         /// <param name="puuid"></param>
         /// <returns></returns>
-        public static BaseValorantUser? CreateUser(string username, string tagName, string affinity, ulong discId, ILogger<BaseValorantProgram> logger, string? puuid = null)
+        public static BaseValorantUser? CreateUser(string username, string tagName, string affinity, ulong discId, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger, string? puuid = null)
         {
-            BaseValorantUser user = new BaseValorantUser(username, tagName, affinity, logger, puuid);
+            BaseValorantUser user = new BaseValorantUser(username, tagName, affinity, httpClientFactory, logger, puuid);
             ValorantUsers userDb = new ValorantUsers(username, tagName, affinity, user.Puuid, discId);
 
             bool inserted = ValorantUsersExtension.InsertRow(userDb);

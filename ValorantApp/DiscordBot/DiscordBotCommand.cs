@@ -16,13 +16,15 @@ namespace ValorantApp.DiscordBot
         private DiscordSocketClient _client;
         private CommandService _commands;
         private IServiceProvider _servicesProvider;
+        private readonly IHttpClientFactory _httpClientFactory;
         private ILogger<ValorantApp> _logger;
 
-        public ValorantModule(DiscordSocketClient client, CommandService commands, IServiceProvider servicesProvider, ILogger<ValorantApp> logger)
+        public ValorantModule(DiscordSocketClient client, CommandService commands, IServiceProvider servicesProvider, IHttpClientFactory httpClientFactory, ILogger<ValorantApp> logger)
         {
             _client = client;
             _commands = commands;
             _servicesProvider = servicesProvider;
+            _httpClientFactory = httpClientFactory;
             _logger = logger;
         }
 
@@ -37,7 +39,7 @@ namespace ValorantApp.DiscordBot
         }
 
         [Command("mmr")]
-        [Summary("Get the mmr of the user")]
+        [Summary("Get the mmr of the user -- Deprecated")]
         public async Task GetMMROfDiscordUser(SocketUser userInfo)
         {
             if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
@@ -72,7 +74,7 @@ namespace ValorantApp.DiscordBot
         }
 
         [Command("mmr")]
-        [Summary("Get the mmr of the user")]
+        [Summary("Get the mmr of the user -- Deprecated")]
         public async Task GetMMROfDiscordUser()
         {
             SocketUser userInfo = Context.User;
@@ -123,7 +125,7 @@ namespace ValorantApp.DiscordBot
             }
 
             SocketUser userInfo = Context.User;
-            string? puuid = BaseValorantUser.CreateUser(username, tagname, "na", userInfo.Id, _servicesProvider.GetService<ILogger<BaseValorantProgram>>())?.Puuid;
+            string? puuid = BaseValorantUser.CreateUser(username, tagname, "na", userInfo.Id, _httpClientFactory, _servicesProvider.GetService<ILogger<BaseValorantProgram>>())?.Puuid;
             
             if (puuid == null)
             {
@@ -249,6 +251,20 @@ namespace ValorantApp.DiscordBot
             await ReplyAsync("Here is a button!", components: builder.Build());
         }
 
+        [Command("MatchNow")]
+        public async Task MatchNow()
+        {
+            ValorantApp program = _servicesProvider.GetRequiredService<ValorantApp>();
+            if (program.TimedFunctionIsRunning())
+            {
+                await ReplyAsync($"Match stats are already being looked for.");
+                return;
+            }
+
+            program.SendScheduledMessage(null);
+            await ReplyAsync($"Finished finding match stats");
+        }
+
         [Summary("Developer only delete last match")]
         private async Task GetLastMatch()
         {
@@ -264,7 +280,7 @@ namespace ValorantApp.DiscordBot
                 return;
             }
 
-            ConcurrentDictionary<string, MatchStats> matchStats;
+            ConcurrentDictionary<string, (MatchStats, Matches)> matchStats;
             program.UpdateMatchAllUsers(out matchStats);
             if (matchStats == null)
             {
@@ -280,8 +296,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"<@{userInfo.Id}> Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"<@{userInfo.Id}> Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"Ehtan", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -298,8 +314,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"Tokage", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -316,8 +332,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"bot1", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -334,8 +350,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"bot2", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -352,8 +368,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"bot3", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -454,6 +470,7 @@ namespace ValorantApp.DiscordBot
         }
 
         [Summary("Developer only delete last match")]
+        [Command("delete")]
         private async Task DeleteLastMatch()
         {
             SocketUser userInfo = Context.User;
