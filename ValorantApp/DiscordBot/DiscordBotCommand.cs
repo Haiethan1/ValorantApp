@@ -251,6 +251,20 @@ namespace ValorantApp.DiscordBot
             await ReplyAsync("Here is a button!", components: builder.Build());
         }
 
+        [Command("MatchNow")]
+        public async Task MatchNow()
+        {
+            ValorantApp program = _servicesProvider.GetRequiredService<ValorantApp>();
+            if (program.TimedFunctionIsRunning())
+            {
+                await ReplyAsync($"Match stats are already being looked for.");
+                return;
+            }
+
+            program.SendScheduledMessage(null);
+            await ReplyAsync($"Finished finding match stats");
+        }
+
         [Summary("Developer only delete last match")]
         private async Task GetLastMatch()
         {
@@ -266,7 +280,7 @@ namespace ValorantApp.DiscordBot
                 return;
             }
 
-            ConcurrentDictionary<string, MatchStats> matchStats;
+            ConcurrentDictionary<string, (MatchStats, Matches)> matchStats;
             program.UpdateMatchAllUsers(out matchStats);
             if (matchStats == null)
             {
@@ -282,8 +296,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"<@{userInfo.Id}> Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"<@{userInfo.Id}> Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"Ehtan", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -300,8 +314,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"Tokage", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -318,8 +332,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"bot1", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -336,8 +350,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"bot2", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -354,8 +368,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Match_id}")
+                .WithTitle($"{matchStats.First().Value.Item2.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
                 .AddField($"bot3", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder

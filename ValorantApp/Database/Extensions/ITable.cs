@@ -15,6 +15,7 @@ namespace ValorantApp.Database.Extensions
 
                 createTableQuery.AppendLine(ValorantUsersExtension.CreateTable());
                 createTableQuery.AppendLine(MatchStatsExtension.CreateTable());
+                createTableQuery.AppendLine(MatchesExtension.CreateTable());
 
 
                 using var createTableCommand = new SqliteCommand(createTableQuery.ToString(), connection);

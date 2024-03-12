@@ -4,6 +4,7 @@ using Discord.Interactions;
 using Discord.Net;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Serilog;
@@ -15,6 +16,7 @@ using System.Net.Http;
 using System.Reflection;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
+using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
 using ValorantApp.Valorant.Enums;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
@@ -25,8 +27,11 @@ namespace ValorantApp
     {
         private DiscordSocketClient _client;
         private CommandService _commands;
+        private InteractionService _interactions;
         private IServiceProvider _servicesProvider;
         private Timer _timer;
+        private readonly object timerLock = new object();
+        private bool timerIsRunning;
         private readonly BaseValorantProgram _program;
         private ulong _channelToMessage;
         private readonly ILogger<ValorantApp> _logger;
@@ -84,12 +89,13 @@ namespace ValorantApp
             program.RunBotAsync().GetAwaiter().GetResult();
         }
 
-        public ValorantApp(BaseValorantProgram program, DiscordSocketClient client, CommandService commands, IServiceProvider servicesProvider, ILogger<ValorantApp> logger)
+        public ValorantApp(BaseValorantProgram program, DiscordSocketClient client, CommandService commands, InteractionService interaction, IServiceProvider servicesProvider, ILogger<ValorantApp> logger)
         {
             _program = program;
             _servicesProvider = servicesProvider;
             _channelToMessage = ulong.Parse(ConfigurationManager.AppSettings["ChannelToMessage"] ?? "");
             _commands = commands;
+            _interactions = interaction;
             _client = client;
             _logger = logger;
 
@@ -111,6 +117,7 @@ namespace ValorantApp
 
             _logger.LogInformation("Starting timed messages");
             _timer = new Timer(SendScheduledMessage, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
+            timerIsRunning = true;
 
             // Block the program until it is closed
             await Task.Delay(-1);
@@ -122,17 +129,63 @@ namespace ValorantApp
             return Task.CompletedTask;
         }
 
-        private Task ReadyAsync()
+        private async Task ReadyAsync()
         {
             _logger.LogInformation($"{_client.CurrentUser.Username} is connected!");
-            return Task.CompletedTask;
+
+            // Let's do our global command
+            List<SlashCommandBuilder> globalCommandList = new()
+            {
+                new SlashCommandBuilder()
+                    .WithName("mmr")
+                    .WithDescription("Get user's Valorant MMR")
+                    .AddOption("username", ApplicationCommandOptionType.User, "The username of the user to get MMR for", isRequired: false),
+                new SlashCommandBuilder()
+                    .WithName("addme")
+                    .WithDescription("Add your Valorant account to the bot")
+                    .AddOption("username", ApplicationCommandOptionType.String, "Your Valorant Riot ID", isRequired: true)
+                    .AddOption("tagname", ApplicationCommandOptionType.String, "Your Valorant Riot tag", isRequired: true),
+            };
+
+            //var commands = await _client.GetGlobalApplicationCommandsAsync();
+            //List<SlashCommandBuilder> newGlobalCommands = new();
+            //foreach (SlashCommandBuilder scb in globalCommandList)
+            //{
+            //    _logger.LogInformation($"Checking command {scb.Name}");
+            //    if (commands.Any(cmd => cmd.Name == scb.Name))
+            //    {
+            //        _logger.LogInformation($"Adding command {scb.Name}");
+            //        newGlobalCommands.Add(scb);
+            //    }
+            //}
+
+
+            try
+            {
+                // With global commands we don't need the guild.
+                await _client.BulkOverwriteGlobalApplicationCommandsAsync(globalCommandList.Select(gcmd => gcmd.Build() as ApplicationCommandProperties).ToArray());
+                // Using the ready event is a simple implementation for the sake of the example. Suitable for testing and development.
+                // For a production bot, it is recommended to only run the CreateGlobalApplicationCommandAsync() once for each command.
+            }
+            catch (HttpException exception)
+            {
+                // If our command was invalid, we should catch an ApplicationCommandException. This exception contains the path of the error as well as the error message.
+                // You can serialize the Error field in the exception to get a visual of where your error is.
+                string json = JsonConvert.SerializeObject(exception.Errors, Formatting.Indented);
+
+                // You can send this error somewhere or just print it to the console, for this example we're just going to print it.
+                _logger.LogError(json);
+            }
+            //return Task.CompletedTask;
         }
 
         public async Task RegisterCommandsAsync()
         {
             _client.MessageReceived += HandleCommandAsync;
+            _client.SlashCommandExecuted += HandleInteractionAsync;
 
             await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _servicesProvider);
+            await _interactions.AddModulesAsync(Assembly.GetEntryAssembly(), _servicesProvider);
         }
 
         private async Task HandleCommandAsync(SocketMessage messageParam)
@@ -154,14 +207,28 @@ namespace ValorantApp
             }
         }
 
-        private async void SendScheduledMessage(object? state)
+        private async Task HandleInteractionAsync(SocketInteraction arg)
+        {
+            try
+            {
+                var temp = new SocketInteractionContext(_client, arg);
+                await _interactions.ExecuteCommandAsync(temp, _servicesProvider);
+            }
+            catch (Exception ex)
+            {
+                await arg.RespondAsync($"Error when executing command {arg.Data}");
+                _logger.LogError($"HandleInteractionAsync exception: {ex}");
+            }
+        }
+
+        public async void SendScheduledMessage(object? state)
         {
             // TODO add a lock for running this. don't want this to run multiple threads.
             // probs want to move this to base valorant program???
             // will need to send in discord bot information.
 
             // this should resolve the timer
-            _timer.Change(Timeout.Infinite, Timeout.Infinite);
+            StopTimer();
             try
             {
                 _logger.LogInformation("Starting Send of scheduled messages.");
@@ -172,7 +239,7 @@ namespace ValorantApp
                     return;
                 }
 
-                ConcurrentDictionary<string, MatchStats> usersMatchStats;
+                ConcurrentDictionary<string, (MatchStats, Matches)> usersMatchStats;
                 _program.UpdateMatchAllUsers(out usersMatchStats);
                 
                 if (usersMatchStats == null || usersMatchStats.Count == 0)
@@ -182,27 +249,28 @@ namespace ValorantApp
                 }
 
                 HashSet<string> matchIds = new HashSet<string>();
-                foreach (MatchStats matchStats in usersMatchStats.Values)
+                foreach ((MatchStats, Matches) matchTuple in usersMatchStats.Values)
                 {
-                    matchIds.Add(matchStats.Match_id);
+                    matchIds.Add(matchTuple.Item2.Match_Id);
                 }
 
                 foreach (string matchid in matchIds)
                 {
-                    List<KeyValuePair<string, MatchStats>> sortedList = usersMatchStats.Where(x => x.Value.Match_id == matchid).ToList();
-                    sortedList.Sort((x, y) => y.Value.Score.CompareTo(x.Value.Score));
+                    List<KeyValuePair<string, (MatchStats, Matches)>> sortedList = usersMatchStats.Where(x => x.Value.Item2.Match_Id == matchid).ToList();
+                    sortedList.Sort((x, y) => y.Value.Item1.Score.CompareTo(x.Value.Item1.Score));
 
                     if (sortedList.Count == 0)
                     {
                         _logger.LogError($"{nameof(SendScheduledMessage)}: Found 0 match stats for match id - {matchid}");
                         continue;
                     }
-
+                    
                     if (sortedList.Count == 1)
                     {
                         _logger.LogInformation($"{nameof(SendScheduledMessage)}: Single user in match");
-                        KeyValuePair<string, MatchStats> match = sortedList.First();
-                        MatchStats stats = match.Value;
+                        KeyValuePair<string, (MatchStats, Matches)> match = sortedList.First();
+                        MatchStats stats = match.Value.Item1;
+                        Matches matches = match.Value.Item2;
 
                         BaseValorantUser? user = _program.GetValorantUser(match.Key);
                         if (user == null)
@@ -212,30 +280,48 @@ namespace ValorantApp
                         }
 
                         string userUpdated = $"<@{user.UserInfo.Disc_id}>";
+                        string rounds = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase) 
+                            ? $"{matches.Blue_Team_Rounds_Won ?? 0} : {matches.Red_Team_Rounds_Won ?? 0}" 
+                            : $"{matches.Red_Team_Rounds_Won ?? 0} : {matches.Blue_Team_Rounds_Won ?? 0}";
+                        string averageRank = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                            ? $"<{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>"
+                            : $"<{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>";
 
                         _logger.LogInformation($@"{nameof(SendScheduledMessage)}: Setting up all match data for single user {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname} - 
                             Agent = {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()},
-                            Map = {MapsExtension.MapFromString(stats.Map).StringFromMap()}, 
-                            Game_Start_patched = {stats.Game_Start_Patched?.ToString("MMM. d\\t\\h, h:mm tt")},
-                            Game_Length.TotalMinutes = {TimeSpan.FromSeconds(stats.Game_Length).TotalMinutes},
-                            Mode = {ModesExtension.ModeFromString(stats.Mode.ToLower()).StringFromMode()},
-                            Score / Rounds = {stats.Score} / {stats.Rounds},
+                            Map = {MapsExtension.MapFromString(matches.Map.Safe()).StringFromMap()}, 
+                            Team = {stats.Team}
+                            Rounds = {rounds}
+                            Average Ranks = {averageRank}
+                            Game_Start_patched = {matches.Game_Start_Patched_UTC?.ToString("MMM. d\\t\\h, h:mm tt")},
+                            Game_Length.TotalMinutes = {TimeSpan.FromSeconds(matches.Game_Length).TotalMinutes},
+                            Mode = {ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()},
+                            Score / Rounds = {stats.Score} / {matches.Rounds_Played},
                             K/D/A = {stats.Kills}/{stats.Deaths}/{stats.Assists},
                             MVP = {stats.MVP},
                             Headshot = {stats.Headshots:0.00}%,
                             RR = {stats.Rr_change}");
+
+                        EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
+                        matchInfo.Name = "~~~\n\nMatch Stats";
+                        matchInfo.Value = $"<t:{matches.Game_Start ?? 0}:f>, {TimeSpan.FromSeconds(matches.Game_Length).Minutes} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
 
                         EmbedBuilder embed = new EmbedBuilder()
                             .WithThumbnailUrl($"{AgentsExtension.AgentFromString(stats.Character).ImageURLFromAgent()}")
                             .WithAuthor
                             (new EmbedAuthorBuilder
                             {
-                                Name = $"{stats.Game_Start_Patched?.ToString("MMM. d\\t\\h, h:mm tt")}, {(int)TimeSpan.FromSeconds(stats.Game_Length).TotalMinutes}:{TimeSpan.FromSeconds(stats.Game_Length).Seconds:00} minutes\n{ModesExtension.ModeFromString(stats.Mode.ToLower()).StringFromMode()} - {stats.Map}"
+                                Name = $"\n{ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()} - {matches.Map}"
                             }
                             )
-                            .WithTitle($"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}{(stats.MVP ? " :sparkles:" : "")}")
-                            .WithDescription($"Combat Score: {stats.Score/stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}")
-                            .WithColor(stats.Rr_change >= 0 && stats.Rr_change < 5 ? Color.DarkerGrey : stats.Rr_change > 0 ? Color.Green : Color.Red);
+                            .WithTitle($"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}")
+                            .AddField(matchInfo)
+                            .WithDescription($"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}");
+
+                        bool didTeamWin = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                            ? matches.Blue_Team_Win ?? false
+                            : !matches.Blue_Team_Win ?? false;
+                        embed.WithColor(matches.Blue_Team_Rounds_Won == matches.Red_Team_Rounds_Won ? Color.DarkerGrey : didTeamWin ? Color.Green : Color.Red);
 
                         if (channel != null)
                         {
@@ -246,26 +332,40 @@ namespace ValorantApp
                     else
                     {
                         string userUpdated = "";
-                        int rrChange = 0;
-                        MatchStats setupMatchStats = sortedList.First().Value;
+                        MatchStats setupMatchStats = sortedList.First().Value.Item1;
+                        Matches setupMatches = sortedList.First().Value.Item2;
+
+                        string rounds = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                            ? $"{setupMatches.Blue_Team_Rounds_Won ?? 0} : {setupMatches.Red_Team_Rounds_Won ?? 0}"
+                            : $"{setupMatches.Red_Team_Rounds_Won ?? 0} : {setupMatches.Blue_Team_Rounds_Won ?? 0}";
+
+                        string averageRank = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                            ? $"<{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>"
+                            : $"<{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>";
 
                         _logger.LogInformation($"{nameof(SendScheduledMessage)}: Multiple users in match");
                         _logger.LogInformation($@"{nameof(SendScheduledMessage)}: Setting up base match data. - 
-                            Map = {MapsExtension.MapFromString(setupMatchStats.Map).StringFromMap()}, 
-                            Game_Start_patched = {setupMatchStats.Game_Start_Patched?.ToString("MMM. d\\t\\h, h:mm tt")},
-                            Game_Length.TotalMinutes = {TimeSpan.FromSeconds(setupMatchStats.Game_Length).TotalMinutes},
-                            Mode = {ModesExtension.ModeFromString(setupMatchStats.Mode.ToLower()).StringFromMode()}");
+                            Map = {MapsExtension.MapFromString(setupMatches.Map.Safe()).StringFromMap()}, 
+                            Rounds = {rounds}
+                            Average Ranks = {averageRank}
+                            Game_Start_patched = {setupMatches.Game_Start_Patched_UTC?.ToString("MMM. d\\t\\h, h:mm tt")},
+                            Game_Length.TotalMinutes = {TimeSpan.FromSeconds(setupMatches.Game_Length).TotalMinutes},
+                            Mode = {ModesExtension.ModeFromString(setupMatches.Mode.Safe().ToLower()).StringFromMode()}");
 
                         EmbedBuilder embed = new EmbedBuilder()
-                            .WithThumbnailUrl(MapsExtension.MapFromString(setupMatchStats.Map).ImageUrlFromMap())
+                            .WithThumbnailUrl(MapsExtension.MapFromString(setupMatches.Map.Safe()).ImageUrlFromMap())
                             .WithAuthor
                             (new EmbedAuthorBuilder
                             {
-                                Name = $"{setupMatchStats.Game_Start_Patched?.ToString("MMM. d\\t\\h, h:mm tt")}, {TimeSpan.FromSeconds(setupMatchStats.Game_Length).TotalMinutes} minutes\n{ModesExtension.ModeFromString(setupMatchStats.Mode.ToLower()).StringFromMode()} - {setupMatchStats.Map}"
+                                Name = $"\n{ModesExtension.ModeFromString(setupMatches.Mode.Safe().ToLower()).StringFromMode()} - {setupMatches.Map.Safe()}"
                             }
                             );
 
-                        foreach (KeyValuePair<string, MatchStats> matchStats in sortedList)
+                        EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
+                        matchInfo.Name = "~~~\n\nMatch Stats";
+                        matchInfo.Value = $"<t:{setupMatches.Game_Start ?? 0}:f>, {TimeSpan.FromSeconds(setupMatches.Game_Length).Minutes} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
+
+                        foreach (KeyValuePair<string, (MatchStats, Matches)> matchStats in sortedList)
                         {
                             BaseValorantUser? user = _program.GetValorantUser(matchStats.Key);
                             if (user == null)
@@ -278,23 +378,27 @@ namespace ValorantApp
 
                             EmbedFieldBuilder embedField = new EmbedFieldBuilder();
 
-                            MatchStats stats = matchStats.Value;
+                            MatchStats stats = matchStats.Value.Item1;
+                            Matches matches = matchStats.Value.Item2;
 
                             _logger.LogInformation($@"{nameof(SendScheduledMessage)}: Setting up match data for single user {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname} - 
-                                Score / Rounds = {stats.Score} / {stats.Rounds},
+                                Score / Rounds = {stats.Score} / {matches.Rounds_Played},
                                 K/D/A = {stats.Kills}/{stats.Deaths}/{stats.Assists},
                                 MVP = {stats.MVP},
                                 Headshot = {stats.Headshots:0.00}%,
-                                RR = {stats.Rr_change}");
+                                RR = {stats.Rr_change},
+                                CurrentTier = {stats.Current_Tier}");
 
-                            embedField.Name = $"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()}{(stats.MVP ? " :sparkles:" : "")}";
-                            embedField.Value = $"Combat Score: {stats.Score / stats.Rounds}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}";
+                            embedField.Name = $"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}";
+                            embedField.Value = $"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}";
                             embed.AddField(embedField);
-                            rrChange += stats.Rr_change;
                         }
 
-                        rrChange = rrChange / sortedList.Count;
-                        embed.WithColor(rrChange >= 0 && rrChange < 5 ? Color.DarkerGrey : rrChange > 0 ? Color.Green : Color.Red);
+                        bool didTeamWin = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                            ? setupMatches.Blue_Team_Win ?? false
+                            : !setupMatches.Blue_Team_Win ?? false;
+                        embed.WithColor(setupMatches.Blue_Team_Rounds_Won == setupMatches.Red_Team_Rounds_Won ? Color.DarkerGrey : didTeamWin ? Color.Green : Color.Red);
+                        embed.AddField(matchInfo);
 
                         if (channel != null && !string.IsNullOrEmpty(userUpdated))
                         {
@@ -310,8 +414,39 @@ namespace ValorantApp
             }
             finally
             {
-                _timer.Change(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5));
+                StartTimer();
             }
+        }
+
+        private void StopTimer()
+        {
+            lock(timerLock)
+            {
+                _timer.Change(Timeout.Infinite, Timeout.Infinite);
+                timerIsRunning = false;
+            }
+        }
+
+        private void StartTimer()
+        {
+            lock (timerLock)
+            {
+                _timer.Change(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5));
+                timerIsRunning = true;
+            }
+        }
+
+        private bool TimerIsRunning()
+        {
+            lock(timerLock)
+            {
+                return timerIsRunning;
+            }
+        }
+
+        public bool TimedFunctionIsRunning()
+        {
+            return !TimerIsRunning();
         }
     }
 }

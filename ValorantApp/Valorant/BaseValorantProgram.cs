@@ -125,9 +125,9 @@ namespace ValorantApp.Valorant
 
         #region Check matches
 
-        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, MatchStats> userMatchStats)
+        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, (MatchStats, Matches)> userMatchStats)
         {
-            userMatchStats = new ConcurrentDictionary<string, MatchStats>();
+            userMatchStats = new ConcurrentDictionary<string, (MatchStats, Matches)>();
             if (Users == null || !Users.Any())
             {
                 return false;
@@ -199,7 +199,7 @@ namespace ValorantApp.Valorant
             return true;
         }
 
-        private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, MatchStats> userMatchStats)
+        private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, (MatchStats, Matches)> userMatchStats)
         {
             if (match == null
                 || match.Metadata?.Mode == null
@@ -216,7 +216,28 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
-            userMatchStats.TryAdd(puuid, matchStats);
+            Matches? matches = null;
+            if (MatchesExtension.MatchIdExistsForUser(matchStats.Match_id))
+            {
+                matches = MatchesExtension.GetRow(matchStats.Match_id);
+            }
+            else
+            {
+                matches = MatchesExtension.CreateFromJson(match);
+
+                if (matches == null)
+                {
+                    return false;
+                }
+                MatchesExtension.InsertRow(matches);
+            }
+
+            if (matches == null)
+            {
+                return false;
+            }
+
+            userMatchStats.TryAdd(puuid, (matchStats, matches));
             MatchStatsExtension.InsertRow(matchStats);
             return true;
         }
@@ -249,42 +270,50 @@ namespace ValorantApp.Valorant
 
         private async Task<(Dictionary<string, Task<MatchJson?>>, Dictionary<string, MmrHistoryJson>)> GetAllUsersMatchStats()
         {
-            Dictionary<string,MmrHistoryJson> mmrHistories = new Dictionary<string, MmrHistoryJson>();
-            Dictionary<string, Task<MmrHistoryJson?>> mmrHistoryTasks = new();
-            foreach (BaseValorantUser user in Users.Values)
-            {
-                mmrHistoryTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatchMMR()));
-            }
+            //Dictionary<string,MmrHistoryJson> mmrHistories = new Dictionary<string, MmrHistoryJson>();
+            //Dictionary<string, Task<MmrHistoryJson?>> mmrHistoryTasks = new();
+            //foreach (BaseValorantUser user in Users.Values)
+            //{
+            //    mmrHistoryTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatchMMR()));
+            //}
 
-            await Task.WhenAll(mmrHistoryTasks.Values.ToArray());
+            //await Task.WhenAll(mmrHistoryTasks.Values.ToArray());
 
-            HashSet<string> usersInNewMatch = new HashSet<string>();
+            //HashSet<string> usersInNewMatch = new HashSet<string>();
 
-            foreach(KeyValuePair<string, Task<MmrHistoryJson?>> mmrHistoryTask in mmrHistoryTasks)
-            {
-                MmrHistoryJson? mmr = mmrHistoryTask.Value.Result;
-                if (mmr == null 
-                    || mmr.Match_id == null 
-                    || MatchStatsExtension.MatchIdExistsForUser(mmr.Match_id, mmrHistoryTask.Key))
-                {
-                    continue;
-                }
-                usersInNewMatch.Add(mmrHistoryTask.Key);
-                mmrHistories.Add(mmrHistoryTask.Key, mmr);
-            }
+            //foreach(KeyValuePair<string, Task<MmrHistoryJson?>> mmrHistoryTask in mmrHistoryTasks)
+            //{
+            //    MmrHistoryJson? mmr = mmrHistoryTask.Value.Result;
+            //    if (mmr == null 
+            //        || mmr.Match_id == null 
+            //        || MatchStatsExtension.MatchIdExistsForUser(mmr.Match_id, mmrHistoryTask.Key))
+            //    {
+            //        continue;
+            //    }
+            //    usersInNewMatch.Add(mmrHistoryTask.Key);
+            //    mmrHistories.Add(mmrHistoryTask.Key, mmr);
+            //}
 
+            //Dictionary<string, Task<MatchJson?>> matchTasks = new();
+            //foreach (BaseValorantUser user in Users.Values)
+            //{
+            //    if (!usersInNewMatch.Contains(user.Puuid))
+            //    {
+            //        continue;
+            //    }
+            //    matchTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatch()));
+            //}
+
+            //await Task.WhenAll(matchTasks.Values.ToArray());
+            //return (matchTasks, mmrHistories);
             Dictionary<string, Task<MatchJson?>> matchTasks = new();
             foreach (BaseValorantUser user in Users.Values)
             {
-                if (!usersInNewMatch.Contains(user.Puuid))
-                {
-                    continue;
-                }
                 matchTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatch()));
             }
 
             await Task.WhenAll(matchTasks.Values.ToArray());
-            return (matchTasks, mmrHistories);
+            return (matchTasks, new Dictionary<string, MmrHistoryJson>() );
         }
 
         #endregion
