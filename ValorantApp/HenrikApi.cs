@@ -1,24 +1,33 @@
 ﻿
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using ValorantApp.ValorantEnum;
+using System;
+using System.Net.Http.Headers;
+using ValorantApp.GenericExtensions;
+using ValorantApp.Valorant;
+using ValorantApp.Valorant.Enums;
 
 namespace ValorantApp
 {
     public class HenrikApi
     {
-        private HttpClient httpClient = new HttpClient();
-
+        private readonly IHttpClientFactory _httpClientFactory;
+        private ILogger<BaseValorantProgram> Logger { get; set; }
 
         public string username;
         public string tagName;
         public string affinity;
         public string puuid;
 
-        public HenrikApi(string username, string tagName, string affinity, string? puuid)
+        private long DownloadSize { get; set; }
+
+        public HenrikApi(string username, string tagName, string affinity, string? puuid, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
         {
             this.username = username;
             this.tagName = tagName;
             this.affinity = affinity;
+            _httpClientFactory = httpClientFactory;
+            Logger = logger;
 
             if (puuid != null)
             {
@@ -36,9 +45,15 @@ namespace ValorantApp
             
         }
 
-        private async Task<JsonObjectHenrik<AccountJson>>? AccountQuery()
+        public async Task<JsonObjectHenrik<AccountJson>>? AccountQuery()
         {
-            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/account/{username}/{tagName}");
+            string endpoint = $"v1/account/{username}/{tagName}";
+            var httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
+            var response = await httpClient.GetAsync(endpoint);
+            var responseSize = response.GetResponseSize().Result;
+            DownloadSize += responseSize;
+
+            Logger.ApiInformation(endpoint + $". Response Code: {response.StatusCode}, Download Size:{response.GetResponseSize().Result.FormatSize()}, Total Download Size: {DownloadSize.FormatSize()}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -48,21 +63,33 @@ namespace ValorantApp
             return JsonConvert.DeserializeObject<JsonObjectHenrik<AccountJson>>(response.Content.ReadAsStringAsync().Result);
         }
 
-        public async Task<JsonObjectHenrik<MmrJson>>? Mmr()
+        public async Task<JsonObjectHenrik<MmrV2Json>>? Mmr()
         {
-            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr/{affinity}/{puuid}");
+            string endpoint = $"v2/by-puuid/mmr/{affinity}/{puuid}";
+            var httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
+            var response = await httpClient.GetAsync(endpoint);
+            var responseSize = response.GetResponseSize().Result;
+            DownloadSize += responseSize;
+
+            Logger.ApiInformation(endpoint + $". Response Code: {response.StatusCode}, Download Size:{response.GetResponseSize().Result.FormatSize()}, Total Download Size: {DownloadSize.FormatSize()}");
 
             if (!response.IsSuccessStatusCode)
             {
                 return null;
             }
 
-            return JsonConvert.DeserializeObject<JsonObjectHenrik<MmrJson>>(response.Content.ReadAsStringAsync().Result);
+            return JsonConvert.DeserializeObject<JsonObjectHenrik<MmrV2Json>>(response.Content.ReadAsStringAsync().Result);
         }
 
         public async Task<JsonObjectHenrik<List<MmrHistoryJson>>>? MmrHistory()
         {
-            var response = await httpClient.GetAsync($"https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr-history/{affinity}/{puuid}");
+            string endpoint = $"v1/by-puuid/mmr-history/{affinity}/{puuid}";
+            var httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
+            var response = await httpClient.GetAsync(endpoint);
+            var responseSize = response.GetResponseSize().Result;
+            DownloadSize += responseSize;
+
+            Logger.ApiInformation(endpoint + $". Response Code: {response.StatusCode}, Download Size:{response.GetResponseSize().Result.FormatSize()}, Total Download Size: {DownloadSize.FormatSize()}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -74,18 +101,23 @@ namespace ValorantApp
 
         public async Task<JsonObjectHenrik<List<MatchJson>>>? Match(Modes mode = Modes.Unknown, Maps map = Maps.Unknown, int size = 1)
         {
-            string query = $"https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/{affinity}/{puuid}?";
+            string endpoint = $"v3/by-puuid/matches/{affinity}/{puuid}?";
             if (mode != Modes.Unknown)
             {
-                query += $"&mode={mode.StringFromMode()}";
+                endpoint += $"&mode={mode.StringFromMode()}";
             }
             if (map != Maps.Unknown)
             {
-                query += $"&map={map.StringFromMap()}";
+                endpoint += $"&map={map.StringFromMap()}";
             }
-            query += $"&size={size}";
+            endpoint += $"&size={size}";
 
-            var response = await httpClient.GetAsync(query);
+            var httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
+            var response = await httpClient.GetAsync(endpoint);
+            var responseSize = response.GetResponseSize().Result;
+            DownloadSize += responseSize;
+
+            Logger.ApiInformation(endpoint + $". Response Code: {response.StatusCode}, Download Size:{response.GetResponseSize().Result.FormatSize()}, Total Download Size: {DownloadSize.FormatSize()}");
 
             if (!response.IsSuccessStatusCode)
             {
