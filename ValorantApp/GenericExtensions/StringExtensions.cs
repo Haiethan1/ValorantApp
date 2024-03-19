@@ -21,5 +21,14 @@ namespace ValorantApp.GenericExtensions
 
             return false;
         }
+
+        public static string Repeat(this string s, int n)
+        {
+            if (string.IsNullOrEmpty(s) || n <= 0)
+            {
+                return "";
+            }
+            return new StringBuilder(s.Length * n).Insert(0, s, n).ToString();
+        }
     }
 }
