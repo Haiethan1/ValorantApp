@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,6 +21,26 @@ namespace ValorantApp.GenericExtensions
             if (input.Length == 0) return true;
 
             return false;
+        }
+
+        public static T? TryParse<T>(this string? input, out string errormsg)
+        {
+            errormsg = "";
+            try
+            {
+                if (input == null || input.Length == 0)
+                {
+                    errormsg = "TryParse json input is null or empty";
+                    return default;
+                }
+                return JsonConvert.DeserializeObject<T>(input);
+            }
+            catch (Exception ex)
+            {
+                errormsg = ex.Message;
+            }
+
+            return default;
         }
     }
 }

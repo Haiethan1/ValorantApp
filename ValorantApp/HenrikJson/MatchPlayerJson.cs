@@ -79,8 +79,8 @@ namespace ValorantApp.HenrikJson
 
     public class PlayerBehaviorFriendlyFireJson
     {
-        public int? Incoming { get; set; }
-        public int? Outgoing { get; set; }
+        public double? Incoming { get; set; }
+        public double? Outgoing { get; set; }
     }
     #endregion
 
