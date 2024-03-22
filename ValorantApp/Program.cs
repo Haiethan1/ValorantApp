@@ -75,6 +75,7 @@ namespace ValorantApp
                 client.DefaultRequestHeaders.Add("Authorization", ConfigurationManager.AppSettings["HenrikToken"]);
             });
             services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
+            services.UseMinimalHttpLogger();
             services.AddSingleton<BaseValorantProgram>();
             services.AddSingleton(new DiscordSocketClient(discordSocketConfig));
             services.AddSingleton<CommandService>();
