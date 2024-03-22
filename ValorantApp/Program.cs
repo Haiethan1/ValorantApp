@@ -303,7 +303,7 @@ namespace ValorantApp
                             RR = {stats.Rr_change}");
 
                         EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
-                        matchInfo.Name = "\\_".Repeat(20) + "\n\nMatch Stats";
+                        matchInfo.Name = Format.Sanitize("_".Repeat(40)) + "\n\nMatch Stats";
                         matchInfo.Value = $"<t:{matches.Game_Start ?? 0}:f>, {TimeSpan.FromSeconds(matches.Game_Length).Minutes} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
 
                         EmbedBuilder embed = new EmbedBuilder()
