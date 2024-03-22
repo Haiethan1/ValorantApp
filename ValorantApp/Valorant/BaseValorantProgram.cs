@@ -125,9 +125,9 @@ namespace ValorantApp.Valorant
 
         #region Check matches
 
-        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, (MatchStats, Matches)> userMatchStats)
+        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
         {
-            userMatchStats = new ConcurrentDictionary<string, (MatchStats, Matches)>();
+            userMatchStats = new ConcurrentDictionary<string, BaseValorantMatch>();
             if (Users == null || !Users.Any())
             {
                 return false;
@@ -199,7 +199,7 @@ namespace ValorantApp.Valorant
             return true;
         }
 
-        private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, (MatchStats, Matches)> userMatchStats)
+        private bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
         {
             if (match == null
                 || match.Metadata?.Mode == null
@@ -237,7 +237,7 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
-            userMatchStats.TryAdd(puuid, (matchStats, matches));
+            userMatchStats.TryAdd(puuid, new BaseValorantMatch(matchStats, matches, Users[puuid].UserInfo, Logger));
             MatchStatsExtension.InsertRow(matchStats);
             return true;
         }

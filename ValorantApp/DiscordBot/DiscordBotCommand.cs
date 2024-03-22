@@ -280,7 +280,7 @@ namespace ValorantApp.DiscordBot
                 return;
             }
 
-            ConcurrentDictionary<string, (MatchStats, Matches)> matchStats;
+            ConcurrentDictionary<string, BaseValorantMatch> matchStats;
             program.UpdateMatchAllUsers(out matchStats);
             if (matchStats == null)
             {
@@ -296,8 +296,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Item2.Map}")
-                .WithDescription($"<@{userInfo.Id}> Match data {matchStats.First().Value.Item2.Match_Id}")
+                .WithTitle($"{matchStats.First().Value.Matches.Map}")
+                .WithDescription($"<@{userInfo.Id}> Match data {matchStats.First().Value.Matches.Match_Id}")
                 .AddField($"Ehtan", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -314,8 +314,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Item2.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
+                .WithTitle($"{matchStats.First().Value.Matches.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
                 .AddField($"Tokage", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -332,8 +332,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Item2.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
+                .WithTitle($"{matchStats.First().Value.Matches.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
                 .AddField($"bot1", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -350,8 +350,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Item2.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
+                .WithTitle($"{matchStats.First().Value.Matches.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
                 .AddField($"bot2", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
@@ -368,8 +368,8 @@ namespace ValorantApp.DiscordBot
                     Name = "DATE -- November 7th, 2023"
                 }
                 )
-                .WithTitle($"{matchStats.First().Value.Item2.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Item2.Match_Id}")
+                .WithTitle($"{matchStats.First().Value.Matches.Map}")
+                .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
                 .AddField($"bot3", "KDA, combat, headshot, rr change", inline: false)
                 .WithFooter
                 (new EmbedFooterBuilder
