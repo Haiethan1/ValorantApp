@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.Sqlite;
+using System;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
@@ -45,6 +46,7 @@ namespace ValorantApp.Database.Extensions
                     mvp INTEGER NOT NULL DEFAULT 0,
                     current_tier TINYINT,
                     team TEXT,
+                    new_tier TINYINT,
                     PRIMARY KEY (match_id, val_puuid)
                 );";
 
@@ -62,14 +64,14 @@ namespace ValorantApp.Database.Extensions
                     rr_change, double_kills, triple_kills, quad_kills, aces, kills, knife_kills, 
                     deaths, knife_deaths, assists, bodyshots, headshots, score, damage,
                     c_casts, q_casts, e_casts, x_casts, damage_to_allies, damage_from_allies, game_length, game_start_patched, 
-                    mvp, current_tier, team
+                    mvp, current_tier, team, new_tier
                 ) 
                 VALUES (
                     @Match_id, @Val_puuid, @Map, @Mode, @Rounds, @Character, 
                     @Rr_change, @Double_kills, @Triple_kills, @Quad_kills, @Aces, @Kills, @Knife_kills,
                     @Deaths, @Knife_deaths, @Assists, @Bodyshots, @Headshots, @Score, @Damage, 
                     @C_casts, @Q_casts, @E_casts, @X_casts, @Damage_to_allies, @Damage_from_allies, @Game_length, @Game_start_patched, 
-                    @MVP, @Current_tier, @Team
+                    @MVP, @Current_tier, @Team, @New_tier
                 )";
 
             using SqliteCommand command = new SqliteCommand(InsertRowQuery, connection);
@@ -104,6 +106,7 @@ namespace ValorantApp.Database.Extensions
             command.Parameters.AddWithValue("@MVP", matchStats.MVP);
             command.Parameters.AddWithValue("@Current_tier", matchStats.Current_Tier);
             command.Parameters.AddWithValue("@Team", matchStats.Team);
+            command.Parameters.AddWithValue("@New_tier", matchStats.New_Tier);
 
             command.ExecuteNonQuery();
         }
@@ -146,7 +149,8 @@ namespace ValorantApp.Database.Extensions
                     game_start_patched = @Game_start_patched,
                     mvp = @MVP,
                     current_tier = @Current_tier,
-                    team = @Team
+                    team = @Team,
+                    new_tier = @New_tier
                 WHERE match_id = @Match_id";
 
                 using (SqliteCommand command = new(UpdateRowQuery, connection))
@@ -182,10 +186,78 @@ namespace ValorantApp.Database.Extensions
                     command.Parameters.AddWithValue("@MVP", matchStats.MVP);
                     command.Parameters.AddWithValue("@Current_tier", matchStats.Current_Tier);
                     command.Parameters.AddWithValue("@Team", matchStats.Team);
+                    command.Parameters.AddWithValue("@New_tier", matchStats.New_Tier);
 
                     command.ExecuteNonQuery();
                 }
             }
+        }
+
+        public static MatchStats? GetRow(string matchId, string puuid)
+        {
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+            // TODO make sql queries not lock db
+            string sql = "SELECT * FROM MatchStats WHERE match_id = @match_id and val_puuid = @val_puuid";
+
+            using SqliteCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@match_id", matchId);
+            command.Parameters.AddWithValue("@val_puuid", puuid);
+
+            using SqliteDataReader reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return MatchStats.CreateFromRow(reader);
+        }
+
+        public static MatchStats? GetLastCompMatchStats(string puuid)
+        {
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+            // TODO make sql queries not lock db
+            string sql = "SELECT * FROM MatchStats WHERE val_puuid = @val_puuid and mode = @mode COLLATE NOCASE ORDER BY game_start_patched DESC LIMIT 1";
+
+            using SqliteCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@val_puuid", puuid);
+            command.Parameters.AddWithValue("@mode", Modes.Competitive.ToDescriptionString());
+
+            using SqliteDataReader reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return MatchStats.CreateFromRow(reader);
+        }
+
+        public static IEnumerable<MatchStats> GetCompMatchStats(string puuid, DateTime startDate, DateTime endDate)
+        {
+            List<MatchStats> matches = new List<MatchStats>();
+
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+
+            string sql = "SELECT * FROM MatchStats WHERE val_puuid = @val_puuid AND mode = @mode COLLATE NOCASE AND game_start_patched >= @start_date AND game_start_patched <= @end_date";
+
+            using SqliteCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@val_puuid", puuid);
+            command.Parameters.AddWithValue("@mode", Modes.Competitive.ToDescriptionString());
+            command.Parameters.AddWithValue("@start_date", startDate);
+            command.Parameters.AddWithValue("@end_date", endDate);
+
+            using SqliteDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                matches.Add(MatchStats.CreateFromRow(reader));
+            }
+
+            return matches;
         }
 
         public static OverallMatchStats? GetSumOfMatchStats(string valPuuid, Maps? map, Agents? agent, Modes? mode, DateTime? fromDate, DateTime? toDate)
@@ -374,7 +446,7 @@ namespace ValorantApp.Database.Extensions
                 metadata.MatchId, puuid, metadata.Map.Safe(), metadata.Mode.Safe(), (byte)metadata.Rounds_Played, player.Character.Safe(), mmr?.Mmr_change_to_last_game ?? 0, doubleKills, tripleKills, quadKills, aces
                 , (byte)(stats?.Kills ?? 0), knifeKills, (byte)(stats?.Deaths ?? 0), knifeDeaths, (byte)(stats?.Assists ?? 0), bodyshot, headshot, (short)score
                 , (short)player.Damage_Made, (byte)(abilities?.C_Cast ?? 0), (byte)(abilities?.Q_Cast ?? 0), (byte)(abilities?.E_Cast ?? 0), (byte)(abilities?.X_Cast ?? 0), damageToAllies, damageFromAllies, gameLength
-                , gameStartPatched, mvp, (byte?)player.CurrentTier, player.Team
+                , gameStartPatched, mvp, (byte?)player.CurrentTier, player.Team, (byte)(mmr?.Currenttier ?? 0)
                 );
         }
     }

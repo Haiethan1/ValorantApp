@@ -73,7 +73,10 @@ namespace ValorantApp.Valorant.Enums
         Deadlock,
 
         [Description("Iso")]
-        Iso
+        Iso,
+
+        [Description("Clove")]
+        Clove
     }
 
     public static class AgentsExtension
@@ -146,6 +149,8 @@ namespace ValorantApp.Valorant.Enums
                     return "https://static.wikia.nocookie.net/valorant/images/a/aa/Deadlock_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20230627132700";
                 case Agents.Iso:
                     return "https://static.wikia.nocookie.net/valorant/images/5/5f/Iso_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20231031131018";
+                case Agents.Clove:
+                    return "https://static.wikia.nocookie.net/valorant/images/0/0b/Clove_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20240326163704";
                 default:
                     return "";
             }

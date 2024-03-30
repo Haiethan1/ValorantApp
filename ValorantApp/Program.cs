@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Net.Http;
@@ -222,6 +223,7 @@ namespace ValorantApp
             }
         }
 
+        // TODO investigate moving most of this out of here and into BaseValorantProgram
         public async void SendScheduledMessage(object? state)
         {
             // TODO add a lock for running this. don't want this to run multiple threads.
@@ -367,6 +369,13 @@ namespace ValorantApp
                         }
                     }
                 }
+
+                if (channel == null)
+                {
+                    _logger.LogWarning($"{nameof(SendScheduledMessage)}: Could not find channel {_channelToMessage}");
+                    return;
+                }
+                _program.UpdateCurrentTierAllUsers([.. usersMatchStats.Values], channel);
             }
             catch (Exception ex)
             {
