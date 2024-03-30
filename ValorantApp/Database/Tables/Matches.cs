@@ -1,5 +1,4 @@
 ﻿using Microsoft.Data.Sqlite;
-using System.Data;
 
 namespace ValorantApp.Database.Tables
 {

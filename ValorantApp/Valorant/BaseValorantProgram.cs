@@ -1,10 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
-using Serilog.Core;
-using Serilog.Filters;
 using System.Collections.Concurrent;
-using System.Linq;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;

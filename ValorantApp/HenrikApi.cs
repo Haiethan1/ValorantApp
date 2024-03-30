@@ -1,8 +1,5 @@
 ﻿
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using System;
-using System.Net.Http.Headers;
 using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
 using ValorantApp.Valorant.Enums;

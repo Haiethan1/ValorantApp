@@ -4,23 +4,17 @@ using Discord.Interactions;
 using Discord.Net;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Serilog;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Configuration;
-using System.Linq;
-using System.Net.Http;
 using System.Reflection;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
 using ValorantApp.Valorant.Enums;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace ValorantApp
 {

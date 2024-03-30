@@ -1,11 +1,4 @@
-﻿using Discord;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.Logging;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant.Enums;

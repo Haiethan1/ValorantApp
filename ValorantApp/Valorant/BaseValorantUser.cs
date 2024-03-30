@@ -1,6 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using System.Configuration;
-using System.Net.Http;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
