@@ -4,22 +4,17 @@ using Discord.Interactions;
 using Discord.Net;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Serilog;
-using System;
 using System.Collections.Concurrent;
 using System.Configuration;
-using System.Linq;
-using System.Net.Http;
 using System.Reflection;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
 using ValorantApp.Valorant.Enums;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace ValorantApp
 {
@@ -75,6 +70,7 @@ namespace ValorantApp
                 client.DefaultRequestHeaders.Add("Authorization", ConfigurationManager.AppSettings["HenrikToken"]);
             });
             services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
+            services.UseMinimalHttpLogger();
             services.AddSingleton<BaseValorantProgram>();
             services.AddSingleton(new DiscordSocketClient(discordSocketConfig));
             services.AddSingleton<CommandService>();
@@ -221,6 +217,7 @@ namespace ValorantApp
             }
         }
 
+        // TODO investigate moving most of this out of here and into BaseValorantProgram
         public async void SendScheduledMessage(object? state)
         {
             // TODO add a lock for running this. don't want this to run multiple threads.
@@ -239,7 +236,7 @@ namespace ValorantApp
                     return;
                 }
 
-                ConcurrentDictionary<string, (MatchStats, Matches)> usersMatchStats;
+                ConcurrentDictionary<string, BaseValorantMatch> usersMatchStats;
                 _program.UpdateMatchAllUsers(out usersMatchStats);
                 
                 if (usersMatchStats == null || usersMatchStats.Count == 0)
@@ -249,15 +246,15 @@ namespace ValorantApp
                 }
 
                 HashSet<string> matchIds = new HashSet<string>();
-                foreach ((MatchStats, Matches) matchTuple in usersMatchStats.Values)
+                foreach (BaseValorantMatch match in usersMatchStats.Values)
                 {
-                    matchIds.Add(matchTuple.Item2.Match_Id);
+                    matchIds.Add(match.Matches.Match_Id);
                 }
 
                 foreach (string matchid in matchIds)
                 {
-                    List<KeyValuePair<string, (MatchStats, Matches)>> sortedList = usersMatchStats.Where(x => x.Value.Item2.Match_Id == matchid).ToList();
-                    sortedList.Sort((x, y) => y.Value.Item1.Score.CompareTo(x.Value.Item1.Score));
+                    List<KeyValuePair<string, BaseValorantMatch>> sortedList = usersMatchStats.Where(x => x.Value.Matches.Match_Id == matchid).ToList();
+                    sortedList.Sort((x, y) => y.Value.MatchStats.Score.CompareTo(x.Value.MatchStats.Score));
 
                     if (sortedList.Count == 0)
                     {
@@ -268,43 +265,22 @@ namespace ValorantApp
                     if (sortedList.Count == 1)
                     {
                         _logger.LogInformation($"{nameof(SendScheduledMessage)}: Single user in match");
-                        KeyValuePair<string, (MatchStats, Matches)> match = sortedList.First();
-                        MatchStats stats = match.Value.Item1;
-                        Matches matches = match.Value.Item2;
+                        KeyValuePair<string, BaseValorantMatch> match = sortedList.First();
+                        MatchStats stats = match.Value.MatchStats;
+                        Matches matches = match.Value.Matches;
 
-                        BaseValorantUser? user = _program.GetValorantUser(match.Key);
-                        if (user == null)
-                        {
-                            _logger.LogError($"{nameof(SendScheduledMessage)}: BaseValorantUser not found after finding match stats - {match.Key}");
-                            continue;
-                        }
-
-                        string userUpdated = $"<@{user.UserInfo.Disc_id}>";
+                        string userUpdated = $"<@{match.Value.UserInfo.Disc_id}>";
                         string rounds = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase) 
                             ? $"{matches.Blue_Team_Rounds_Won ?? 0} : {matches.Red_Team_Rounds_Won ?? 0}" 
                             : $"{matches.Red_Team_Rounds_Won ?? 0} : {matches.Blue_Team_Rounds_Won ?? 0}";
                         string averageRank = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
                             ? $"<{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>"
                             : $"<{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>";
-
-                        _logger.LogInformation($@"{nameof(SendScheduledMessage)}: Setting up all match data for single user {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname} - 
-                            Agent = {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()},
-                            Map = {MapsExtension.MapFromString(matches.Map.Safe()).StringFromMap()}, 
-                            Team = {stats.Team}
-                            Rounds = {rounds}
-                            Average Ranks = {averageRank}
-                            Game_Start_patched = {matches.Game_Start_Patched_UTC?.ToString("MMM. d\\t\\h, h:mm tt")},
-                            Game_Length.TotalMinutes = {TimeSpan.FromSeconds(matches.Game_Length).TotalMinutes},
-                            Mode = {ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()},
-                            Score / Rounds = {stats.Score} / {matches.Rounds_Played},
-                            K/D/A = {stats.Kills}/{stats.Deaths}/{stats.Assists},
-                            MVP = {stats.MVP},
-                            Headshot = {stats.Headshots:0.00}%,
-                            RR = {stats.Rr_change}");
+                        match.Value.LogMatch();
 
                         EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
-                        matchInfo.Name = "~~~\n\nMatch Stats";
-                        matchInfo.Value = $"<t:{matches.Game_Start ?? 0}:f>, {TimeSpan.FromSeconds(matches.Game_Length).Minutes} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
+                        matchInfo.Name = Format.Sanitize("_".Repeat(40)) + "\n\nMatch Stats";
+                        matchInfo.Value = $"<t:{matches.Game_Start ?? 0}:f>, {Math.Floor(TimeSpan.FromSeconds(matches.Game_Length).TotalMinutes)} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
 
                         EmbedBuilder embed = new EmbedBuilder()
                             .WithThumbnailUrl($"{AgentsExtension.AgentFromString(stats.Character).ImageURLFromAgent()}")
@@ -314,7 +290,7 @@ namespace ValorantApp
                                 Name = $"\n{ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()} - {matches.Map}"
                             }
                             )
-                            .WithTitle($"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}")
+                            .WithTitle($"{match.Value.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}")
                             .AddField(matchInfo)
                             .WithDescription($"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}");
 
@@ -325,15 +301,15 @@ namespace ValorantApp
 
                         if (channel != null)
                         {
-                            _logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending user data for {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname}");
+                            _logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending user data for {match.Value.UserInfo.Val_username}#{match.Value.UserInfo.Val_tagname}");
                             await channel.SendMessageAsync(userUpdated, embed: embed.Build());
                         }
                     }
                     else
                     {
                         string userUpdated = "";
-                        MatchStats setupMatchStats = sortedList.First().Value.Item1;
-                        Matches setupMatches = sortedList.First().Value.Item2;
+                        MatchStats setupMatchStats = sortedList.First().Value.MatchStats;
+                        Matches setupMatches = sortedList.First().Value.Matches;
 
                         string rounds = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
                             ? $"{setupMatches.Blue_Team_Rounds_Won ?? 0} : {setupMatches.Red_Team_Rounds_Won ?? 0}"
@@ -344,13 +320,6 @@ namespace ValorantApp
                             : $"<{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>";
 
                         _logger.LogInformation($"{nameof(SendScheduledMessage)}: Multiple users in match");
-                        _logger.LogInformation($@"{nameof(SendScheduledMessage)}: Setting up base match data. - 
-                            Map = {MapsExtension.MapFromString(setupMatches.Map.Safe()).StringFromMap()}, 
-                            Rounds = {rounds}
-                            Average Ranks = {averageRank}
-                            Game_Start_patched = {setupMatches.Game_Start_Patched_UTC?.ToString("MMM. d\\t\\h, h:mm tt")},
-                            Game_Length.TotalMinutes = {TimeSpan.FromSeconds(setupMatches.Game_Length).TotalMinutes},
-                            Mode = {ModesExtension.ModeFromString(setupMatches.Mode.Safe().ToLower()).StringFromMode()}");
 
                         EmbedBuilder embed = new EmbedBuilder()
                             .WithThumbnailUrl(MapsExtension.MapFromString(setupMatches.Map.Safe()).ImageUrlFromMap())
@@ -362,34 +331,21 @@ namespace ValorantApp
                             );
 
                         EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
-                        matchInfo.Name = "~~~\n\nMatch Stats";
-                        matchInfo.Value = $"<t:{setupMatches.Game_Start ?? 0}:f>, {TimeSpan.FromSeconds(setupMatches.Game_Length).Minutes} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
+                        matchInfo.Name = Format.Sanitize("_".Repeat(40)) + "\n\nMatch Stats";
+                        matchInfo.Value = $"<t:{setupMatches.Game_Start ?? 0}:f>, {Math.Floor(TimeSpan.FromSeconds(setupMatches.Game_Length).TotalMinutes)} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
 
-                        foreach (KeyValuePair<string, (MatchStats, Matches)> matchStats in sortedList)
+                        foreach (KeyValuePair<string, BaseValorantMatch> match in sortedList)
                         {
-                            BaseValorantUser? user = _program.GetValorantUser(matchStats.Key);
-                            if (user == null)
-                            {
-                                _logger.LogWarning($"{nameof(SendScheduledMessage)}: BaseValorantUser not found after finding match stats - {matchStats.Key}");
-                                continue;
-                            }
+                            userUpdated += $"<@{match.Value.UserInfo.Disc_id}> ";
 
-                            userUpdated += $"<@{user.UserInfo.Disc_id}> ";
+                            match.Value.LogMatch();
 
                             EmbedFieldBuilder embedField = new EmbedFieldBuilder();
 
-                            MatchStats stats = matchStats.Value.Item1;
-                            Matches matches = matchStats.Value.Item2;
+                            MatchStats stats = match.Value.MatchStats;
+                            Matches matches = match.Value.Matches;
 
-                            _logger.LogInformation($@"{nameof(SendScheduledMessage)}: Setting up match data for single user {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname} - 
-                                Score / Rounds = {stats.Score} / {matches.Rounds_Played},
-                                K/D/A = {stats.Kills}/{stats.Deaths}/{stats.Assists},
-                                MVP = {stats.MVP},
-                                Headshot = {stats.Headshots:0.00}%,
-                                RR = {stats.Rr_change},
-                                CurrentTier = {stats.Current_Tier}");
-
-                            embedField.Name = $"{user.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}";
+                            embedField.Name = $"{match.Value.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}";
                             embedField.Value = $"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}";
                             embed.AddField(embedField);
                         }
@@ -407,6 +363,13 @@ namespace ValorantApp
                         }
                     }
                 }
+
+                if (channel == null)
+                {
+                    _logger.LogWarning($"{nameof(SendScheduledMessage)}: Could not find channel {_channelToMessage}");
+                    return;
+                }
+                _program.UpdateCurrentTierAllUsers([.. usersMatchStats.Values], channel);
             }
             catch (Exception ex)
             {

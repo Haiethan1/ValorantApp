@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ValorantApp.HenrikJson
+﻿namespace ValorantApp.HenrikJson
 {
     public class MatchPlayersJson
     {
@@ -79,8 +73,8 @@ namespace ValorantApp.HenrikJson
 
     public class PlayerBehaviorFriendlyFireJson
     {
-        public int? Incoming { get; set; }
-        public int? Outgoing { get; set; }
+        public double? Incoming { get; set; }
+        public double? Outgoing { get; set; }
     }
     #endregion
 

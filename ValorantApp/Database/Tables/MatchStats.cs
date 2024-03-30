@@ -40,6 +40,7 @@ namespace ValorantApp.Database.Tables
         public bool MVP { get; private set; }
         public byte? Current_Tier { get; private set; }
         public string? Team { get; private set; }
+        public byte? New_Tier { get; private set; }
 
         public MatchStats(
             string matchId,
@@ -72,7 +73,8 @@ namespace ValorantApp.Database.Tables
             DateTime? gameStartPatched,
             bool mvp,
             byte? currentTier,
-            string? team
+            string? team,
+            byte? newTier
             )
         {
             Match_id = matchId;
@@ -106,6 +108,7 @@ namespace ValorantApp.Database.Tables
             MVP = mvp;
             Current_Tier = currentTier;
             Team = team;
+            New_Tier = newTier;
         }
 
         public static MatchStats CreateFromRow(SqliteDataReader reader)
@@ -141,7 +144,8 @@ namespace ValorantApp.Database.Tables
                 reader.IsDBNull(reader.GetOrdinal("game_start_patched")) ? null : reader.GetDateTime(reader.GetOrdinal("game_start_patched")),
                 reader.GetBoolean(reader.GetOrdinal("mvp")),
                 reader.IsDBNull(reader.GetOrdinal("current_tier")) ? null : reader.GetByte(reader.GetOrdinal("current_tier")),
-                reader.IsDBNull(reader.GetOrdinal("team")) ? null : reader.GetString(reader.GetOrdinal("team"))
+                reader.IsDBNull(reader.GetOrdinal("team")) ? null : reader.GetString(reader.GetOrdinal("team")),
+                reader.IsDBNull(reader.GetOrdinal("new_tier")) ? null : reader.GetByte(reader.GetOrdinal("new_tier"))
             );
         }
 
@@ -154,7 +158,7 @@ namespace ValorantApp.Database.Tables
                    $"Headshots: {Headshots}, Score: {Score}, Damage: {Damage}, C_casts: {C_casts}, Q_casts: {Q_casts}, " +
                    $"E_casts: {E_casts}, X_casts: {X_casts}, Damage_To_Allies: {Damage_To_Allies}, " +
                    $"Damage_From_Allies: {Damage_From_Allies}, Game_Length: {Game_Length}, Game_Start_Patched: {Game_Start_Patched ?? DateTime.MinValue}" +
-                   $", MVP: {MVP}, Current_Tier: {Current_Tier}, Team: {Team}";
+                   $", MVP: {MVP}, Current_Tier: {Current_Tier}, Team: {Team}, New_Tier: {New_Tier}";
         }
     }
 

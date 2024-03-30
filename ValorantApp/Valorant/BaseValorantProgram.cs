@@ -1,10 +1,13 @@
-﻿using Microsoft.Extensions.Logging;
-using Serilog.Core;
+﻿using Discord;
+using Discord.WebSocket;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
+using ValorantApp.Valorant.Enums;
+using ValorantApp.Valorant.Helpers;
 
 namespace ValorantApp.Valorant
 {
@@ -125,9 +128,9 @@ namespace ValorantApp.Valorant
 
         #region Check matches
 
-        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, (MatchStats, Matches)> userMatchStats)
+        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
         {
-            userMatchStats = new ConcurrentDictionary<string, (MatchStats, Matches)>();
+            userMatchStats = new ConcurrentDictionary<string, BaseValorantMatch>();
             if (Users == null || !Users.Any())
             {
                 return false;
@@ -199,7 +202,7 @@ namespace ValorantApp.Valorant
             return true;
         }
 
-        private static bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, (MatchStats, Matches)> userMatchStats)
+        private bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
         {
             if (match == null
                 || match.Metadata?.Mode == null
@@ -237,7 +240,7 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
-            userMatchStats.TryAdd(puuid, (matchStats, matches));
+            userMatchStats.TryAdd(puuid, new BaseValorantMatch(matchStats, matches, Users[puuid].UserInfo, Logger));
             MatchStatsExtension.InsertRow(matchStats);
             return true;
         }
@@ -317,6 +320,74 @@ namespace ValorantApp.Valorant
         }
 
         #endregion
+
+        #region Check users
+
+        /// <summary>
+        /// Updates and send a message to all valorant users if their currentTier changed.
+        /// TODO: When channel id is included in BaseValorantUsers, change param to include DiscordSocketClient instead of channel
+        /// </summary>
+        /// <param name="matches"></param>
+        /// <param name="channel"></param>
+        public void UpdateCurrentTierAllUsers(ConcurrentBag<BaseValorantMatch> matches, ISocketMessageChannel channel)
+        {
+            if (matches == null || matches.IsEmpty)
+            {
+                return;
+            }
+
+            foreach (BaseValorantMatch match in matches)
+            {
+                if (Users[match.UserInfo.Val_puuid].UpdateCurrentTier(match.MatchStats, match.Matches, out int previousTier))
+                {
+                    int currentTier = Users[match.UserInfo.Val_puuid].CurrentTier ?? 0;
+                    IEnumerable<BaseValorantMatch> seasonMatchStats = Users[match.UserInfo.Val_puuid].GetBaseValorantMatch(EpisodeActExtension.GetEpisodeActInfosForDate(DateTime.UtcNow));
+                    IEnumerable<BaseValorantMatch> seasonMatchStatsPreviousTier = seasonMatchStats.Where(x => x.MatchStats.Current_Tier?.Equals((byte)previousTier) ?? false);
+
+                    string userUpdated = $"<@{match.UserInfo.Disc_id}>";
+                    string arrowIcon = currentTier - previousTier == 2 ? ":arrow_double_up:"
+                        : currentTier > previousTier
+                            ? ":arrow_up:"
+                            : ":arrow_down:";
+                    int kills = seasonMatchStatsPreviousTier.Sum(x => x.MatchStats.Kills);
+                    int deaths = seasonMatchStatsPreviousTier.Sum(x => x.MatchStats.Deaths);
+                    int assists = seasonMatchStatsPreviousTier.Sum(x => x.MatchStats.Assists);
+                    string numberOfMatchesAtPreviousTier = seasonMatchStatsPreviousTier.Count().ToString();
+                    string numberOfMinutesAtPreviousTier = Math.Floor(TimeSpan.FromSeconds(seasonMatchStatsPreviousTier.Sum(x => x.Matches.Game_Length)).TotalMinutes).ToString();
+                    string mostSelectedAgent = seasonMatchStatsPreviousTier
+                        .GroupBy(match => match.MatchStats.Character) // Group matches by agent
+                        .OrderByDescending(group => group.Count()) // Order groups by count in descending order
+                        .FirstOrDefault()?.Key ?? "";
+                    string kda = $"{kills}/{deaths}/{assists}";
+                    string averageHeadshots = seasonMatchStatsPreviousTier.Average(x => x.MatchStats.Headshots).ToString("0.##");
+                    string averageBodyshots = seasonMatchStatsPreviousTier.Average(x => x.MatchStats.Bodyshots).ToString("0.##");
+                    string clown = previousTier > currentTier ? " :clown:" : " :sunglasses:";
+
+                    Logger.LogInformation($@"{nameof(UpdateCurrentTierAllUsers)}: {match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}
+                        PreviousTier = {previousTier}
+                        CurrentTier = {currentTier}
+                        KDA = {kda}
+                        MostSelectedAgent = {mostSelectedAgent}
+                        NumberOfMatchesAtPreviousTier = {numberOfMatchesAtPreviousTier}
+                        NumberOfMinutesAtPreviousTier = {numberOfMinutesAtPreviousTier}
+                        AverageHeadshots = {averageHeadshots}
+                        AverageBodyshots = {averageBodyshots}");
+
+
+
+
+                    EmbedBuilder embed = new EmbedBuilder()
+                        .WithThumbnailUrl($"{AgentsExtension.AgentFromString(mostSelectedAgent).ImageURLFromAgent()}")
+                        .WithTitle($"{match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}{clown}")
+                        .WithDescription($"<{((RankEmojis)previousTier).EmojiIdFromEnum()}> {arrowIcon} <{((RankEmojis)(Users[match.UserInfo.Val_puuid].CurrentTier ?? 0)).EmojiIdFromEnum()}>")
+                        .AddField($"{((RankEmojis)previousTier).ToDescriptionString()} Competitive Stats", $"Matches: {numberOfMatchesAtPreviousTier} Minutes: {numberOfMinutesAtPreviousTier}\nK/D/A: {kda}\nHeadshot: {averageHeadshots}% Bodyshot: {averageBodyshots}%");
+
+                    channel.SendMessageAsync(userUpdated, embed: embed.Build());
+                }
+            }
+        }
+
+        #endregion Check users
 
         #endregion
     }
