@@ -1,8 +1,5 @@
 ﻿
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using System;
-using System.Net.Http.Headers;
 using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
 using ValorantApp.Valorant.Enums;
@@ -60,7 +57,7 @@ namespace ValorantApp
                 return null;
             }
 
-            return JsonConvert.DeserializeObject<JsonObjectHenrik<AccountJson>>(response.Content.ReadAsStringAsync().Result);
+            return ParseAndLogJson<JsonObjectHenrik<AccountJson>>(response.Content.ReadAsStringAsync().Result, endpoint, nameof(AccountQuery));
         }
 
         public async Task<JsonObjectHenrik<MmrV2Json>>? Mmr()
@@ -78,7 +75,7 @@ namespace ValorantApp
                 return null;
             }
 
-            return JsonConvert.DeserializeObject<JsonObjectHenrik<MmrV2Json>>(response.Content.ReadAsStringAsync().Result);
+            return ParseAndLogJson<JsonObjectHenrik<MmrV2Json>>(response.Content.ReadAsStringAsync().Result, endpoint, nameof(Mmr));
         }
 
         public async Task<JsonObjectHenrik<List<MmrHistoryJson>>>? MmrHistory()
@@ -96,7 +93,7 @@ namespace ValorantApp
                 return null;
             }
 
-            return JsonConvert.DeserializeObject<JsonObjectHenrik<List<MmrHistoryJson>>>(response.Content.ReadAsStringAsync().Result);
+            return ParseAndLogJson<JsonObjectHenrik<List<MmrHistoryJson>>>(response.Content.ReadAsStringAsync().Result, endpoint, nameof(MmrHistory));
         }
 
         public async Task<JsonObjectHenrik<List<MatchJson>>>? Match(Modes mode = Modes.Unknown, Maps map = Maps.Unknown, int size = 1)
@@ -124,7 +121,19 @@ namespace ValorantApp
                 return null;
             }
 
-            return JsonConvert.DeserializeObject<JsonObjectHenrik<List<MatchJson>>>(response.Content.ReadAsStringAsync().Result);
+            return ParseAndLogJson<JsonObjectHenrik<List<MatchJson>>>(response.Content.ReadAsStringAsync().Result, endpoint, nameof(Match));
+        }
+
+        private T ParseAndLogJson<T>(string json, string endpoint, string caller) 
+        {
+            T? jsonObject = json.TryParse<T>(out string errormsg);
+
+            if (jsonObject == null)
+            {
+                Logger.LogError($"{caller}: {errormsg} - {endpoint}");
+            }
+
+            return jsonObject;
         }
     }
 }

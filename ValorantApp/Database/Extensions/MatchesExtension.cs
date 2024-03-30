@@ -1,10 +1,4 @@
 ﻿using Microsoft.Data.Sqlite;
-using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
@@ -91,6 +85,27 @@ namespace ValorantApp.Database.Extensions
             }
 
             return Matches.CreateFromRow(reader);
+        }
+
+        public static IEnumerable<Matches> GetListOfRows(IEnumerable<string> matchIds)
+        {
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+
+            string sql = $"SELECT * FROM Matches WHERE match_id IN ({string.Join(",", matchIds.Select((_, index) => $"@match_id{index}"))})";
+
+            using SqliteCommand command = new(sql, connection);
+            for (int i = 0; i < matchIds.Count(); i++)
+            {
+                command.Parameters.AddWithValue($"@match_id{i}", matchIds.ElementAt(i));
+            }
+
+            using SqliteDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                yield return Matches.CreateFromRow(reader);
+            }
         }
 
         public static bool MatchIdExistsForUser(string matchId)
