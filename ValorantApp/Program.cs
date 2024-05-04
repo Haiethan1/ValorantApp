@@ -3,6 +3,7 @@ using Discord.Commands;
 using Discord.Interactions;
 using Discord.Net;
 using Discord.WebSocket;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -10,7 +11,10 @@ using Serilog;
 using System.Collections.Concurrent;
 using System.Configuration;
 using System.Reflection;
+using ValorantApp.Database;
 using ValorantApp.Database.Extensions;
+using ValorantApp.Database.Repositories;
+using ValorantApp.Database.Repositories.Interfaces;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
@@ -30,6 +34,7 @@ namespace ValorantApp
         private readonly BaseValorantProgram _program;
         private ulong _channelToMessage;
         private readonly ILogger<ValorantApp> _logger;
+        private readonly ValorantDbContext _valorantDbContext;
 
         static void Main(string[] args)
         {
@@ -71,6 +76,10 @@ namespace ValorantApp
             });
             services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
             services.UseMinimalHttpLogger();
+            services.AddDbContext<ValorantDbContext>(options => options.UseSqlite(ConfigurationManager.ConnectionStrings["Database"].ConnectionString));
+            services.AddScoped<IMatchesRepository, MatchesRepository>();
+            services.AddScoped<IMatchStatsRepository, MatchStatsRepository>();
+            services.AddScoped<IValorantUsersRepository, ValorantUsersRepository>();
             services.AddSingleton<BaseValorantProgram>();
             services.AddSingleton(new DiscordSocketClient(discordSocketConfig));
             services.AddSingleton<CommandService>();
@@ -85,7 +94,7 @@ namespace ValorantApp
             program.RunBotAsync().GetAwaiter().GetResult();
         }
 
-        public ValorantApp(BaseValorantProgram program, DiscordSocketClient client, CommandService commands, InteractionService interaction, IServiceProvider servicesProvider, ILogger<ValorantApp> logger)
+        public ValorantApp(BaseValorantProgram program, DiscordSocketClient client, CommandService commands, InteractionService interaction, IServiceProvider servicesProvider, ILogger<ValorantApp> logger, ValorantDbContext valorantDbContext)
         {
             _program = program;
             _servicesProvider = servicesProvider;
@@ -94,6 +103,7 @@ namespace ValorantApp
             _interactions = interaction;
             _client = client;
             _logger = logger;
+            _valorantDbContext = valorantDbContext;
 
             _logger.LogInformation("Starting ValorantApp");
         }
@@ -112,7 +122,8 @@ namespace ValorantApp
             _client.Ready += ReadyAsync;
 
             _logger.LogInformation("Starting timed messages");
-            _timer = new Timer(SendScheduledMessage, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
+            //_timer = new Timer(SendScheduledMessage, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
+            _timer = new Timer(SendScheduledMessage, null, TimeSpan.FromMinutes(0.25), TimeSpan.FromMinutes(0.5));
             timerIsRunning = true;
 
             // Block the program until it is closed
@@ -331,7 +342,8 @@ namespace ValorantApp
                             );
 
                         EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
-                        matchInfo.Name = Format.Sanitize("_".Repeat(40)) + "\n\nMatch Stats";
+                        //matchInfo.Name = Format.Sanitize("_".Repeat(40)) + "\n\nMatch Stats";
+                        matchInfo.Name = "__" + " ".Repeat(40) + "__" + "\n\nMatch Stats";
                         matchInfo.Value = $"<t:{setupMatches.Game_Start ?? 0}:f>, {Math.Floor(TimeSpan.FromSeconds(setupMatches.Game_Length).TotalMinutes)} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
 
                         foreach (KeyValuePair<string, BaseValorantMatch> match in sortedList)
@@ -370,6 +382,7 @@ namespace ValorantApp
                     return;
                 }
                 _program.UpdateCurrentTierAllUsers([.. usersMatchStats.Values], channel);
+                _program.UpdateDailyReportAllUsers(channel);
             }
             catch (Exception ex)
             {

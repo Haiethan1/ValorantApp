@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 
 namespace ValorantApp.Database.Tables
 {
@@ -9,6 +10,8 @@ namespace ValorantApp.Database.Tables
         public string Val_affinity { get; set; }
         public string Val_puuid { get; set; }
         public ulong Disc_id { get; set; }
+
+        public ValorantUsers() { }
 
         public ValorantUsers(string val_username, string val_tagname, string val_affinity, string val_puuid, ulong disc_id)
         {

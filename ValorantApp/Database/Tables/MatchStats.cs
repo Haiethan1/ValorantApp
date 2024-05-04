@@ -1,114 +1,119 @@
 ﻿using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ValorantApp.Database.Tables
 {
     public class MatchStats
     {
-        public string Match_id { get; private set; }
-        public string Val_puuid { get; private set; }
+        public string Match_id { get; set; }
+        public string Val_puuid { get; set; }
         [Obsolete]
-        public string Map { get; private set; }
+        public string Map { get; set; }
         [Obsolete]
-        public string Mode { get; private set; }
+        public string Mode { get; set; }
         [Obsolete]
-        public byte Rounds { get; private set; }
-        public string Character { get; private set; }
-        public int Rr_change { get; private set; }
-        public byte Double_Kills { get; private set; }
-        public byte Triple_Kills { get; private set; }
-        public byte Quad_Kills { get; private set; }
-        public byte Aces { get; private set; }
-        public byte Kills { get; private set; }
-        public byte Knife_Kills { get; private set; }
-        public byte Deaths { get; private set; }
-        public byte Knife_Deaths { get; private set; }
-        public byte Assists { get; private set; }
-        public double Bodyshots { get; private set; }
-        public double Headshots { get; private set; }
-        public short Score { get; private set; }
-        public short Damage { get; private set; }
-        public byte C_casts { get; private set; }
-        public byte Q_casts { get; private set; }
-        public byte E_casts { get; private set; }
-        public byte X_casts { get; private set; }
-        public short Damage_To_Allies { get; private set; }
-        public short Damage_From_Allies { get; private set; }
+        public byte Rounds { get; set; }
+        public string Character { get; set; }
+        public int Rr_change { get; set; }
+        public byte Double_Kills { get; set; }
+        public byte Triple_Kills { get; set; }
+        public byte Quad_Kills { get; set; }
+        public byte Aces { get; set; }
+        public byte Kills { get; set; }
+        public byte Knife_Kills { get; set; }
+        public byte Deaths { get; set; }
+        public byte Knife_Deaths { get; set; }
+        public byte Assists { get; set; }
+        public double Bodyshots { get; set; }
+        public double Headshots { get; set; }
+        public short Score { get; set; }
+        public short Damage { get; set; }
+        public byte C_casts { get; set; }
+        public byte Q_casts { get; set; }
+        public byte E_casts { get; set; }
+        public byte X_casts { get; set; }
+        public short Damage_To_Allies { get; set; }
+        public short Damage_From_Allies { get; set; }
         [Obsolete]
-        public uint Game_Length { get; private set; }
+        public uint Game_Length { get; set; }
         [Obsolete]
-        public DateTime? Game_Start_Patched { get; private set; }
-        public bool MVP { get; private set; }
-        public byte? Current_Tier { get; private set; }
-        public string? Team { get; private set; }
-        public byte? New_Tier { get; private set; }
+        public DateTime? Game_Start_Patched { get; set; }
+        public bool MVP { get; set; }
+        public byte? Current_Tier { get; set; }
+        public string? Team { get; set; }
+        public byte? New_Tier { get; set; }
+
+        public MatchStats() { }
 
         public MatchStats(
-            string matchId,
-            string valPuuid,
+            string match_Id,
+            string val_Puuid,
             string map,
             string mode,
             byte rounds,
             string character,
-            int rrChange,
-            byte doubleKills,
-            byte tripleKills,
-            byte quadKills,
+            int rr_Change,
+            byte double_Kills,
+            byte triple_Kills,
+            byte quad_Kills,
             byte aces,
             byte kills,
-            byte knifeKills,
+            byte knife_Kills,
             byte deaths,
-            byte knifeDeaths,
+            byte knife_Deaths,
             byte assists,
             double bodyshots,
             double headshots,
             short score,
             short damage,
-            byte cCasts,
-            byte qCasts,
-            byte eCasts,
-            byte xCasts,
-            short damageToAllies,
-            short damageFromAllies,
-            uint gameLength,
-            DateTime? gameStartPatched,
+            byte c_Casts,
+            byte q_Casts,
+            byte e_Casts,
+            byte x_Casts,
+            short damage_To_Allies,
+            short damage_From_Allies,
+            uint game_Length,
+            DateTime? game_Start_Patched,
             bool mvp,
-            byte? currentTier,
+            byte? current_Tier,
             string? team,
-            byte? newTier
+            byte? new_Tier
             )
         {
-            Match_id = matchId;
-            Val_puuid = valPuuid;
+            Match_id = match_Id;
+            Val_puuid = val_Puuid;
             Map = map;
             Mode = mode;
             Rounds = rounds;
             Character = character;
-            Rr_change = rrChange;
-            Double_Kills = doubleKills;
-            Triple_Kills = tripleKills;
-            Quad_Kills = quadKills;
+            Rr_change = rr_Change;
+            Double_Kills = double_Kills;
+            Triple_Kills = triple_Kills;
+            Quad_Kills = quad_Kills;
             Aces = aces;
             Kills = kills;
-            Knife_Kills = knifeKills;
+            Knife_Kills = knife_Kills;
             Deaths = deaths;
-            Knife_Deaths = knifeDeaths;
+            Knife_Deaths = knife_Deaths;
             Assists = assists;
             Bodyshots = bodyshots;
             Headshots = headshots;
             Score = score;
             Damage = damage;
-            C_casts = cCasts;
-            Q_casts = qCasts;
-            E_casts = eCasts;
-            X_casts = xCasts;
-            Damage_To_Allies = damageToAllies;
-            Damage_From_Allies = damageFromAllies;
-            Game_Length = gameLength;
-            Game_Start_Patched = gameStartPatched;
+            C_casts = c_Casts;
+            Q_casts = q_Casts;
+            E_casts = e_Casts;
+            X_casts = x_Casts;
+            Damage_To_Allies = damage_To_Allies;
+            Damage_From_Allies = damage_From_Allies;
+            Game_Length = game_Length;
+            Game_Start_Patched = game_Start_Patched;
             MVP = mvp;
-            Current_Tier = currentTier;
+            Current_Tier = current_Tier;
             Team = team;
-            New_Tier = newTier;
+            New_Tier = new_Tier;
         }
 
         public static MatchStats CreateFromRow(SqliteDataReader reader)

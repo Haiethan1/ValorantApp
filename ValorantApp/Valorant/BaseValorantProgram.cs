@@ -2,7 +2,10 @@
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
+using ValorantApp.Database;
 using ValorantApp.Database.Extensions;
+using ValorantApp.Database.Repositories.Interfaces;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
@@ -18,12 +21,21 @@ namespace ValorantApp.Valorant
 
         private readonly IHttpClientFactory _httpClientFactory;
 
-        public BaseValorantProgram(IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
+        public BaseValorantProgram(
+            IHttpClientFactory httpClientFactory
+            , ILogger<BaseValorantProgram> logger
+            , IMatchesRepository matchesRepository
+            , IMatchStatsRepository matchStatsRepository
+            , IValorantUsersRepository valorantUsersRepository
+            )
         {
             // initialize users here to something? maybe create all users??
             Users = new();
             _httpClientFactory = httpClientFactory;
             Logger = logger;
+            MatchesRepository = matchesRepository;
+            MatchStatsRepository = matchStatsRepository;
+            ValorantUsersRepository = valorantUsersRepository;
             CreateAllUsers();
         }
 
@@ -33,6 +45,11 @@ namespace ValorantApp.Valorant
 
         private ILogger<BaseValorantProgram> Logger { get; set; }
 
+        private IMatchesRepository MatchesRepository { get; set; }
+
+        private IMatchStatsRepository MatchStatsRepository { get; set; }
+
+        private IValorantUsersRepository ValorantUsersRepository { get; set; }
         #endregion
 
         #region Methods
@@ -71,7 +88,19 @@ namespace ValorantApp.Valorant
                         continue;
                     }
 
-                    Users.TryAdd(user.Val_puuid, new BaseValorantUser(user.Val_username, user.Val_tagname, user.Val_affinity, _httpClientFactory, Logger, user.Val_puuid));
+                    Users.TryAdd(user.Val_puuid, 
+                        new BaseValorantUser(
+                            user.Val_username
+                            , user.Val_tagname
+                            , user.Val_affinity
+                            , _httpClientFactory
+                            , Logger
+                            , MatchesRepository
+                            , MatchStatsRepository
+                            , ValorantUsersRepository
+                            , user.Val_puuid
+                            )
+                        );
                 }
 
                 return true;
@@ -98,7 +127,19 @@ namespace ValorantApp.Valorant
                     return false;
                 }
 
-                Users.TryAdd(valorantUser.Val_puuid, new BaseValorantUser(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, _httpClientFactory, Logger, valorantUser.Val_puuid));
+                Users.TryAdd(valorantUser.Val_puuid,
+                    new BaseValorantUser(
+                        valorantUser.Val_username
+                        , valorantUser.Val_tagname
+                        , valorantUser.Val_affinity
+                        , _httpClientFactory
+                        , Logger
+                        , MatchesRepository
+                        , MatchStatsRepository
+                        , ValorantUsersRepository
+                        , valorantUser.Val_puuid
+                        )
+                    );
 
                 return true;
             }
@@ -385,6 +426,67 @@ namespace ValorantApp.Valorant
                     channel.SendMessageAsync(userUpdated, embed: embed.Build());
                 }
             }
+        }
+
+        public void UpdateDailyReportAllUsers(ISocketMessageChannel channel)
+        {
+            if (channel == null
+                || Users.IsNullOrEmpty())
+            {
+                return;
+            }
+
+            DateTime utcNow = DateTime.UtcNow;
+            DateTime utc24Hours = utcNow.AddHours(-24).AddSeconds(1);
+            EmbedBuilder embed = new EmbedBuilder()
+                //.WithThumbnailUrl($"{AgentsExtension.AgentFromString(mostSelectedAgent).ImageURLFromAgent()}")
+                .WithTitle($"Daily Report")
+                .WithDescription($"Summary of the match stats from the past 24 hours");
+
+            Logger.LogInformation($"{nameof(UpdateDailyReportAllUsers)}: Starting daily report summary of {utc24Hours} - {utcNow}");
+
+            List<IEnumerable<BaseValorantMatch>> usersMatches = new List<IEnumerable<BaseValorantMatch>>();
+
+            foreach (BaseValorantUser user in Users.Values)
+            {
+                IEnumerable<BaseValorantMatch> dailyMatchStats = user.GetBaseValorantMatch(utc24Hours, utcNow);
+
+                if (dailyMatchStats.IsNullOrEmpty())
+                {
+                    continue;
+                }
+
+                usersMatches.Add(dailyMatchStats);
+            }
+
+            if (usersMatches.IsNullOrEmpty())
+            {
+                return;
+            }
+
+            List<IEnumerable<BaseValorantMatch>> sortedUsersMatches = usersMatches.OrderByDescending(x => x.Count()).ToList();
+            int highestMatches = sortedUsersMatches.First().Count();
+
+            foreach (IEnumerable<BaseValorantMatch> userMatches in sortedUsersMatches)
+            {
+                ValorantUsers userInfo = userMatches.First().UserInfo;
+                int kills = userMatches.Sum(x => x.MatchStats.Kills);
+                int deaths = userMatches.Sum(x => x.MatchStats.Deaths);
+                int assists = userMatches.Sum(x => x.MatchStats.Assists);
+                string kda = $"{kills}/{deaths}/{assists}";
+                string averageHeadshots = userMatches.Average(x => x.MatchStats.Headshots).ToString("0.##");
+                string averageBodyshots = userMatches.Average(x => x.MatchStats.Bodyshots).ToString("0.##");
+                string numberOfMatches = userMatches.Count().ToString();
+                string numberOfMinutes = Math.Floor(TimeSpan.FromSeconds(userMatches.Sum(x => x.Matches.Game_Length)).TotalMinutes).ToString();
+                string shouldTouchGrass = userMatches.Count() == highestMatches ? $"<{MemeEmojisEnum.TouchGrass.EnumToEmojiString()}>" : "";
+
+                EmbedFieldBuilder embedField = new EmbedFieldBuilder();
+                embedField.Name = $"{userInfo.Val_username}#{userInfo.Val_tagname}{shouldTouchGrass}";
+                embedField.Value = $"Matches: {numberOfMatches} Minutes: {numberOfMinutes}\nK/D/A: {kda}\nHeadshot: {averageHeadshots}% Bodyshot: {averageBodyshots}%";
+                embed.AddField(embedField);
+            }
+
+            channel.SendMessageAsync(embed: embed.Build());
         }
 
         #endregion Check users

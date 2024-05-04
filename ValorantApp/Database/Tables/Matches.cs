@@ -1,54 +1,57 @@
 ﻿using Microsoft.Data.Sqlite;
+using System.ComponentModel.DataAnnotations;
 
 namespace ValorantApp.Database.Tables
 {
     public class Matches
     {
-        public string Match_Id { get; private set; }
-        public string? Map { get; private set; }
-        public string? Mode { get; private set; }
-        public string? Mode_Id { get; private set; }
-        public uint Game_Length { get; private set; }
-        public long? Game_Start { get; private set; }
-        public DateTime? Game_Start_Patched_UTC { get; private set; }
-        public int? Rounds_Played { get; private set; }
-        public byte? Blue_Team_Rounds_Won { get; private set; }
-        public byte? Red_Team_Rounds_Won { get; private set; }
-        public short? Blue_Team_Average_Rank { get; private set; }
-        public short? Red_Team_Average_Rank { get; private set; }
-        public bool? Blue_Team_Win { get; private set; }
-        public string? Season_Id { get; private set; }
+        public string Match_Id { get; set; }
+        public string? Map { get; set; }
+        public string? Mode { get; set; }
+        public string? Mode_Id { get; set; }
+        public uint Game_Length { get; set; }
+        public long? Game_Start { get; set; }
+        public DateTime? Game_Start_Patched_UTC { get; set; }
+        public int? Rounds_Played { get; set; }
+        public byte? Blue_Team_Rounds_Won { get; set; }
+        public byte? Red_Team_Rounds_Won { get; set; }
+        public short? Blue_Team_Average_Rank { get; set; }
+        public short? Red_Team_Average_Rank { get; set; }
+        public bool? Blue_Team_Win { get; set; }
+        public string? Season_Id { get; set; }
+
+        public Matches() { }
 
         public Matches(
-            string matchId
+            string match_Id
             , string? map
             , string? mode
-            , string? modeId
-            , uint gameLength
-            , long? gameStart
-            , DateTime? gameStartPatchedUTC
-            , int? roundsPlayed
-            , byte? blueTeamRoundsWon
-            , byte? redTeamRoundsWon
-            , short? blueTeamAverageRank
-            , short? redTeamAverageRank
-            , bool? blueTeamWin
-            , string? seasonId)
+            , string? mode_Id
+            , uint game_Length
+            , long? game_Start
+            , DateTime? game_Start_Patched_UTC
+            , int? rounds_Played
+            , byte? blue_Team_Rounds_Won
+            , byte? red_Team_Rounds_Won
+            , short? blue_Team_Average_Rank
+            , short? red_Team_Average_Rank
+            , bool? blue_Team_Win
+            , string? season_Id)
         {
-            Match_Id = matchId;
+            Match_Id = match_Id;
             Map = map;
             Mode = mode;
-            Mode_Id = modeId;
-            Game_Length = gameLength;
-            Game_Start = gameStart;
-            Game_Start_Patched_UTC = gameStartPatchedUTC;
-            Rounds_Played = roundsPlayed;
-            Blue_Team_Rounds_Won = blueTeamRoundsWon;
-            Red_Team_Rounds_Won = redTeamRoundsWon;
-            Blue_Team_Average_Rank = blueTeamAverageRank;
-            Red_Team_Average_Rank = redTeamAverageRank;
-            Blue_Team_Win = blueTeamWin;
-            Season_Id = seasonId;
+            Mode_Id = mode_Id;
+            Game_Length = game_Length;
+            Game_Start = game_Start;
+            Game_Start_Patched_UTC = game_Start_Patched_UTC;
+            Rounds_Played = rounds_Played;
+            Blue_Team_Rounds_Won = blue_Team_Rounds_Won;
+            Red_Team_Rounds_Won = red_Team_Rounds_Won;
+            Blue_Team_Average_Rank = blue_Team_Average_Rank;
+            Red_Team_Average_Rank = red_Team_Average_Rank;
+            Blue_Team_Win = blue_Team_Win;
+            Season_Id = season_Id;
         }
 
         public static Matches CreateFromRow(SqliteDataReader reader)

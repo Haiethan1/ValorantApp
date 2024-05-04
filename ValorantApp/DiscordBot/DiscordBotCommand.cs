@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using ValorantApp.Database.Extensions;
+using ValorantApp.Database.Repositories.Interfaces;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
@@ -125,7 +126,17 @@ namespace ValorantApp.DiscordBot
             }
 
             SocketUser userInfo = Context.User;
-            string? puuid = BaseValorantUser.CreateUser(username, tagname, "na", userInfo.Id, _httpClientFactory, _servicesProvider.GetService<ILogger<BaseValorantProgram>>())?.Puuid;
+            string? puuid = BaseValorantUser.CreateUser(
+                username
+                , tagname
+                , "na"
+                , userInfo.Id
+                , _httpClientFactory
+                , _servicesProvider.GetService<ILogger<BaseValorantProgram>>()
+                , _servicesProvider.GetRequiredService<IMatchesRepository>()
+                , _servicesProvider.GetRequiredService<IMatchStatsRepository>()
+                , _servicesProvider.GetRequiredService<IValorantUsersRepository>()
+                )?.Puuid;
             
             if (puuid == null)
             {
