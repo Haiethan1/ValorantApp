@@ -35,7 +35,7 @@ namespace ValorantApp
                 AccountJson? account = AccountQuery()?.Result.Data ?? null;
                 if (account?.Puuid == null)
                 {
-                    throw new Exception("Puuid cannot be null");
+                    throw new Exception($"Puuid cannot be null, user info: {username}#{tagName} {affinity}");
                 }
                 this.puuid = account.Puuid;
             }

@@ -108,7 +108,7 @@ namespace ValorantApp.Database.Extensions
             }
         }
 
-        public static bool MatchIdExistsForUser(string matchId)
+        public static bool MatchIdExists(string matchId)
         {
             using SqliteConnection connection = new(connectionString);
             connection.Open();

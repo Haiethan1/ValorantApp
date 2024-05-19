@@ -13,18 +13,17 @@ namespace ValorantApp.Valorant
 {
     public class BaseValorantProgram
     {
-        // TODO add a db lock.
         private static readonly object DbLock = new object();
 
         private readonly IHttpClientFactory _httpClientFactory;
 
         public BaseValorantProgram(IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
         {
-            // initialize users here to something? maybe create all users??
             Users = new();
+            QueueUsers = new();
             _httpClientFactory = httpClientFactory;
             Logger = logger;
-            CreateAllUsers();
+            ReloadFromDB();
         }
 
         #region Globals
@@ -32,6 +31,10 @@ namespace ValorantApp.Valorant
         private ConcurrentDictionary<string, BaseValorantUser> Users { get; set; }
 
         private ILogger<BaseValorantProgram> Logger { get; set; }
+
+        private Queue<string> QueueUsers { get; set; }
+
+        private static readonly object lockObject = new();
 
         #endregion
 
@@ -71,7 +74,7 @@ namespace ValorantApp.Valorant
                         continue;
                     }
 
-                    Users.TryAdd(user.Val_puuid, new BaseValorantUser(user.Val_username, user.Val_tagname, user.Val_affinity, _httpClientFactory, Logger, user.Val_puuid));
+                    Users.TryAdd(user.Val_puuid, new BaseValorantUser(user, _httpClientFactory, Logger));
                 }
 
                 return true;
@@ -83,6 +86,7 @@ namespace ValorantApp.Valorant
             }
         }
 
+        [Obsolete]
         public bool CreateUser(string puuid)
         {
             if (Users == null)
@@ -98,7 +102,7 @@ namespace ValorantApp.Valorant
                     return false;
                 }
 
-                Users.TryAdd(valorantUser.Val_puuid, new BaseValorantUser(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, _httpClientFactory, Logger, valorantUser.Val_puuid));
+                Users.TryAdd(valorantUser.Val_puuid, new BaseValorantUser(valorantUser, _httpClientFactory, Logger));
 
                 return true;
             }
@@ -111,11 +115,50 @@ namespace ValorantApp.Valorant
 
         #endregion
 
+        #region Delete users
+
+        public bool DeleteUser(string puuid)
+        {
+            BaseValorantUser? valorantUser = GetValorantUser(puuid);
+            if (valorantUser == null)
+            {
+                return false;
+            }
+
+            valorantUser.DeleteUser();
+            ReloadFromDB();
+            return true;
+        }
+
+        #endregion Delete users
+
+        #region Queue
+
+        public void EnqueueAllUsers()
+        {
+            lock (lockObject)
+            {
+                QueueUsers.Clear();
+                if (Users == null || Users.IsEmpty)
+                {
+                    return;
+                }
+
+                foreach (KeyValuePair<string, BaseValorantUser> user in Users)
+                {
+                    QueueUsers.Enqueue(user.Key);
+                }
+            }
+        }
+
+        #endregion Queue
+
         #region Reloads
 
         public void ReloadFromDB()
         {
             ReloadUsers();
+            ReloadQueue();
         }
 
         private void ReloadUsers()
@@ -124,10 +167,164 @@ namespace ValorantApp.Valorant
             CreateAllUsers();
         }
 
+        private void ReloadQueue()
+        {
+            EnqueueAllUsers();
+        }
+
         #endregion
 
         #region Check matches
 
+        public async Task<bool> SendScheduledMessage(DiscordSocketClient client)
+        {
+            Logger.LogInformation("Starting Send of scheduled messages.");
+
+            ConcurrentDictionary<string, BaseValorantMatch> usersMatchStats;
+            UpdateMatchQueueUsers(out usersMatchStats);
+
+            if (usersMatchStats == null || usersMatchStats.IsEmpty)
+            {
+                Logger.LogWarning($"{nameof(SendScheduledMessage)}: Could not find user match stats");
+                return false;
+            }
+
+            HashSet<string> matchIds = [];
+            foreach (BaseValorantMatch match in usersMatchStats.Values)
+            {
+                matchIds.Add(match.Matches.Match_Id);
+            }
+
+            foreach (string matchid in matchIds)
+            {
+                List<BaseValorantMatch> sortedByMatch = usersMatchStats.Values.Where(x => x.Matches.Match_Id == matchid).ToList();
+
+                HashSet<ulong> channelsToSend = [];
+                sortedByMatch.ForEach(x =>
+                {
+                    var channelIds = GetValorantUser(x.UserInfo.Val_puuid)?.ChannelIds;
+                    if (channelIds != null)
+                    {
+                        foreach (var channelId in channelIds)
+                        {
+                            channelsToSend.Add(channelId);
+                        }
+                    }
+                });
+                
+                foreach (var channelId in channelsToSend)
+                {
+                    if (client.GetChannelAsync(channelId).Result is not ISocketMessageChannel channel)
+                    {
+                        Logger.LogWarning($"{nameof(SendScheduledMessage)}: Could not find channel {channelId} for match id {matchid}");
+                        continue;
+                    }
+
+                    List<BaseValorantMatch> sortedByMatchAndChannel = sortedByMatch.Where(x => GetValorantUser(x.UserInfo.Val_puuid)?.IsInChannel(channelId) ?? false).ToList();
+                    sortedByMatchAndChannel.Sort((x, y) => y.MatchStats.Score.CompareTo(x.MatchStats.Score));
+
+                    if (sortedByMatchAndChannel.Count == 0)
+                    {
+                        Logger.LogError($"{nameof(SendScheduledMessage)}: Found 0 match stats for match id - {matchid}. Should never get to this.");
+                        continue;
+                    }
+
+                    if (sortedByMatchAndChannel.Count == 1)
+                    {
+                        await SendSingleMatch(sortedByMatchAndChannel.First(), channel);
+                    }
+                    else
+                    {
+                        await SendMultipleInMatch(sortedByMatchAndChannel, channel);
+                    }
+                }
+            }
+
+            await UpdateCurrentTierAllUsers([.. usersMatchStats.Values], client);
+
+            return true;
+        }
+
+        public bool UpdateMatchQueueUsers(out ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
+        {
+            lock (lockObject)
+            {
+                userMatchStats = new ConcurrentDictionary<string, BaseValorantMatch>();
+                if (Users.IsNullOrEmpty() || QueueUsers.IsNullOrEmpty())
+                {
+                    return false;
+                }
+
+                IEnumerable<string> queueUsers = QueueUsers.DequeueCount(15).ToList();
+                if (queueUsers.IsNullOrEmpty())
+                {
+                    return false;
+                }
+
+                var MatchStatsAndMMRHistories = GetQueueUsersMatchStats(queueUsers).Result;
+                Dictionary<string, Task<MatchJson?>> matchTasks = MatchStatsAndMMRHistories.Item1;
+                Dictionary<string, MmrHistoryJson> matchHistories = MatchStatsAndMMRHistories.Item2;
+
+                foreach (string userId in queueUsers)
+                {
+                    BaseValorantUser? user = GetValorantUser(userId);
+                    if (user == null)
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        if (!matchTasks.ContainsKey(user.Puuid))
+                        {
+                            continue;
+                        }
+                        MatchJson? match = matchTasks[user.Puuid].Result;
+
+                        if (match == null
+                            || match.Metadata?.MatchId == null)
+                        {
+                            continue;
+                        }
+
+                        IEnumerable<BaseValorantUser> usersInMatch = CheckValorantUsersInMatch(match, null);
+
+                        foreach (BaseValorantUser userInMatch in usersInMatch)
+                        {
+                            if (user == null
+                                || match == null
+                                || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.UserInfo.Val_puuid)
+                                )
+                            {
+                                continue;
+                            }
+
+                            MmrHistoryJson? mmrHistory = matchHistories.ContainsKey(userInMatch.Puuid) ? matchHistories[userInMatch.Puuid] : userInMatch.GetMatchMMR(match.Metadata.MatchId);
+
+                            if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
+                            {
+                                Logger.LogInformation($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched.Safe()}");
+                            }
+                            else
+                            {
+                                Logger.LogInformation($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError($"Error: {ex.Message} - when updating user {user.UserInfo.Val_username}");
+                    }
+                    finally
+                    {
+                        QueueUsers.Enqueue(userId);
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        [Obsolete]
         public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
         {
             userMatchStats = new ConcurrentDictionary<string, BaseValorantMatch>();
@@ -136,7 +333,7 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
-            HashSet<string> updatedUsers = new();
+            HashSet<string> updatedUsers = [];
             var MatchStatsAndMMRHistories = GetAllUsersMatchStats().Result;
             Dictionary<string, Task<MatchJson?>> matchTasks = MatchStatsAndMMRHistories.Item1;
             Dictionary<string, MmrHistoryJson> matchHistories = MatchStatsAndMMRHistories.Item2;
@@ -168,19 +365,12 @@ namespace ValorantApp.Valorant
                         if (user == null
                             || match == null
                             || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.UserInfo.Val_puuid)
-                            // Just look at if match id does not exist for now.
-                            //|| DateTime.UtcNow > DateTimeOffset.FromUnixTimeSeconds(match.Metadata.Game_Start).DateTime.ToUniversalTime().AddMinutes(30)
                             )
                         {
                             continue;
                         }
 
-                        // this should be in a loop
-                        //for (int i = 0; i < 5; i++)
-                        //{
-
-                        //}
-                        MmrHistoryJson? mmrHistory = matchHistories.ContainsKey(userInMatch.Puuid) ? matchHistories[userInMatch.Puuid] : userInMatch.GetMatchMMR(match?.Metadata.MatchId);
+                        MmrHistoryJson? mmrHistory = matchHistories.ContainsKey(userInMatch.Puuid) ? matchHistories[userInMatch.Puuid] : userInMatch.GetMatchMMR(match.Metadata.MatchId);
 
                         if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
                         {
@@ -219,8 +409,8 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
-            Matches? matches = null;
-            if (MatchesExtension.MatchIdExistsForUser(matchStats.Match_id))
+            Matches? matches;
+            if (MatchesExtension.MatchIdExists(matchStats.Match_id))
             {
                 matches = MatchesExtension.GetRow(matchStats.Match_id);
             }
@@ -240,37 +430,73 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
-            userMatchStats.TryAdd(puuid, new BaseValorantMatch(matchStats, matches, Users[puuid].UserInfo, Logger));
+            // Check if the user is still in the program.
+            BaseValorantUser? valorantUser = GetValorantUser(puuid);
+            if (valorantUser == null)
+            {
+                return true;
+            }
+
+            userMatchStats.TryAdd(puuid, new BaseValorantMatch(matchStats, matches, valorantUser.UserInfo, Logger));
             MatchStatsExtension.InsertRow(matchStats);
             return true;
         }
 
-        private IEnumerable<BaseValorantUser> CheckValorantUsersInMatch(MatchJson? match, HashSet<string> updatedPuuids)
+        private IEnumerable<BaseValorantUser> CheckValorantUsersInMatch(MatchJson? match, HashSet<string>? updatedPuuids)
         {
             if (match == null)
             {
-                return Enumerable.Empty<BaseValorantUser>();
+                return [];
             }
 
             List<BaseValorantUser> usersInMatch = new();
+            if (updatedPuuids == null)
+            {
+                updatedPuuids = new();
+            }
 
             foreach (MatchPlayerJson matchPlayer in match.Players?.All_Players ?? Array.Empty<MatchPlayerJson>())
             {
+                
                 if (matchPlayer == null
                     || matchPlayer.Puuid == null
                     || updatedPuuids.Contains(matchPlayer.Puuid)
-                    || !Users.ContainsKey(matchPlayer.Puuid)
                     )
                 {
                     continue;
                 }
 
-                usersInMatch.Add(Users[matchPlayer.Puuid]);
+                BaseValorantUser? valorantUser = GetValorantUser(matchPlayer.Puuid);
+                if (valorantUser == null)
+                {
+                    continue;
+                }
+
+                usersInMatch.Add(valorantUser);
             }
 
             return usersInMatch;
         }
 
+        private async Task<(Dictionary<string, Task<MatchJson?>>, Dictionary<string, MmrHistoryJson>)> GetQueueUsersMatchStats(IEnumerable<string> users)
+        {
+            Dictionary<string, Task<MatchJson?>> matchTasks = new();
+            foreach (string userId in users)
+            {
+                BaseValorantUser? user = GetValorantUser(userId);
+                if (user == null)
+                {
+                    continue;
+                }
+
+                matchTasks.Add(user.Puuid, Task.Run(user.GetLastMatch));
+            }
+
+            await Task.WhenAll(matchTasks.Values.ToArray());
+            return (matchTasks, new Dictionary<string, MmrHistoryJson>());
+        }
+
+        [Obsolete]
         private async Task<(Dictionary<string, Task<MatchJson?>>, Dictionary<string, MmrHistoryJson>)> GetAllUsersMatchStats()
         {
             //Dictionary<string,MmrHistoryJson> mmrHistories = new Dictionary<string, MmrHistoryJson>();
@@ -312,11 +538,121 @@ namespace ValorantApp.Valorant
             Dictionary<string, Task<MatchJson?>> matchTasks = new();
             foreach (BaseValorantUser user in Users.Values)
             {
-                matchTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatch()));
+                matchTasks.Add(user.Puuid, Task.Run(user.GetLastMatch));
             }
 
             await Task.WhenAll(matchTasks.Values.ToArray());
             return (matchTasks, new Dictionary<string, MmrHistoryJson>() );
+        }
+
+        private async Task<bool> SendSingleMatch(BaseValorantMatch baseValorantMatch, ISocketMessageChannel channel)
+        {
+            if (baseValorantMatch == null || channel == null)
+            {
+                Logger.LogWarning($"{nameof(SendScheduledMessage)}: Match stats or channel is null, stopping send.");
+                return false;
+            }
+
+            Logger.LogInformation($"{nameof(SendScheduledMessage)}: Single user in match");
+            
+            MatchStats stats = baseValorantMatch.MatchStats;
+            Matches matches = baseValorantMatch.Matches;
+            string userUpdated = $"<@{baseValorantMatch.UserInfo.Disc_id}>";
+            string rounds = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                ? $"{matches.Blue_Team_Rounds_Won ?? 0} : {matches.Red_Team_Rounds_Won ?? 0}"
+                : $"{matches.Red_Team_Rounds_Won ?? 0} : {matches.Blue_Team_Rounds_Won ?? 0}";
+            string averageRank = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                ? $"<{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>"
+                : $"<{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>";
+            baseValorantMatch.LogMatch();
+
+            EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
+            matchInfo.Name = "__" + " ".Repeat(40) + "__" + "\n\nMatch Stats";
+            matchInfo.Value = $"<t:{matches.Game_Start ?? 0}:f>, {Math.Floor(TimeSpan.FromSeconds(matches.Game_Length).TotalMinutes)} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
+
+            EmbedBuilder embed = new EmbedBuilder()
+                .WithThumbnailUrl($"{AgentsExtension.AgentFromString(stats.Character).ImageURLFromAgent()}")
+                .WithAuthor
+                (new EmbedAuthorBuilder
+                {
+                    Name = $"\n{ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()} - {matches.Map}"
+                }
+                )
+                .WithTitle($"{baseValorantMatch.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}")
+                .AddField(matchInfo)
+                .WithDescription($"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}");
+
+            bool didTeamWin = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                ? matches.Blue_Team_Win ?? false
+                : !matches.Blue_Team_Win ?? false;
+            embed.WithColor(matches.Blue_Team_Rounds_Won == matches.Red_Team_Rounds_Won ? Color.DarkerGrey : didTeamWin ? Color.Green : Color.Red);
+
+            Logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending user data for {baseValorantMatch.UserInfo.Val_username}#{baseValorantMatch.UserInfo.Val_tagname}");
+            await channel.SendMessageAsyncWrapper(userUpdated, embed: embed.Build());
+            return true;
+        }
+
+        private async Task<bool> SendMultipleInMatch(List<BaseValorantMatch> baseValorantMatches, ISocketMessageChannel channel)
+        {
+            if (baseValorantMatches == null || channel == null)
+            {
+                Logger.LogWarning($"{nameof(SendScheduledMessage)}: Match stats or channel is null, stopping send.");
+                return false;
+            }
+
+            Logger.LogInformation($"{nameof(SendScheduledMessage)}: Multiple users in match");
+            
+            string userUpdated = "";
+            MatchStats setupMatchStats = baseValorantMatches.First().MatchStats;
+            Matches setupMatches = baseValorantMatches.First().Matches;
+
+            string rounds = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                ? $"{setupMatches.Blue_Team_Rounds_Won ?? 0} : {setupMatches.Red_Team_Rounds_Won ?? 0}"
+                : $"{setupMatches.Red_Team_Rounds_Won ?? 0} : {setupMatches.Blue_Team_Rounds_Won ?? 0}";
+
+            string averageRank = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                ? $"<{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>"
+                : $"<{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>";
+
+            EmbedBuilder embed = new EmbedBuilder()
+                .WithThumbnailUrl(MapsExtension.MapFromString(setupMatches.Map.Safe()).ImageUrlFromMap())
+                .WithAuthor
+                (new EmbedAuthorBuilder
+                {
+                    Name = $"\n{ModesExtension.ModeFromString(setupMatches.Mode.Safe().ToLower()).StringFromMode()} - {setupMatches.Map.Safe()}"
+                }
+                );
+
+            EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
+            matchInfo.Name = "__" + " ".Repeat(40) + "__" + "\n\nMatch Stats";
+            matchInfo.Value = $"<t:{setupMatches.Game_Start ?? 0}:f>, {Math.Floor(TimeSpan.FromSeconds(setupMatches.Game_Length).TotalMinutes)} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
+
+            foreach (BaseValorantMatch match in baseValorantMatches)
+            {
+                userUpdated += $"<@{match.UserInfo.Disc_id}> ";
+
+                match.LogMatch();
+
+                EmbedFieldBuilder embedField = new EmbedFieldBuilder();
+
+                MatchStats stats = match.MatchStats;
+                Matches matches = match.Matches;
+
+                embedField.Name = $"{match.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}";
+                embedField.Value = $"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}";
+                embed.AddField(embedField);
+            }
+
+            bool didTeamWin = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                ? setupMatches.Blue_Team_Win ?? false
+                : !setupMatches.Blue_Team_Win ?? false;
+            embed.WithColor(setupMatches.Blue_Team_Rounds_Won == setupMatches.Red_Team_Rounds_Won ? Color.DarkerGrey : didTeamWin ? Color.Green : Color.Red);
+            embed.AddField(matchInfo);
+
+            Logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending users data for match id {setupMatches.Match_Id}");
+            await channel.SendMessageAsyncWrapper(userUpdated, embed: embed.Build());
+
+            return true;
         }
 
         #endregion
@@ -325,23 +661,28 @@ namespace ValorantApp.Valorant
 
         /// <summary>
         /// Updates and send a message to all valorant users if their currentTier changed.
-        /// TODO: When channel id is included in BaseValorantUsers, change param to include DiscordSocketClient instead of channel
         /// </summary>
         /// <param name="matches"></param>
         /// <param name="channel"></param>
-        public void UpdateCurrentTierAllUsers(ConcurrentBag<BaseValorantMatch> matches, ISocketMessageChannel channel)
+        public async Task<bool> UpdateCurrentTierAllUsers(ConcurrentBag<BaseValorantMatch> matches, DiscordSocketClient client)
         {
             if (matches == null || matches.IsEmpty)
             {
-                return;
+                return false;
             }
 
             foreach (BaseValorantMatch match in matches)
             {
-                if (Users[match.UserInfo.Val_puuid].UpdateCurrentTier(match.MatchStats, match.Matches, out int previousTier))
+                BaseValorantUser? valorantUser = GetValorantUser(match.UserInfo.Val_puuid);
+                if (valorantUser == null)
                 {
-                    int currentTier = Users[match.UserInfo.Val_puuid].CurrentTier ?? 0;
-                    IEnumerable<BaseValorantMatch> seasonMatchStats = Users[match.UserInfo.Val_puuid].GetBaseValorantMatch(EpisodeActExtension.GetEpisodeActInfosForDate(DateTime.UtcNow));
+                    continue;
+                }
+
+                if (valorantUser.UpdateCurrentTier(match.MatchStats, match.Matches, out int previousTier))
+                {
+                    int currentTier = valorantUser.CurrentTier ?? 0;
+                    IEnumerable<BaseValorantMatch> seasonMatchStats = valorantUser.GetBaseValorantMatch(EpisodeActExtension.GetEpisodeActInfosForDate(DateTime.UtcNow));
                     IEnumerable<BaseValorantMatch> seasonMatchStatsPreviousTier = seasonMatchStats.Where(x => x.MatchStats.Current_Tier?.Equals((byte)previousTier) ?? false);
 
                     string userUpdated = $"<@{match.UserInfo.Disc_id}>";
@@ -373,18 +714,26 @@ namespace ValorantApp.Valorant
                         AverageHeadshots = {averageHeadshots}
                         AverageBodyshots = {averageBodyshots}");
 
-
-
-
                     EmbedBuilder embed = new EmbedBuilder()
                         .WithThumbnailUrl($"{AgentsExtension.AgentFromString(mostSelectedAgent).ImageURLFromAgent()}")
                         .WithTitle($"{match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}{clown}")
-                        .WithDescription($"<{((RankEmojis)previousTier).EmojiIdFromEnum()}> {arrowIcon} <{((RankEmojis)(Users[match.UserInfo.Val_puuid].CurrentTier ?? 0)).EmojiIdFromEnum()}>")
+                        .WithDescription($"<{((RankEmojis)previousTier).EmojiIdFromEnum()}> {arrowIcon} <{((RankEmojis)(valorantUser.CurrentTier ?? 0)).EmojiIdFromEnum()}>")
                         .AddField($"{((RankEmojis)previousTier).ToDescriptionString()} Competitive Stats", $"Matches: {numberOfMatchesAtPreviousTier} Minutes: {numberOfMinutesAtPreviousTier}\nK/D/A: {kda}\nHeadshot: {averageHeadshots}% Bodyshot: {averageBodyshots}%");
 
-                    channel.SendMessageAsync(userUpdated, embed: embed.Build());
+                    HashSet<ulong> channelIds = valorantUser.ChannelIds ?? [];
+                    foreach(ulong channelId in channelIds)
+                    {
+                        if (client.GetChannelAsync(channelId).Result is not ISocketMessageChannel channel)
+                        {
+                            Logger.LogWarning($"{nameof(UpdateCurrentTierAllUsers)}: Could not find channel {channelId}");
+                            continue;
+                        }
+                        await channel.SendMessageAsyncWrapper(userUpdated, embed: embed.Build());
+                    }
                 }
             }
+
+            return true;
         }
 
         #endregion Check users

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Discord;
+using Microsoft.Extensions.Logging;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
@@ -9,11 +10,22 @@ namespace ValorantApp.Valorant
 {
     public class BaseValorantUser
     {
-        public BaseValorantUser(string username, string tagName, string affinity, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger, string? puuid = null)
+        public BaseValorantUser(string username, string tagName, string affinity, ulong discId, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger, string? puuid = null)
         {
             HenrikApi = new HenrikApi(username, tagName, affinity, puuid, httpClientFactory, logger);
             this.puuid = HenrikApi.puuid;
             Logger = logger;
+            userInfo = new ValorantUsers(username, tagName, affinity, Puuid, discId);
+
+            Console.WriteLine("Valorant user created");
+        }
+
+        public  BaseValorantUser(ValorantUsers valorantUser, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
+        {
+            HenrikApi = new HenrikApi(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, valorantUser.Val_puuid, httpClientFactory, logger);
+            puuid = HenrikApi.puuid;
+            Logger = logger;
+            userInfo = valorantUser;
 
             Console.WriteLine("Valorant user created");
         }
@@ -21,6 +33,8 @@ namespace ValorantApp.Valorant
         #region Globals
 
         private ILogger<BaseValorantProgram> Logger { get; set; }
+
+        private HenrikApi HenrikApi { get; set; }
 
         private string puuid;
 
@@ -37,14 +51,12 @@ namespace ValorantApp.Valorant
             {
                 if (userInfo == null)
                 {
-                    userInfo = ValorantUsersExtension.GetRow(puuid);
+                    userInfo = ValorantUsersExtension.GetRow(Puuid);
                 }
 
                 return userInfo;
             }
         }
-
-        private HenrikApi HenrikApi { get; set; }
 
         private int? currentTier { get; set; }
 
@@ -61,11 +73,28 @@ namespace ValorantApp.Valorant
             }
         }
 
-        #endregion
+        private HashSet<ulong>? channelIds { get; set; }
+
+        public HashSet<ulong> ChannelIds
+        {
+            get
+            {
+                if (channelIds == null)
+                {
+                    channelIds = ValorantChannelMappingsExtension.GetRowDiscordId(Puuid).ToHashSet();
+                }
+
+                return channelIds;
+            }
+        }
+
+        #endregion Globals
 
         #region Methods
 
         #region Database
+
+        #region Database - Matches
 
         /// <summary>
         /// Get all comp match stats for the specified season.
@@ -90,6 +119,52 @@ namespace ValorantApp.Valorant
 
             return matchStats.Join(matches, stats => stats.Match_id, match => match.Match_Id, (stats, match) => new BaseValorantMatch(stats, match, UserInfo, Logger));
         }
+
+        #endregion Database - Matches
+
+        #region Database - Channel Mappings
+
+        public bool AddChannelId(ulong channelId)
+        {
+            if (!ChannelIds.Add(channelId))
+            {
+                return false;
+            }
+
+            return ValorantChannelMappingsExtension.InsertRow(new ValorantChannelMappings(Puuid, channelId));
+        }
+
+        public bool RemoveChannelId(ulong channelId)
+        {
+            if (!ChannelIds.Remove(channelId))
+            {
+                return false;
+            }
+
+            return ValorantChannelMappingsExtension.RemoveRow(new ValorantChannelMappings(Puuid, channelId));
+        }
+
+        #endregion Database - Channel Mappings
+
+        #region Database - Valorant User
+        
+        /// <summary>
+        /// Persist the user. UserInfo must be set if it is a new user.
+        /// </summary>
+        /// <returns></returns>
+        public bool PersistUser()
+        {
+            ValorantUsers userDb = new ValorantUsers(UserInfo.Val_username, UserInfo.Val_tagname, UserInfo.Val_affinity, UserInfo.Val_puuid, UserInfo.Disc_id);
+
+            return ValorantUsersExtension.InsertRow(userDb);
+        }
+
+        public bool DeleteUser()
+        {
+            return ValorantUsersExtension.DeleteRow(UserInfo.Val_puuid, UserInfo.Disc_id);
+        }
+
+        #endregion Database - Valorant User
 
         #endregion Database
 
@@ -151,31 +226,7 @@ namespace ValorantApp.Valorant
             return matchJsons.FirstOrDefault();
         }
 
-        #endregion
-
-        #region Create user
-
-        /// <summary>
-        /// This will create a NEW user. Use this method when the user is not in the DB yet.
-        /// </summary>
-        /// <param name="username"></param>
-        /// <param name="tagName"></param>
-        /// <param name="affinity"></param>
-        /// <param name="discId"></param>
-        /// <param name="logger"></param>
-        /// <param name="puuid"></param>
-        /// <returns></returns>
-        public static BaseValorantUser? CreateUser(string username, string tagName, string affinity, ulong discId, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger, string? puuid = null)
-        {
-            BaseValorantUser user = new BaseValorantUser(username, tagName, affinity, httpClientFactory, logger, puuid);
-            ValorantUsers userDb = new ValorantUsers(username, tagName, affinity, user.Puuid, discId);
-
-            bool inserted = ValorantUsersExtension.InsertRow(userDb);
-
-            return inserted ? user : null;
-        }
-
-        #endregion
+        #endregion Henrik API
 
         #region Update user
 
@@ -200,6 +251,15 @@ namespace ValorantApp.Valorant
 
         #endregion Update user
 
-        #endregion
+        #region Channels
+
+        public bool IsInChannel(ulong channelId)
+        {
+            return ChannelIds.Contains(channelId);
+        }
+
+        #endregion Channels
+
+        #endregion Methodsd
     }
 }

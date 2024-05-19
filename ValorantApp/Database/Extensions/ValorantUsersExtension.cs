@@ -64,7 +64,6 @@ namespace ValorantApp.Database.Extensions
         {
             using SqliteConnection connection = new(connectionString);
             connection.Open();
-            // TODO make sql queries not lock db
             string sql = "SELECT * FROM ValorantUsers WHERE val_puuid = @val_puuid";
 
             using SqliteCommand command = new(sql, connection);
@@ -84,8 +83,7 @@ namespace ValorantApp.Database.Extensions
         {
             using SqliteConnection connection = new(connectionString);
             connection.Open();
-            // TODO make sql queries not lock db
-            string sql = "SELECT * FROM ValorantUsers WHERE disc_id = @disc_id";
+            string sql = "SELECT * FROM ValorantUsers WHERE disc_id = @disc_id LIMIT 1";
 
             using SqliteCommand command = new(sql, connection);
             command.Parameters.AddWithValue("@disc_id", id);
@@ -98,6 +96,19 @@ namespace ValorantApp.Database.Extensions
             }
 
             return ValorantUsers.CreateFromRow(reader);
+        }
+
+        public static bool DeleteRow(string puuid, ulong discId)
+        {
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+            string sql = "DELETE FROM ValorantUsers WHERE val_puuid = @val_puuid AND disc_id = @disc_id";
+
+            using SqliteCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@val_puuid", puuid);
+            command.Parameters.AddWithValue("@disc_id", discId);
+
+            return command.ExecuteNonQuery() > 0;
         }
 
         public static List<ValorantUsers> GetAllRows()
