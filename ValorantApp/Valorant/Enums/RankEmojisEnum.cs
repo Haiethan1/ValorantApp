@@ -63,63 +63,37 @@ namespace ValorantApp.Valorant.Enums
         /// </summary>
         /// <param name="emoji"></param>
         /// <returns></returns>
-        public static string EmojiIdFromEnum(this RankEmojis emoji)
+        public static string Id(this RankEmojis emoji)
         {
-            switch(emoji)
+            return emoji switch
             {
-                case RankEmojis.Iron1:
-                    return ":iro1:1214384551418269737";
-                case RankEmojis.Iron2:
-                    return ":iro2:1214384552269578332";
-                case RankEmojis.Iron3:
-                    return ":iro3:1214384325815181332";
-                case RankEmojis.Bronze1:
-                    return ":bro1:1214384603939217490";
-                case RankEmojis.Bronze2:
-                    return ":bro2:1214384338775449692";
-                case RankEmojis.Bronze3:
-                    return ":bro3:1214384342105587832";
-                case RankEmojis.Silver1:
-                    return ":sil1:1214384663326629978";
-                case RankEmojis.Silver2:
-                    return ":sil2:1214384360166268998";
-                case RankEmojis.Silver3:
-                    return ":sil3:1214384331406180383";
-                case RankEmojis.Gold1:
-                    return ":gol1:1214384711665844234";
-                case RankEmojis.Gold2:
-                    return ":gol2:1214384326691790908";
-                case RankEmojis.Gold3:
-                    return ":gol3:1214384330323795978";
-                case RankEmojis.Plat1:
-                    return ":pla1:1214384345750573157";
-                case RankEmojis.Plat2:
-                    return ":pla2:1214384329006911518";
-                case RankEmojis.Plat3:
-                    return ":pla3:1214384349076529202";
-                case RankEmojis.Diamond1:
-                    return ":dia1:1214384772147581008";
-                case RankEmojis.Diamond2:
-                    return ":dia2:1214384335063490620";
-                case RankEmojis.Diamond3:
-                    return ":dia3:1214384356169351230";
-                case RankEmojis.Ascendant1:
-                    return ":asc1:1214384834223276092";
-                case RankEmojis.Ascendant2:
-                    return ":asc2:1214384834936569898";
-                case RankEmojis.Ascendant3:
-                    return ":asc3:1214384327664861184";
-                case RankEmojis.Immortal1:
-                    return ":imm1:1214384324175069235";
-                case RankEmojis.Immortal2:
-                    return ":imm2:1214384324913266749";
-                case RankEmojis.Immortal3:
-                    return ":imm3:1214384959251419136";
-                case RankEmojis.Radiant:
-                    return ":rad:1214384352432226385";
-                default:
-                    return ":unr:1214734089165475850";
-            }
+                RankEmojis.Iron1 => ":iro1:1214384551418269737",
+                RankEmojis.Iron2 => ":iro2:1214384552269578332",
+                RankEmojis.Iron3 => ":iro3:1214384325815181332",
+                RankEmojis.Bronze1 => ":bro1:1214384603939217490",
+                RankEmojis.Bronze2 => ":bro2:1214384338775449692",
+                RankEmojis.Bronze3 => ":bro3:1214384342105587832",
+                RankEmojis.Silver1 => ":sil1:1214384663326629978",
+                RankEmojis.Silver2 => ":sil2:1214384360166268998",
+                RankEmojis.Silver3 => ":sil3:1214384331406180383",
+                RankEmojis.Gold1 => ":gol1:1214384711665844234",
+                RankEmojis.Gold2 => ":gol2:1214384326691790908",
+                RankEmojis.Gold3 => ":gol3:1214384330323795978",
+                RankEmojis.Plat1 => ":pla1:1214384345750573157",
+                RankEmojis.Plat2 => ":pla2:1214384329006911518",
+                RankEmojis.Plat3 => ":pla3:1214384349076529202",
+                RankEmojis.Diamond1 => ":dia1:1214384772147581008",
+                RankEmojis.Diamond2 => ":dia2:1214384335063490620",
+                RankEmojis.Diamond3 => ":dia3:1214384356169351230",
+                RankEmojis.Ascendant1 => ":asc1:1214384834223276092",
+                RankEmojis.Ascendant2 => ":asc2:1214384834936569898",
+                RankEmojis.Ascendant3 => ":asc3:1214384327664861184",
+                RankEmojis.Immortal1 => ":imm1:1214384324175069235",
+                RankEmojis.Immortal2 => ":imm2:1214384324913266749",
+                RankEmojis.Immortal3 => ":imm3:1214384959251419136",
+                RankEmojis.Radiant => ":rad:1214384352432226385",
+                _ => ":unr:1214734089165475850",
+            };
         }
     }
 }

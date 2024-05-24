@@ -574,8 +574,8 @@ namespace ValorantApp.Valorant
                 ? $"{matches.Blue_Team_Rounds_Won ?? 0} : {matches.Red_Team_Rounds_Won ?? 0}"
                 : $"{matches.Red_Team_Rounds_Won ?? 0} : {matches.Blue_Team_Rounds_Won ?? 0}";
             string averageRank = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
-                ? $"<{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>"
-                : $"<{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>";
+                ? $"<{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).Id()}> : <{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).Id()}>"
+                : $"<{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).Id()}> : <{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).Id()}>";
             baseValorantMatch.LogMatch();
 
             EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
@@ -590,7 +590,7 @@ namespace ValorantApp.Valorant
                     Name = $"\n{ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()} - {matches.Map}"
                 }
                 )
-                .WithTitle($"{baseValorantMatch.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}")
+                .WithTitle($"{baseValorantMatch.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).Id()}> {(stats.MVP ? $" {MemeEmojisEnum.Sparkles.Id()}" : "")}")
                 .AddField(matchInfo)
                 .WithDescription($"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}");
 
@@ -623,8 +623,8 @@ namespace ValorantApp.Valorant
                 : $"{setupMatches.Red_Team_Rounds_Won ?? 0} : {setupMatches.Blue_Team_Rounds_Won ?? 0}";
 
             string averageRank = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
-                ? $"<{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>"
-                : $"<{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}> : <{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).EmojiIdFromEnum()}>";
+                ? $"<{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).Id()}> : <{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).Id()}>"
+                : $"<{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).Id()}> : <{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).Id()}>";
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithThumbnailUrl(MapsExtension.MapFromString(setupMatches.Map.Safe()).ImageUrlFromMap())
@@ -650,7 +650,7 @@ namespace ValorantApp.Valorant
                 MatchStats stats = match.MatchStats;
                 Matches matches = match.Matches;
 
-                embedField.Name = $"{match.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).EmojiIdFromEnum()}> {(stats.MVP ? " :sparkles:" : "")}";
+                embedField.Name = $"{match.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).Id()}> {(stats.MVP ? $" {MemeEmojisEnum.Sparkles.Id()}" : "")}";
                 embedField.Value = $"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}";
                 embed.AddField(embedField);
             }
@@ -703,10 +703,10 @@ namespace ValorantApp.Valorant
                     IEnumerable<BaseValorantMatch> seasonMatchStatsPreviousTier = seasonMatchStats.Where(x => x.MatchStats.Current_Tier?.Equals((byte)previousTier) ?? false);
 
                     string userUpdated = $"<@{match.UserInfo.Disc_id}>";
-                    string arrowIcon = currentTier - previousTier == 2 ? ":arrow_double_up:"
+                    string arrowIcon = currentTier - previousTier == 2 ? $"{MemeEmojisEnum.ArrowDoubleUp.Id()}"
                         : currentTier > previousTier
-                            ? ":arrow_up:"
-                            : ":arrow_down:";
+                            ? $"{MemeEmojisEnum.ArrowUp.Id()}"
+                            : $"{MemeEmojisEnum.ArrowDown.Id()}";
                     int kills = seasonMatchStatsPreviousTier.Sum(x => x.MatchStats.Kills);
                     int deaths = seasonMatchStatsPreviousTier.Sum(x => x.MatchStats.Deaths);
                     int assists = seasonMatchStatsPreviousTier.Sum(x => x.MatchStats.Assists);
@@ -719,7 +719,7 @@ namespace ValorantApp.Valorant
                     string kda = $"{kills}/{deaths}/{assists}";
                     string averageHeadshots = seasonMatchStatsPreviousTier.Average(x => x.MatchStats.Headshots).ToString("0.##");
                     string averageBodyshots = seasonMatchStatsPreviousTier.Average(x => x.MatchStats.Bodyshots).ToString("0.##");
-                    string clown = previousTier > currentTier ? " :clown:" : " :sunglasses:";
+                    string clown = previousTier > currentTier ? $" {MemeEmojisEnum.Clown.Id()}" : $" {MemeEmojisEnum.Sunglasses.Id()}";
 
                     Logger.LogInformation($@"{nameof(UpdateCurrentTierAllUsers)}: {match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}
                         PreviousTier = {previousTier}
@@ -734,7 +734,7 @@ namespace ValorantApp.Valorant
                     EmbedBuilder embed = new EmbedBuilder()
                         .WithThumbnailUrl($"{AgentsExtension.AgentFromString(mostSelectedAgent).ImageURLFromAgent()}")
                         .WithTitle($"{match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}{clown}")
-                        .WithDescription($"<{((RankEmojis)previousTier).EmojiIdFromEnum()}> {arrowIcon} <{((RankEmojis)(valorantUser.CurrentTier ?? 0)).EmojiIdFromEnum()}>")
+                        .WithDescription($"<{((RankEmojis)previousTier).Id()}> {arrowIcon} <{((RankEmojis)(valorantUser.CurrentTier ?? 0)).Id()}>")
                         .AddField($"{((RankEmojis)previousTier).ToDescriptionString()} Competitive Stats", $"Matches: {numberOfMatchesAtPreviousTier} Minutes: {numberOfMinutesAtPreviousTier}\nK/D/A: {kda}\nHeadshot: {averageHeadshots}% Bodyshot: {averageBodyshots}%");
 
                     HashSet<ulong> channelIds = valorantUser.ChannelIds ?? [];

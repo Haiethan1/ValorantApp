@@ -35,21 +35,21 @@ namespace ValorantApp.DiscordBot
 
             if (!GetUserAndProgram(user, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
             {
-                await RespondAsync($"Could not find Valorant User for Discord User {user.Username}");
+                await RespondErrorAsync($"Could not find Valorant User for Discord User {user.Username}");
                 return;
             }
 
             // Ensure a user can only query shamebot's users of the same guild.
             if (!valorantUser.IsInChannel(Context.Channel.Id))
             {
-                await RespondAsync($"Valorant user must be connected to this channel to use this command.");
+                await RespondErrorAsync($"Valorant user must be connected to this channel to use this command.");
                 return;
             }
 
             MmrV2Json? mmr = valorantUser.GetMMR();
             if (mmr == null)
             {
-                await RespondAsync($"API for mmr stats could not be found for Discord User {user.Username}");
+                await RespondErrorAsync($"API failed to respond.");
                 return;
             }
 
@@ -82,7 +82,7 @@ namespace ValorantApp.DiscordBot
             if (username.IsNullOrEmpty() || tagname.IsNullOrEmpty())
             {
                 result = "Riot username or tagname cannot be empty";
-                await RespondAsync(result);
+                await RespondErrorAsync(result);
                 return;
             }
 
@@ -92,7 +92,7 @@ namespace ValorantApp.DiscordBot
             if (ValorantUsersExtension.GetRowDiscordId(userInfo.Id) != null)
             {
                 result = "Shamebot only accepts one valorant account per discord user!";
-                await RespondAsync(result);
+                await RespondErrorAsync(result);
                 return;
             }
 
@@ -111,7 +111,7 @@ namespace ValorantApp.DiscordBot
             if (valorantUser == null)
             {
                 result = "Valorant user cannot be found. Please check the user info again.";
-                await RespondAsync(result);
+                await RespondErrorAsync(result);
                 return;
             }
 
@@ -119,7 +119,7 @@ namespace ValorantApp.DiscordBot
             if (ValorantUsersExtension.GetRow(valorantUser.Puuid) != null)
             {
                 result = "Shamebot only accepts one instance of a valorant account! Please ensure no one else is using your account.";
-                await RespondAsync(result);
+                await RespondErrorAsync(result);
                 return;
             }
 
@@ -139,12 +139,12 @@ namespace ValorantApp.DiscordBot
             {
                 result = "Valorant user was unable to be created after being added to the database. Error.";
                 _logger.LogError($"{username}#{tagname} was not created after reloading the DB.");
-                await RespondAsync(result);
+                await RespondErrorAsync(result);
                 return;
             }
 
             result = $"Valorant User {valorantUser.UserInfo.Val_username}#{valorantUser.UserInfo.Val_tagname} created!";
-            await RespondAsync(result);
+            await RespondSuccessAsync(result);
         }
 
         [SlashCommand("addchannel", "Add this channel to shamebot's send messages for you")]
@@ -154,17 +154,17 @@ namespace ValorantApp.DiscordBot
 
             if (!GetUserAndProgram(user, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
             {
-                await RespondAsync($"Could not find Valorant User for Discord User {user.Username}");
+                await RespondErrorAsync($"Could not find Valorant User for Discord User {user.Username}");
                 return;
             }
 
             if (!valorantUser.AddChannelId(Context.Channel.Id))
             {
-                await RespondAsync($"Channel is already present or could not be added for Discord User {user.Username}");
+                await RespondErrorAsync($"Channel is already present or could not be added for Discord User {user.Username}");
                 return;
             }
 
-            await RespondAsync($"Channel is added for Discord User {user.Username}");
+            await RespondSuccessAsync($"Channel is added for Discord User {user.Username}");
             return;
         }
 
@@ -175,14 +175,14 @@ namespace ValorantApp.DiscordBot
 
             if (!GetUserAndProgram(user, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
             {
-                await RespondAsync($"Could not find Valorant User for Discord User {user.Username}");
+                await RespondErrorAsync($"Could not find Valorant User for Discord User {user.Username}");
                 return;
             }
 
             // Remove the channel from the user
             if (!valorantUser.RemoveChannelId(Context.Channel.Id))
             {
-                await RespondAsync($"Channel is not present or could not be removed for Discord User {user.Username}");
+                await RespondErrorAsync($"Channel is not present or could not be removed for Discord User {user.Username}");
                 return;
             }
 
@@ -190,11 +190,11 @@ namespace ValorantApp.DiscordBot
             if (valorantUser.ChannelIds.IsNullOrEmpty())
             {
                 program.DeleteUser(valorantUser.Puuid);
-                await RespondAsync($"Discord User {user.Username} is no longer associated to Shamebot.");
+                await RespondSuccessAsync($"Discord User {user.Username} is no longer associated to Shamebot.");
                 return;
             }
 
-            await RespondAsync($"Channel is deleted for Discord User {user.Username}");
+            await RespondSuccessAsync($"Channel is deleted for Discord User {user.Username}");
             return;
         }
 
@@ -204,20 +204,20 @@ namespace ValorantApp.DiscordBot
             SocketUser? user = ((SocketSlashCommand)Context.Interaction).Data.Options.FirstOrDefault()?.Value as SocketUser;
             if (user == null)
             {
-                await RespondAsync($"Invalid Discord User");
+                await RespondErrorAsync($"Invalid Discord User");
                 return;
             }
 
             if (!GetUserAndProgram(user, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
             {
-                await RespondAsync($"Could not find Valorant User for Discord User {user.Username}");
+                await RespondErrorAsync($"Could not find Valorant User for Discord User {user.Username}");
                 return;
             }
 
             // Remove the channel from the user
             if (!valorantUser.RemoveChannelId(Context.Channel.Id))
             {
-                await RespondAsync($"Channel is not present or could not be removed for Discord User {user.Username}");
+                await RespondErrorAsync($"Channel is not present or could not be removed for Discord User {user.Username}");
                 return;
             }
 
@@ -225,11 +225,11 @@ namespace ValorantApp.DiscordBot
             if (valorantUser.ChannelIds.IsNullOrEmpty())
             {
                 program.DeleteUser(valorantUser.Puuid);
-                await RespondAsync($"Discord User {user.Username} is no longer associated to Shamebot.");
+                await RespondSuccessAsync($"Discord User {user.Username} is no longer associated to Shamebot.");
                 return;
             }
 
-            await RespondAsync($"Channel is deleted for Discord User {user.Username}");
+            await RespondSuccessAsync($"Channel is deleted for Discord User {user.Username}");
             return;
         }
 
@@ -277,6 +277,34 @@ namespace ValorantApp.DiscordBot
             }
 
             return true;
+        }
+
+        private async Task RespondErrorAsync(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+            {
+                return;
+            }
+
+            var embed = new EmbedBuilder()
+                .WithDescription(message)
+                .WithColor(Color.DarkRed);
+
+            await RespondAsync(embed: embed.Build());
+        }
+
+        private async Task RespondSuccessAsync(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+            {
+                return;
+            }
+
+            var embed = new EmbedBuilder()
+                .WithDescription(message)
+                .WithColor(Color.DarkGreen);
+
+            await RespondAsync(embed: embed.Build());
         }
 
         #endregion Helpers

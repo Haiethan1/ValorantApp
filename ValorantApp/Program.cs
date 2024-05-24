@@ -229,7 +229,7 @@ namespace ValorantApp
             catch (Exception ex)
             {
                 await arg.RespondAsync($"Error when executing command {arg.Data}");
-                _logger.LogError($"HandleInteractionAsync exception: {ex}");
+                _logger.LogError($"{nameof(HandleInteractionAsync)} exception: {ex}");
             }
         }
 
