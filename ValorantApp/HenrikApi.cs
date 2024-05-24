@@ -1,5 +1,7 @@
 ﻿
 using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Net.Http.Headers;
 using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
 using ValorantApp.Valorant.Enums;
@@ -45,54 +47,45 @@ namespace ValorantApp
         public async Task<JsonObjectHenrik<AccountJson>>? AccountQuery()
         {
             string endpoint = $"v1/account/{username}/{tagName}";
-            var httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
-            var response = await httpClient.GetAsync(endpoint);
-            var responseSize = response.GetResponseSize().Result;
-            DownloadSize += responseSize;
-
-            Logger.ApiInformation(endpoint + $". Response Code: {response.StatusCode}, Download Size:{response.GetResponseSize().Result.FormatSize()}, Total Download Size: {DownloadSize.FormatSize()}");
+            HttpClient httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
+            HttpResponseMessage response = await httpClient.GetAsync(endpoint);
 
             if (!response.IsSuccessStatusCode)
             {
                 return null;
             }
 
+            LogRateLimitWarningAndErrors(response.Headers);
             return ParseAndLogJson<JsonObjectHenrik<AccountJson>>(response.Content.ReadAsStringAsync().Result, endpoint, nameof(AccountQuery));
         }
 
         public async Task<JsonObjectHenrik<MmrV2Json>>? Mmr()
         {
             string endpoint = $"v2/by-puuid/mmr/{affinity}/{puuid}";
-            var httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
-            var response = await httpClient.GetAsync(endpoint);
-            var responseSize = response.GetResponseSize().Result;
-            DownloadSize += responseSize;
-
-            Logger.ApiInformation(endpoint + $". Response Code: {response.StatusCode}, Download Size:{response.GetResponseSize().Result.FormatSize()}, Total Download Size: {DownloadSize.FormatSize()}");
+            HttpClient httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
+            HttpResponseMessage response = await httpClient.GetAsync(endpoint);
 
             if (!response.IsSuccessStatusCode)
             {
                 return null;
             }
 
+            LogRateLimitWarningAndErrors(response.Headers);
             return ParseAndLogJson<JsonObjectHenrik<MmrV2Json>>(response.Content.ReadAsStringAsync().Result, endpoint, nameof(Mmr));
         }
 
         public async Task<JsonObjectHenrik<List<MmrHistoryJson>>>? MmrHistory()
         {
             string endpoint = $"v1/by-puuid/mmr-history/{affinity}/{puuid}";
-            var httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
-            var response = await httpClient.GetAsync(endpoint);
-            var responseSize = response.GetResponseSize().Result;
-            DownloadSize += responseSize;
-
-            Logger.ApiInformation(endpoint + $". Response Code: {response.StatusCode}, Download Size:{response.GetResponseSize().Result.FormatSize()}, Total Download Size: {DownloadSize.FormatSize()}");
+            HttpClient httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
+            HttpResponseMessage response = await httpClient.GetAsync(endpoint);
 
             if (!response.IsSuccessStatusCode)
             {
                 return null;
             }
 
+            LogRateLimitWarningAndErrors(response.Headers);
             return ParseAndLogJson<JsonObjectHenrik<List<MmrHistoryJson>>>(response.Content.ReadAsStringAsync().Result, endpoint, nameof(MmrHistory));
         }
 
@@ -109,18 +102,15 @@ namespace ValorantApp
             }
             endpoint += $"&size={size}";
 
-            var httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
-            var response = await httpClient.GetAsync(endpoint);
-            var responseSize = response.GetResponseSize().Result;
-            DownloadSize += responseSize;
-
-            Logger.ApiInformation(endpoint + $". Response Code: {response.StatusCode}, Download Size:{response.GetResponseSize().Result.FormatSize()}, Total Download Size: {DownloadSize.FormatSize()}");
+            HttpClient httpClient = _httpClientFactory.CreateClient("HenrikApiClient");
+            HttpResponseMessage response = await httpClient.GetAsync(endpoint);
 
             if (!response.IsSuccessStatusCode)
             {
                 return null;
             }
 
+            LogRateLimitWarningAndErrors(response.Headers);
             return ParseAndLogJson<JsonObjectHenrik<List<MatchJson>>>(response.Content.ReadAsStringAsync().Result, endpoint, nameof(Match));
         }
 
@@ -134,6 +124,29 @@ namespace ValorantApp
             }
 
             return jsonObject;
+        }
+
+        private void LogRateLimitWarningAndErrors(HttpResponseHeaders responseHeaders)
+        {
+            // Check if the rate limit headers exist and retrieve them
+            if (responseHeaders.TryGetValues("x-ratelimit-limit", out IEnumerable<string>? rateLimitValues) &&
+                responseHeaders.TryGetValues("x-ratelimit-remaining", out IEnumerable<string>? rateRemainingValues) &&
+                responseHeaders.TryGetValues("x-ratelimit-reset", out IEnumerable<string>? rateResetValues))
+            {
+                int rateLimit = int.Parse(rateLimitValues.First());
+                int rateRemaining = int.Parse(rateRemainingValues.First());
+                int rateReset = int.Parse(rateResetValues.First());
+                int rateLimitTotal = rateLimit + rateRemaining;
+                double percentRateLimit = rateLimit * 1.0 / rateLimitTotal;
+                if (percentRateLimit >= 0.6)
+                {
+                    Logger.LogWarning($"Current {rateLimit} / Remaining {rateRemaining}. Usage at {percentRateLimit*100:00}% - reset in {rateReset}");
+                }
+                else if (percentRateLimit >= 0.8)
+                {
+                    Logger.LogError($"Current {rateLimit} / Remaining {rateRemaining}. Usage at {percentRateLimit * 100:00}% - reset in {rateReset}");
+                }
+            }
         }
     }
 }

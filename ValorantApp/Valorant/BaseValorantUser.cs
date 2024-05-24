@@ -1,5 +1,4 @@
-﻿using Discord;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;

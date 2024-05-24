@@ -3,10 +3,8 @@ using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
-using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
 
 namespace ValorantApp.DiscordBot
@@ -154,149 +152,149 @@ namespace ValorantApp.DiscordBot
             await ReplyAsync($"Finished finding match stats");
         }
 
-        [Summary("Developer only delete last match")]
-        private async Task GetLastMatch()
-        {
-            SocketUser userInfo = Context.User;
-            if (userInfo.Id != 158031143231422466)
-            {
-                return;
-            }
+        //[Summary("Developer only delete last match")]
+        //private async Task GetLastMatch()
+        //{
+        //    SocketUser userInfo = Context.User;
+        //    if (userInfo.Id != 158031143231422466)
+        //    {
+        //        return;
+        //    }
 
-            if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
-            {
-                await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
-                return;
-            }
+        //    if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+        //    {
+        //        await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+        //        return;
+        //    }
 
-            ConcurrentDictionary<string, BaseValorantMatch> matchStats;
-            program.UpdateMatchAllUsers(out matchStats);
-            if (matchStats == null)
-            {
-                await ReplyAsync("No match stats were updated");
-                return;
-            }
+        //    ConcurrentDictionary<string, BaseValorantMatch> matchStats;
+        //    program.UpdateMatchAllUsers(out matchStats);
+        //    if (matchStats == null)
+        //    {
+        //        await ReplyAsync("No match stats were updated");
+        //        return;
+        //    }
 
-            var embed = new EmbedBuilder()
-                .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/f/fe/Neon_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202800")
-                .WithAuthor
-                (new EmbedAuthorBuilder
-                {
-                    Name = "DATE -- November 7th, 2023"
-                }
-                )
-                .WithTitle($"{matchStats.First().Value.Matches.Map}")
-                .WithDescription($"<@{userInfo.Id}> Match data {matchStats.First().Value.Matches.Match_Id}")
-                .AddField($"Ehtan", "KDA, combat, headshot, rr change", inline: false)
-                .WithFooter
-                (new EmbedFooterBuilder
-                {
-                    Text = $"Ethan's testing :)))))"
-                }
-                );
-            await ReplyAsync(embed: embed.Build());
-            var embed1 = new EmbedBuilder()
-                .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/7/7f/Skye_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202828")
-                .WithAuthor
-                (new EmbedAuthorBuilder
-                {
-                    Name = "DATE -- November 7th, 2023"
-                }
-                )
-                .WithTitle($"{matchStats.First().Value.Matches.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
-                .AddField($"Tokage", "KDA, combat, headshot, rr change", inline: false)
-                .WithFooter
-                (new EmbedFooterBuilder
-                {
-                    Text = "Ethan's testing :)))))"
-                }
-                );
-            await ReplyAsync(embed: embed1.Build());
-            var embed2 = new EmbedBuilder()
-                .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/2/24/Breach_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202713")
-                .WithAuthor
-                (new EmbedAuthorBuilder
-                {
-                    Name = "DATE -- November 7th, 2023"
-                }
-                )
-                .WithTitle($"{matchStats.First().Value.Matches.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
-                .AddField($"bot1", "KDA, combat, headshot, rr change", inline: false)
-                .WithFooter
-                (new EmbedFooterBuilder
-                {
-                    Text = "Ethan's testing :)))))"
-                }
-                );
-            await ReplyAsync(embed: embed2.Build());
-            var embed3 = new EmbedBuilder()
-                .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/1/1e/Yoru_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202841")
-                .WithAuthor
-                (new EmbedAuthorBuilder
-                {
-                    Name = "DATE -- November 7th, 2023"
-                }
-                )
-                .WithTitle($"{matchStats.First().Value.Matches.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
-                .AddField($"bot2", "KDA, combat, headshot, rr change", inline: false)
-                .WithFooter
-                (new EmbedFooterBuilder
-                {
-                    Text = "Ethan's testing :)))))"
-                }
-                );
-            await ReplyAsync(embed: embed3.Build());
-            var embed4 = new EmbedBuilder()
-                .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/6/6f/Raze_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202815")
-                .WithAuthor
-                (new EmbedAuthorBuilder
-                {
-                    Name = "DATE -- November 7th, 2023"
-                }
-                )
-                .WithTitle($"{matchStats.First().Value.Matches.Map}")
-                .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
-                .AddField($"bot3", "KDA, combat, headshot, rr change", inline: false)
-                .WithFooter
-                (new EmbedFooterBuilder
-                {
-                    Text = "Ethan's testing :)))))"
-                }
-                );
-            await ReplyAsync(embed: embed4.Build());
+        //    var embed = new EmbedBuilder()
+        //        .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/f/fe/Neon_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202800")
+        //        .WithAuthor
+        //        (new EmbedAuthorBuilder
+        //        {
+        //            Name = "DATE -- November 7th, 2023"
+        //        }
+        //        )
+        //        .WithTitle($"{matchStats.First().Value.Matches.Map}")
+        //        .WithDescription($"<@{userInfo.Id}> Match data {matchStats.First().Value.Matches.Match_Id}")
+        //        .AddField($"Ehtan", "KDA, combat, headshot, rr change", inline: false)
+        //        .WithFooter
+        //        (new EmbedFooterBuilder
+        //        {
+        //            Text = $"Ethan's testing :)))))"
+        //        }
+        //        );
+        //    await ReplyAsync(embed: embed.Build());
+        //    var embed1 = new EmbedBuilder()
+        //        .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/7/7f/Skye_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202828")
+        //        .WithAuthor
+        //        (new EmbedAuthorBuilder
+        //        {
+        //            Name = "DATE -- November 7th, 2023"
+        //        }
+        //        )
+        //        .WithTitle($"{matchStats.First().Value.Matches.Map}")
+        //        .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
+        //        .AddField($"Tokage", "KDA, combat, headshot, rr change", inline: false)
+        //        .WithFooter
+        //        (new EmbedFooterBuilder
+        //        {
+        //            Text = "Ethan's testing :)))))"
+        //        }
+        //        );
+        //    await ReplyAsync(embed: embed1.Build());
+        //    var embed2 = new EmbedBuilder()
+        //        .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/2/24/Breach_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202713")
+        //        .WithAuthor
+        //        (new EmbedAuthorBuilder
+        //        {
+        //            Name = "DATE -- November 7th, 2023"
+        //        }
+        //        )
+        //        .WithTitle($"{matchStats.First().Value.Matches.Map}")
+        //        .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
+        //        .AddField($"bot1", "KDA, combat, headshot, rr change", inline: false)
+        //        .WithFooter
+        //        (new EmbedFooterBuilder
+        //        {
+        //            Text = "Ethan's testing :)))))"
+        //        }
+        //        );
+        //    await ReplyAsync(embed: embed2.Build());
+        //    var embed3 = new EmbedBuilder()
+        //        .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/1/1e/Yoru_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202841")
+        //        .WithAuthor
+        //        (new EmbedAuthorBuilder
+        //        {
+        //            Name = "DATE -- November 7th, 2023"
+        //        }
+        //        )
+        //        .WithTitle($"{matchStats.First().Value.Matches.Map}")
+        //        .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
+        //        .AddField($"bot2", "KDA, combat, headshot, rr change", inline: false)
+        //        .WithFooter
+        //        (new EmbedFooterBuilder
+        //        {
+        //            Text = "Ethan's testing :)))))"
+        //        }
+        //        );
+        //    await ReplyAsync(embed: embed3.Build());
+        //    var embed4 = new EmbedBuilder()
+        //        .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/6/6f/Raze_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202815")
+        //        .WithAuthor
+        //        (new EmbedAuthorBuilder
+        //        {
+        //            Name = "DATE -- November 7th, 2023"
+        //        }
+        //        )
+        //        .WithTitle($"{matchStats.First().Value.Matches.Map}")
+        //        .WithDescription($"Match data {matchStats.First().Value.Matches.Match_Id}")
+        //        .AddField($"bot3", "KDA, combat, headshot, rr change", inline: false)
+        //        .WithFooter
+        //        (new EmbedFooterBuilder
+        //        {
+        //            Text = "Ethan's testing :)))))"
+        //        }
+        //        );
+        //    await ReplyAsync(embed: embed4.Build());
 
-            //var embed = new EmbedBuilder()
-            //    .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/2/23/Loading_Screen_Bind.png/revision/latest/scale-to-width-down/200?cb=20200620202316")
-            //    .WithAuthor
-            //    (new EmbedAuthorBuilder
-            //    {
-            //        Name = "DATE -- November 7th, 2023"
-            //    }
-            //    )
-            //    .WithTitle($"{matchStats.First().Value.Map}")
-            //    .WithDescription($"Match data {matchStats.First().Value.Match_id}")
-            //    .AddField($"Ehtan", "KDA, combat, headshot, rr change", inline: false)
-            //    .AddField("Tokage", "KDA, combat, headshot, rr change", inline: false)
-            //    .AddField($"bot1", "KDA, combat, headshot, rr change", inline: false)
-            //    .AddField("bot2", "KDA, combat, headshot, rr change", inline: false)
-            //    .AddField($"bot3", "KDA, combat, headshot, rr change", inline: false)
-            //    .WithFooter
-            //    (new EmbedFooterBuilder
-            //    {
-            //        Text = "Ethan's testing :)))))"
-            //    }
-            //    );
-            //embed.Fields[0].
+        //    //var embed = new EmbedBuilder()
+        //    //    .WithThumbnailUrl("https://static.wikia.nocookie.net/valorant/images/2/23/Loading_Screen_Bind.png/revision/latest/scale-to-width-down/200?cb=20200620202316")
+        //    //    .WithAuthor
+        //    //    (new EmbedAuthorBuilder
+        //    //    {
+        //    //        Name = "DATE -- November 7th, 2023"
+        //    //    }
+        //    //    )
+        //    //    .WithTitle($"{matchStats.First().Value.Map}")
+        //    //    .WithDescription($"Match data {matchStats.First().Value.Match_id}")
+        //    //    .AddField($"Ehtan", "KDA, combat, headshot, rr change", inline: false)
+        //    //    .AddField("Tokage", "KDA, combat, headshot, rr change", inline: false)
+        //    //    .AddField($"bot1", "KDA, combat, headshot, rr change", inline: false)
+        //    //    .AddField("bot2", "KDA, combat, headshot, rr change", inline: false)
+        //    //    .AddField($"bot3", "KDA, combat, headshot, rr change", inline: false)
+        //    //    .WithFooter
+        //    //    (new EmbedFooterBuilder
+        //    //    {
+        //    //        Text = "Ethan's testing :)))))"
+        //    //    }
+        //    //    );
+        //    //embed.Fields[0].
 
-            //await ReplyAsync(embed: embed.Build());
-        }
+        //    //await ReplyAsync(embed: embed.Build());
+        //}
 
-        [Command("heatmap")]
-        public async Task SendHeatmaps()
-        {
+        //[Command("heatmap")]
+        //public async Task SendHeatmaps()
+        //{
             // TODO
             //SocketUser userInfo = Context.User;
             //if (userInfo.Id != 158031143231422466)
@@ -349,7 +347,7 @@ namespace ValorantApp.DiscordBot
             //        await message.AddReactionsAsync(new IEmote[] { new Emoji("⬅️"), new Emoji("➡️") });
             //    }
             //}
-        }
+        //}
 
         private List<string> GetHeatmapImagePaths()
         {

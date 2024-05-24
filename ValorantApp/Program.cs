@@ -7,14 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Serilog;
-using System.Collections.Concurrent;
 using System.Configuration;
 using System.Reflection;
 using ValorantApp.Database.Extensions;
-using ValorantApp.Database.Tables;
-using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
-using ValorantApp.Valorant.Enums;
 
 namespace ValorantApp
 {
@@ -227,8 +223,8 @@ namespace ValorantApp
         {
             try
             {
-                var temp = new SocketInteractionContext(_client, arg);
-                await _interactions.ExecuteCommandAsync(temp, _servicesProvider);
+                SocketInteractionContext interactionContext = new SocketInteractionContext(_client, arg);
+                await _interactions.ExecuteCommandAsync(interactionContext, _servicesProvider);
             }
             catch (Exception ex)
             {

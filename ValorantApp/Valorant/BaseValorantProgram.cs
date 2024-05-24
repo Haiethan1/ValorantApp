@@ -261,62 +261,74 @@ namespace ValorantApp.Valorant
                     return false;
                 }
 
-                var MatchStatsAndMMRHistories = GetQueueUsersMatchStats(queueUsers).Result;
-                Dictionary<string, Task<MatchJson?>> matchTasks = MatchStatsAndMMRHistories.Item1;
-                Dictionary<string, MmrHistoryJson> matchHistories = MatchStatsAndMMRHistories.Item2;
-
-                foreach (string userId in queueUsers)
+                try
                 {
-                    BaseValorantUser? user = GetValorantUser(userId);
-                    if (user == null)
+                    var MatchStatsAndMMRHistories = GetQueueUsersMatchStats(queueUsers).Result;
+                    // TODO: this will skip a users match if they have multiple entries
+                    // an example of multiple entries - restarts app, 3 games have passed with different users.
+                    Dictionary<string, Task<MatchJson?>> matchTasks = MatchStatsAndMMRHistories.Item1;
+                    Dictionary<string, MmrHistoryJson> matchHistories = MatchStatsAndMMRHistories.Item2;
+
+                    foreach (string userId in queueUsers)
                     {
-                        continue;
-                    }
-                    try
-                    {
-                        if (!matchTasks.ContainsKey(user.Puuid))
+                        BaseValorantUser? user = GetValorantUser(userId);
+                        if (user == null)
                         {
                             continue;
                         }
-                        MatchJson? match = matchTasks[user.Puuid].Result;
-
-                        if (match == null
-                            || match.Metadata?.MatchId == null)
+                        try
                         {
-                            continue;
-                        }
+                            if (!matchTasks.ContainsKey(user.Puuid))
+                            {
+                                continue;
+                            }
+                            MatchJson? match = matchTasks[user.Puuid].Result;
 
-                        IEnumerable<BaseValorantUser> usersInMatch = CheckValorantUsersInMatch(match, null);
-
-                        foreach (BaseValorantUser userInMatch in usersInMatch)
-                        {
-                            if (user == null
-                                || match == null
-                                || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.UserInfo.Val_puuid)
-                                )
+                            if (match == null
+                                || match.Metadata?.MatchId == null)
                             {
                                 continue;
                             }
 
-                            MmrHistoryJson? mmrHistory = matchHistories.ContainsKey(userInMatch.Puuid) ? matchHistories[userInMatch.Puuid] : userInMatch.GetMatchMMR(match.Metadata.MatchId);
+                            IEnumerable<BaseValorantUser> usersInMatch = CheckValorantUsersInMatch(match, null);
 
-                            if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
+                            foreach (BaseValorantUser userInMatch in usersInMatch)
                             {
-                                Logger.LogInformation($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched.Safe()}");
-                            }
-                            else
-                            {
-                                Logger.LogInformation($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
+                                if (user == null
+                                    || match == null
+                                    || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.UserInfo.Val_puuid)
+                                    )
+                                {
+                                    continue;
+                                }
+
+                                MmrHistoryJson? mmrHistory = matchHistories.ContainsKey(userInMatch.Puuid) ? matchHistories[userInMatch.Puuid] : userInMatch.GetMatchMMR(match.Metadata.MatchId);
+
+                                if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
+                                {
+                                    Logger.LogInformation($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched.Safe()}");
+                                }
+                                else
+                                {
+                                    Logger.LogInformation($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
+                                }
                             }
                         }
+                        catch (Exception ex)
+                        {
+                            Logger.LogError($"Error: {ex.Message} - when updating user {user.UserInfo.Val_username}");
+                        }
                     }
-                    catch (Exception ex)
+                }
+                catch (Exception e)
+                {
+                    Logger.LogError($"Error: {e.Message} - in {nameof(UpdateMatchQueueUsers)}");
+                }
+                finally
+                {
+                    foreach (string queueUser in queueUsers)
                     {
-                        Logger.LogError($"Error: {ex.Message} - when updating user {user.UserInfo.Val_username}");
-                    }
-                    finally
-                    {
-                        QueueUsers.Enqueue(userId);
+                        QueueUsers.Enqueue(queueUser);
                     }
                 }
             }
@@ -671,13 +683,18 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
+            Logger.LogInformation($"Starting {nameof(UpdateCurrentTierAllUsers)}");
+
             foreach (BaseValorantMatch match in matches)
             {
                 BaseValorantUser? valorantUser = GetValorantUser(match.UserInfo.Val_puuid);
                 if (valorantUser == null)
                 {
+                    Logger.LogError($"{nameof(UpdateCurrentTierAllUsers)}: Could not find Valorant User {match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}");
                     continue;
                 }
+
+                Logger.LogInformation($"{nameof(UpdateCurrentTierAllUsers)}: Valorant user {valorantUser.UserInfo.Val_username}#{valorantUser.UserInfo.Val_tagname} current tier = {valorantUser.CurrentTier ?? 0}, new tier = {match.MatchStats.New_Tier ?? 0}");
 
                 if (valorantUser.UpdateCurrentTier(match.MatchStats, match.Matches, out int previousTier))
                 {
