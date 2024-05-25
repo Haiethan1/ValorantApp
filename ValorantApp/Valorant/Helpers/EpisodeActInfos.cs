@@ -18,7 +18,7 @@
 
     public class EpisodeActExtension
     {
-        private static readonly Dictionary<string, EpisodeActInfos> Mapping = new Dictionary<string, EpisodeActInfos>
+        private static readonly Dictionary<string, EpisodeActInfos> Mapping = new()
         {
             { "E1A1", new EpisodeActInfos(1, 1, UTCHours(2020, 6, 1, 7), UTCHours(2020, 8, 4, 0)) },
             { "E1A2", new EpisodeActInfos(1, 2, UTCHours(2020, 8, 4, 0), UTCHours(2020, 10, 13, 0)) },
@@ -44,6 +44,9 @@
             { "E8A1", new EpisodeActInfos(8, 1, UTCHours(2024, 1, 9, 0), UTCHours(2024, 3, 5, 0)) },
             { "E8A2", new EpisodeActInfos(8, 2, UTCHours(2024, 3, 5, 0), UTCHours(2024, 4, 30, 0)) },
             { "E8A3", new EpisodeActInfos(8, 3, UTCHours(2024, 4, 30, 0), UTCHours(2024, 6, 25, 0)) },
+            { "E9A1", new EpisodeActInfos(9, 1, UTCHours(2024, 6, 25, 0), UTCHours(2024, 8, 20, 0)) }, // TODO: Fill in info
+            { "E9A2", new EpisodeActInfos(9, 2, UTCHours(2030, 4, 30, 0), UTCHours(2030, 6, 25, 0)) }, // Fill in info
+            { "E9A3", new EpisodeActInfos(9, 3, UTCHours(2030, 4, 30, 0), UTCHours(2030, 6, 25, 0)) }, // Fill in info
         };
 
         private static DateTime UTCHours(int year, int month, int day, int hours)

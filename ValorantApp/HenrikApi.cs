@@ -1,6 +1,4 @@
-﻿
-using Microsoft.Extensions.Logging;
-using System.Net;
+﻿using Microsoft.Extensions.Logging;
 using System.Net.Http.Headers;
 using ValorantApp.GenericExtensions;
 using ValorantApp.Valorant;
