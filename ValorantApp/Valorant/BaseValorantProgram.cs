@@ -928,7 +928,6 @@ namespace ValorantApp.Valorant
             }
         }
 
-
         /// <summary>
         /// Update discord config.
         /// This should contain any statuses of the bot that are variable.
