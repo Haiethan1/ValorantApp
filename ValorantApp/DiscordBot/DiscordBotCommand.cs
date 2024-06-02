@@ -138,19 +138,19 @@ namespace ValorantApp.DiscordBot
             await ReplyAsync("Here is a button!", components: builder.Build());
         }
 
-        [Command("MatchNow")]
-        public async Task MatchNow()
-        {
-            ValorantApp program = _servicesProvider.GetRequiredService<ValorantApp>();
-            if (program.TimedFunctionIsRunning())
-            {
-                await ReplyAsync($"Match stats are already being looked for.");
-                return;
-            }
+        //[Command("MatchNow")]
+        //public async Task MatchNow()
+        //{
+        //    ValorantApp program = _servicesProvider.GetRequiredService<ValorantApp>();
+        //    if (program.TimedFunctionIsRunning())
+        //    {
+        //        await ReplyAsync($"Match stats are already being looked for.");
+        //        return;
+        //    }
 
-            program.SendScheduledMessage(null);
-            await ReplyAsync($"Finished finding match stats");
-        }
+        //    program.SendScheduledMessage(null);
+        //    await ReplyAsync($"Finished finding match stats");
+        //}
 
         //[Summary("Developer only delete last match")]
         //private async Task GetLastMatch()

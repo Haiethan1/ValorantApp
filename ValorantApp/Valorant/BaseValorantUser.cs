@@ -101,9 +101,9 @@ namespace ValorantApp.Valorant
         /// </summary>
         /// <param name="season"></param>
         /// <returns></returns>
-        private IEnumerable<MatchStats> GetCompMatchStats(EpisodeActInfos season)
+        private IEnumerable<MatchStats> GetCompMatchStats(DateTime startDate, DateTime endDate)
         {
-            return MatchStatsExtension.GetCompMatchStats(Puuid, season.StartDate, season.EndDate);
+            return MatchStatsExtension.GetCompMatchStats(Puuid, startDate, endDate);
         }
 
         private IEnumerable<Matches> GetMatches(IEnumerable<string> matchIds)
@@ -111,9 +111,14 @@ namespace ValorantApp.Valorant
             return MatchesExtension.GetListOfRows(matchIds);
         }
 
-        public IEnumerable<BaseValorantMatch> GetBaseValorantMatch(EpisodeActInfos season)
+        public IEnumerable<BaseValorantMatch> GetBaseValorantMatchBySeason(EpisodeActInfos season)
         {
-            IEnumerable<MatchStats> matchStats = GetCompMatchStats(season);
+            return GetBaseValorantMatch(season.StartDate, season.EndDate);
+        }
+
+        public IEnumerable<BaseValorantMatch> GetBaseValorantMatch(DateTime startDate, DateTime endDate)
+        {
+            IEnumerable<MatchStats> matchStats = GetCompMatchStats(startDate, endDate);
             IEnumerable<Matches> matches = GetMatches(matchStats.Select(x => x.Match_id));
 
             return matchStats.Join(matches, stats => stats.Match_id, match => match.Match_Id, (stats, match) => new BaseValorantMatch(stats, match, UserInfo, Logger));

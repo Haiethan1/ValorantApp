@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
+using ValorantApp.GenericUtils;
 using ValorantApp.HenrikJson;
 using ValorantApp.Valorant.Enums;
 using ValorantApp.Valorant.Helpers;
@@ -16,25 +17,34 @@ namespace ValorantApp.Valorant
         private static readonly object DbLock = new object();
 
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly DiscordSocketClient _client;
+        private readonly ILogger<BaseValorantProgram> Logger;
 
-        public BaseValorantProgram(IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
+        public BaseValorantProgram(DiscordSocketClient client, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
         {
             Users = new();
             QueueUsers = new();
             _httpClientFactory = httpClientFactory;
+            _client = client;
             Logger = logger;
             ReloadFromDB();
+
+            ScheduledMessageTimer = new Timer(SendScheduledMessageTimer, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
+            DailyCheckTimer = new Timer(SendDailyCheckTimer, null, TimerUtils.TimeSpanUntilUTC(11, 0, 0), TimeSpan.FromDays(1));
         }
 
         #region Globals
 
         private ConcurrentDictionary<string, BaseValorantUser> Users { get; set; }
 
-        private ILogger<BaseValorantProgram> Logger { get; set; }
-
         private Queue<string> QueueUsers { get; set; }
 
-        private static readonly object lockObject = new();
+        private static readonly object QueueUsersLock = new();
+
+        private readonly Timer ScheduledMessageTimer;
+        private readonly object SendMessageTimerLock = new();
+
+        private readonly Timer DailyCheckTimer;
 
         #endregion
 
@@ -136,7 +146,7 @@ namespace ValorantApp.Valorant
 
         public void EnqueueAllUsers()
         {
-            lock (lockObject)
+            lock (QueueUsersLock)
             {
                 QueueUsers.Clear();
                 if (Users == null || Users.IsEmpty)
@@ -176,7 +186,24 @@ namespace ValorantApp.Valorant
 
         #region Check matches
 
-        public async Task<bool> SendScheduledMessage(DiscordSocketClient client)
+        public async void SendScheduledMessageTimer(object? state)
+        {
+            StopScheduledMessageTimer();
+            try
+            {
+                await SendScheduledMessage();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Error: {nameof(SendScheduledMessageTimer)} - {ex.Message}");
+            }
+            finally
+            {
+                StartScheduledMessageTimer();
+            }
+        }
+
+        private async Task SendScheduledMessage()
         {
             Logger.LogInformation("Starting Send of scheduled messages.");
 
@@ -186,7 +213,7 @@ namespace ValorantApp.Valorant
             if (usersMatchStats == null || usersMatchStats.IsEmpty)
             {
                 Logger.LogWarning($"{nameof(SendScheduledMessage)}: Could not find user match stats");
-                return false;
+                return;
             }
 
             HashSet<string> matchIds = [];
@@ -200,26 +227,10 @@ namespace ValorantApp.Valorant
                 List<BaseValorantMatch> sortedByMatch = usersMatchStats.Values.Where(x => x.Matches.Match_Id == matchid).ToList();
 
                 HashSet<ulong> channelsToSend = [];
-                sortedByMatch.ForEach(x =>
-                {
-                    var channelIds = GetValorantUser(x.UserInfo.Val_puuid)?.ChannelIds;
-                    if (channelIds != null)
-                    {
-                        foreach (var channelId in channelIds)
-                        {
-                            channelsToSend.Add(channelId);
-                        }
-                    }
-                });
+                sortedByMatch.ForEach(x => channelsToSend.UnionWith(GetValorantUser(x.UserInfo.Val_puuid)?.ChannelIds ?? []));
                 
                 foreach (var channelId in channelsToSend)
                 {
-                    if (client.GetChannelAsync(channelId).Result is not ISocketMessageChannel channel)
-                    {
-                        Logger.LogWarning($"{nameof(SendScheduledMessage)}: Could not find channel {channelId} for match id {matchid}");
-                        continue;
-                    }
-
                     List<BaseValorantMatch> sortedByMatchAndChannel = sortedByMatch.Where(x => GetValorantUser(x.UserInfo.Val_puuid)?.IsInChannel(channelId) ?? false).ToList();
                     sortedByMatchAndChannel.Sort((x, y) => y.MatchStats.Score.CompareTo(x.MatchStats.Score));
 
@@ -231,23 +242,23 @@ namespace ValorantApp.Valorant
 
                     if (sortedByMatchAndChannel.Count == 1)
                     {
-                        await SendSingleMatch(sortedByMatchAndChannel.First(), channel);
+                        await SendSingleMatch(sortedByMatchAndChannel.First(), channelId);
                     }
                     else
                     {
-                        await SendMultipleInMatch(sortedByMatchAndChannel, channel);
+                        await SendMultipleInMatch(sortedByMatchAndChannel, channelId);
                     }
                 }
             }
 
-            await UpdateCurrentTierAllUsers([.. usersMatchStats.Values], client);
+            await UpdateCurrentTierAllUsers([.. usersMatchStats.Values]);
 
-            return true;
+            return;
         }
 
         public bool UpdateMatchQueueUsers(out ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
         {
-            lock (lockObject)
+            lock (QueueUsersLock)
             {
                 userMatchStats = new ConcurrentDictionary<string, BaseValorantMatch>();
                 if (Users.IsNullOrEmpty() || QueueUsers.IsNullOrEmpty())
@@ -404,17 +415,18 @@ namespace ValorantApp.Valorant
             return true;
         }
 
-        private bool CheckMatch(MatchJson? match, MmrHistoryJson? MmrHistory, string puuid, ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
+        private bool CheckMatch(MatchJson? match, MmrHistoryJson? mmrHistory, string puuid, ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
         {
             if (match == null
                 || match.Metadata?.Mode == null
                 || string.IsNullOrEmpty(puuid)
+                || (ModesExtension.ModeFromString(match.Metadata?.Mode ?? "") == Modes.Competitive && mmrHistory == null)
                 )
             {
                 return false;
             }
 
-            MatchStats? matchStats = MatchStatsExtension.CreateFromJson(match, MmrHistory, puuid);
+            MatchStats? matchStats = MatchStatsExtension.CreateFromJson(match, mmrHistory, puuid);
 
             if (matchStats == null)
             {
@@ -557,56 +569,42 @@ namespace ValorantApp.Valorant
             return (matchTasks, new Dictionary<string, MmrHistoryJson>() );
         }
 
-        private async Task<bool> SendSingleMatch(BaseValorantMatch baseValorantMatch, ISocketMessageChannel channel)
+        private async Task<bool> SendSingleMatch(BaseValorantMatch baseValorantMatch, ulong channelId)
         {
-            if (baseValorantMatch == null || channel == null)
+            if (baseValorantMatch == null)
             {
                 Logger.LogWarning($"{nameof(SendScheduledMessage)}: Match stats or channel is null, stopping send.");
                 return false;
             }
 
             Logger.LogInformation($"{nameof(SendScheduledMessage)}: Single user in match");
+            baseValorantMatch.LogMatch();
             
+            string userUpdated = $"<@{baseValorantMatch.UserInfo.Disc_id}>";
             MatchStats stats = baseValorantMatch.MatchStats;
             Matches matches = baseValorantMatch.Matches;
-            string userUpdated = $"<@{baseValorantMatch.UserInfo.Disc_id}>";
-            string rounds = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
-                ? $"{matches.Blue_Team_Rounds_Won ?? 0} : {matches.Red_Team_Rounds_Won ?? 0}"
-                : $"{matches.Red_Team_Rounds_Won ?? 0} : {matches.Blue_Team_Rounds_Won ?? 0}";
-            string averageRank = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
-                ? $"<{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).Id()}> : <{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).Id()}>"
-                : $"<{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).Id()}> : <{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).Id()}>";
-            baseValorantMatch.LogMatch();
-
-            EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
-            matchInfo.Name = "__" + " ".Repeat(40) + "__" + "\n\nMatch Stats";
-            matchInfo.Value = $"<t:{matches.Game_Start ?? 0}:f>, {Math.Floor(TimeSpan.FromSeconds(matches.Game_Length).TotalMinutes)} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithThumbnailUrl($"{AgentsExtension.AgentFromString(stats.Character).ImageURLFromAgent()}")
-                .WithAuthor
-                (new EmbedAuthorBuilder
-                {
-                    Name = $"\n{ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()} - {matches.Map}"
-                }
-                )
-                .WithTitle($"{baseValorantMatch.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).Id()}> {(stats.MVP ? $" {MemeEmojisEnum.Sparkles.Id()}" : "")}")
-                .AddField(matchInfo)
-                .WithDescription($"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}");
+                .WithAuthor(
+                    new EmbedAuthorBuilder
+                    {
+                        Name = $"\n{ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()} - {matches.Map}"
+                    }
+                );
 
-            bool didTeamWin = string.Equals(stats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
-                ? matches.Blue_Team_Win ?? false
-                : !matches.Blue_Team_Win ?? false;
-            embed.WithColor(matches.Blue_Team_Rounds_Won == matches.Red_Team_Rounds_Won ? Color.DarkerGrey : didTeamWin ? Color.Green : Color.Red);
+            SetUpPlayerField(embed, stats, matches, baseValorantMatch.UserInfo);
+            SetUpMatchInfo(embed, stats, matches);
 
             Logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending user data for {baseValorantMatch.UserInfo.Val_username}#{baseValorantMatch.UserInfo.Val_tagname}");
-            await channel.SendMessageAsyncWrapper(userUpdated, embed: embed.Build());
+            await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, userUpdated, embed, Logger);
+
             return true;
         }
 
-        private async Task<bool> SendMultipleInMatch(List<BaseValorantMatch> baseValorantMatches, ISocketMessageChannel channel)
+        private async Task<bool> SendMultipleInMatch(List<BaseValorantMatch> baseValorantMatches, ulong channelId)
         {
-            if (baseValorantMatches == null || channel == null)
+            if (baseValorantMatches == null)
             {
                 Logger.LogWarning($"{nameof(SendScheduledMessage)}: Match stats or channel is null, stopping send.");
                 return false;
@@ -618,26 +616,14 @@ namespace ValorantApp.Valorant
             MatchStats setupMatchStats = baseValorantMatches.First().MatchStats;
             Matches setupMatches = baseValorantMatches.First().Matches;
 
-            string rounds = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
-                ? $"{setupMatches.Blue_Team_Rounds_Won ?? 0} : {setupMatches.Red_Team_Rounds_Won ?? 0}"
-                : $"{setupMatches.Red_Team_Rounds_Won ?? 0} : {setupMatches.Blue_Team_Rounds_Won ?? 0}";
-
-            string averageRank = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
-                ? $"<{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).Id()}> : <{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).Id()}>"
-                : $"<{((RankEmojis)(setupMatches.Red_Team_Average_Rank ?? 0)).Id()}> : <{((RankEmojis)(setupMatches.Blue_Team_Average_Rank ?? 0)).Id()}>";
-
             EmbedBuilder embed = new EmbedBuilder()
                 .WithThumbnailUrl(MapsExtension.MapFromString(setupMatches.Map.Safe()).ImageUrlFromMap())
-                .WithAuthor
-                (new EmbedAuthorBuilder
-                {
-                    Name = $"\n{ModesExtension.ModeFromString(setupMatches.Mode.Safe().ToLower()).StringFromMode()} - {setupMatches.Map.Safe()}"
-                }
+                .WithAuthor(
+                    new EmbedAuthorBuilder
+                    {
+                        Name = $"\n{ModesExtension.ModeFromString(setupMatches.Mode.Safe().ToLower()).StringFromMode()} - {setupMatches.Map.Safe()}"
+                    }
                 );
-
-            EmbedFieldBuilder matchInfo = new EmbedFieldBuilder();
-            matchInfo.Name = "__" + " ".Repeat(40) + "__" + "\n\nMatch Stats";
-            matchInfo.Value = $"<t:{setupMatches.Game_Start ?? 0}:f>, {Math.Floor(TimeSpan.FromSeconds(setupMatches.Game_Length).TotalMinutes)} minutes\nRounds {rounds}\nAverage Ranks {averageRank}";
 
             foreach (BaseValorantMatch match in baseValorantMatches)
             {
@@ -645,26 +631,51 @@ namespace ValorantApp.Valorant
 
                 match.LogMatch();
 
-                EmbedFieldBuilder embedField = new EmbedFieldBuilder();
-
-                MatchStats stats = match.MatchStats;
-                Matches matches = match.Matches;
-
-                embedField.Name = $"{match.UserInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} <{((RankEmojis)(stats.Current_Tier ?? 0)).Id()}> {(stats.MVP ? $" {MemeEmojisEnum.Sparkles.Id()}" : "")}";
-                embedField.Value = $"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}";
-                embed.AddField(embedField);
+                SetUpPlayerField(embed, match.MatchStats, match.Matches, match.UserInfo);
             }
 
-            bool didTeamWin = string.Equals(setupMatchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
-                ? setupMatches.Blue_Team_Win ?? false
-                : !setupMatches.Blue_Team_Win ?? false;
-            embed.WithColor(setupMatches.Blue_Team_Rounds_Won == setupMatches.Red_Team_Rounds_Won ? Color.DarkerGrey : didTeamWin ? Color.Green : Color.Red);
-            embed.AddField(matchInfo);
+            SetUpMatchInfo(embed, setupMatchStats, setupMatches);
 
             Logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending users data for match id {setupMatches.Match_Id}");
-            await channel.SendMessageAsyncWrapper(userUpdated, embed: embed.Build());
+            await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, userUpdated, embed, Logger);
 
             return true;
+        }
+
+        private static void SetUpPlayerField(EmbedBuilder embed, MatchStats stats, Matches matches, ValorantUsers userInfo)
+        {
+            double legshots = 100.0 - (stats.Headshots + stats.Bodyshots);
+            EmbedFieldBuilder embedField = new()
+            {
+                Name = $"{userInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} {((RankEmojis)(stats.Current_Tier ?? 0)).Id()}" +
+                $"{(stats.MVP ? $" {MemeEmojisEnum.Sparkles.Id()}" : "")}" +
+                $"{(legshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.ToeShooter.Id()}" : "")}",
+                Value = $"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}"
+            };
+            embed.AddField(embedField);
+        }
+
+        private static void SetUpMatchInfo(EmbedBuilder embed, MatchStats matchStats, Matches matches)
+        {
+            string rounds = string.Equals(matchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                ? $"{matches.Blue_Team_Rounds_Won ?? 0} : {matches.Red_Team_Rounds_Won ?? 0}"
+                : $"{matches.Red_Team_Rounds_Won ?? 0} : {matches.Blue_Team_Rounds_Won ?? 0}";
+
+            string averageRank = string.Equals(matchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                ? $"{((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).Id()} : {((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).Id()}"
+                : $"{((RankEmojis)(matches.Red_Team_Average_Rank ?? 0)).Id()} : {((RankEmojis)(matches.Blue_Team_Average_Rank ?? 0)).Id()}";
+
+            EmbedFieldBuilder matchInfo = new()
+            {
+                Name = "__" + " ".Repeat(40) + "__" + "\n\nMatch Stats",
+                Value = $"<t:{matches.Game_Start ?? 0}:f>, {Math.Floor(TimeSpan.FromSeconds(matches.Game_Length).TotalMinutes)} minutes\nRounds {rounds}\nAverage Ranks {averageRank}"
+            };
+            embed.AddField(matchInfo);
+
+            bool didTeamWin = string.Equals(matchStats.Team, "blue", StringComparison.InvariantCultureIgnoreCase)
+                ? matches.Blue_Team_Win ?? false
+                : !matches.Blue_Team_Win ?? false;
+            embed.WithColor(matches.Blue_Team_Rounds_Won == matches.Red_Team_Rounds_Won ? Color.DarkerGrey : didTeamWin ? Color.Green : Color.Red);
         }
 
         #endregion
@@ -673,10 +684,11 @@ namespace ValorantApp.Valorant
 
         /// <summary>
         /// Updates and send a message to all valorant users if their currentTier changed.
+        /// TODO: refactor this to use the setupReport function.
         /// </summary>
         /// <param name="matches"></param>
         /// <param name="channel"></param>
-        public async Task<bool> UpdateCurrentTierAllUsers(ConcurrentBag<BaseValorantMatch> matches, DiscordSocketClient client)
+        public async Task<bool> UpdateCurrentTierAllUsers(ConcurrentBag<BaseValorantMatch> matches)
         {
             if (matches == null || matches.IsEmpty)
             {
@@ -699,7 +711,7 @@ namespace ValorantApp.Valorant
                 if (valorantUser.UpdateCurrentTier(match.MatchStats, match.Matches, out int previousTier))
                 {
                     int currentTier = valorantUser.CurrentTier ?? 0;
-                    IEnumerable<BaseValorantMatch> seasonMatchStats = valorantUser.GetBaseValorantMatch(EpisodeActExtension.GetEpisodeActInfosForDate(DateTime.UtcNow));
+                    IEnumerable<BaseValorantMatch> seasonMatchStats = valorantUser.GetBaseValorantMatchBySeason(EpisodeActExtension.GetEpisodeActInfosForDate(DateTime.UtcNow));
                     IEnumerable<BaseValorantMatch> seasonMatchStatsPreviousTier = seasonMatchStats.Where(x => x.MatchStats.Current_Tier?.Equals((byte)previousTier) ?? false);
 
                     string userUpdated = $"<@{match.UserInfo.Disc_id}>";
@@ -717,9 +729,11 @@ namespace ValorantApp.Valorant
                         .OrderByDescending(group => group.Count()) // Order groups by count in descending order
                         .FirstOrDefault()?.Key ?? "";
                     string kda = $"{kills}/{deaths}/{assists}";
-                    string averageHeadshots = seasonMatchStatsPreviousTier.Average(x => x.MatchStats.Headshots).ToString("0.##");
-                    string averageBodyshots = seasonMatchStatsPreviousTier.Average(x => x.MatchStats.Bodyshots).ToString("0.##");
+                    double averageHeadshots = seasonMatchStatsPreviousTier.Average(x => x.MatchStats.Headshots);
+                    double averageBodyshots = seasonMatchStatsPreviousTier.Average(x => x.MatchStats.Bodyshots);
+                    double averageLegshots = 100.0 - (averageHeadshots + averageBodyshots);
                     string clown = previousTier > currentTier ? $" {MemeEmojisEnum.Clown.Id()}" : $" {MemeEmojisEnum.Sunglasses.Id()}";
+                    string toeShooter = averageLegshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.ToeShooter.Id()}" : "";
 
                     Logger.LogInformation($@"{nameof(UpdateCurrentTierAllUsers)}: {match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}
                         PreviousTier = {previousTier}
@@ -728,24 +742,19 @@ namespace ValorantApp.Valorant
                         MostSelectedAgent = {mostSelectedAgent}
                         NumberOfMatchesAtPreviousTier = {numberOfMatchesAtPreviousTier}
                         NumberOfMinutesAtPreviousTier = {numberOfMinutesAtPreviousTier}
-                        AverageHeadshots = {averageHeadshots}
-                        AverageBodyshots = {averageBodyshots}");
+                        AverageHeadshots = {averageHeadshots:0.##}
+                        AverageBodyshots = {averageBodyshots:0.##}");
 
                     EmbedBuilder embed = new EmbedBuilder()
                         .WithThumbnailUrl($"{AgentsExtension.AgentFromString(mostSelectedAgent).ImageURLFromAgent()}")
-                        .WithTitle($"{match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}{clown}")
-                        .WithDescription($"<{((RankEmojis)previousTier).Id()}> {arrowIcon} <{((RankEmojis)(valorantUser.CurrentTier ?? 0)).Id()}>")
-                        .AddField($"{((RankEmojis)previousTier).ToDescriptionString()} Competitive Stats", $"Matches: {numberOfMatchesAtPreviousTier} Minutes: {numberOfMinutesAtPreviousTier}\nK/D/A: {kda}\nHeadshot: {averageHeadshots}% Bodyshot: {averageBodyshots}%");
+                        .WithTitle($"{match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}{clown}{toeShooter}")
+                        .WithDescription($"{((RankEmojis)previousTier).Id()} {arrowIcon} {((RankEmojis)(valorantUser.CurrentTier ?? 0)).Id()}")
+                        .AddField($"{((RankEmojis)previousTier).ToDescriptionString()} Competitive Stats", $"Matches: {numberOfMatchesAtPreviousTier} | Minutes: {numberOfMinutesAtPreviousTier}\nK/D/A: {kda}\nHeadshot: {averageHeadshots}% | Bodyshot: {averageBodyshots}%");
 
                     HashSet<ulong> channelIds = valorantUser.ChannelIds ?? [];
-                    foreach(ulong channelId in channelIds)
+                    foreach (ulong channelId in channelIds)
                     {
-                        if (client.GetChannelAsync(channelId).Result is not ISocketMessageChannel channel)
-                        {
-                            Logger.LogWarning($"{nameof(UpdateCurrentTierAllUsers)}: Could not find channel {channelId}");
-                            continue;
-                        }
-                        await channel.SendMessageAsyncWrapper(userUpdated, embed: embed.Build());
+                        await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, userUpdated, embed, Logger);
                     }
                 }
             }
@@ -754,6 +763,204 @@ namespace ValorantApp.Valorant
         }
 
         #endregion Check users
+
+        #region Daily Check
+
+        /// <summary>
+        /// Daily timer function.
+        /// </summary>
+        /// <param name="state"></param>
+        public async void SendDailyCheckTimer(object? state)
+        {
+            try
+            {
+                EpisodeActInfos? episodeActInfos = EpisodeActExtension.GetEpisodeActInfosForEndDate(DateTime.UtcNow);
+                if (episodeActInfos == null)
+                {
+                    await SendDailyReport();
+                }
+                else
+                {
+                    await SendEpisodeActInfoReport(episodeActInfos);
+                }
+
+                await UpdateDiscordBotConfig();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Error: {nameof(SendDailyCheckTimer)} - {ex.Message}");
+            }
+        }
+
+        private async Task SendDailyReport()
+        {
+            DateTime now = DateTime.UtcNow;
+            DateTime endDate = new(now.Year, now.Month, now.Day, 11, 0, 0, DateTimeKind.Utc);
+            DateTime startDate = endDate.AddDays(-1).AddSeconds(1);
+
+            Logger.LogInformation($"Starting {nameof(SendDailyReport)}: {startDate} - {endDate} UTC");
+
+            Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid = SetupReport(startDate, endDate);
+
+            await SendReport("Daily Report Summary", "Let's see who played today..", embedFieldBuildersPuuid);
+        }
+
+        private async Task SendEpisodeActInfoReport(EpisodeActInfos episodeActInfos)
+        {
+            Logger.LogInformation($"Starting {nameof(SendEpisodeActInfoReport)}: {episodeActInfos}");
+
+            Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid = SetupReport(episodeActInfos.StartDate, episodeActInfos.EndDate);
+
+            await SendReport($"{episodeActInfos} Report Summary", "Congratulations on another Episode/Act finished!\nGood luck on the next split!", embedFieldBuildersPuuid);
+        }
+
+        /// <summary>
+        /// Set up report fields for every user in a specified time period
+        /// </summary>
+        /// <param name="startDate"></param>
+        /// <param name="endDate"></param>
+        /// <returns></returns>
+        private Dictionary<string, EmbedFieldBuilder> SetupReport(DateTime startDate, DateTime endDate)
+        {
+            IEnumerable<string> userPuuids = Users.Keys;
+            Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid = [];
+
+            foreach (string puuid in userPuuids)
+            {
+                BaseValorantUser? user = GetValorantUser(puuid);
+                if (user == null)
+                {
+                    continue;
+                }
+
+                IEnumerable<BaseValorantMatch> seasonMatchStats = user.GetBaseValorantMatch(startDate, endDate);
+                if (seasonMatchStats.IsNullOrEmpty())
+                {
+                    continue;
+                }
+
+                IEnumerable<BaseValorantMatch> sortedSeasonMatchStats = seasonMatchStats
+                    .OrderBy(matchStat => matchStat.Matches.Game_Start_Patched_UTC == null)
+                    .ThenBy(matchStat => matchStat.Matches.Game_Start_Patched_UTC);
+
+                // Field properties
+                int startingTier = sortedSeasonMatchStats.FirstOrDefault(x => (x.MatchStats.Current_Tier ?? 0) != 0)?.MatchStats.Current_Tier ?? 0;
+                int endTier = sortedSeasonMatchStats.LastOrDefault(x => (x.MatchStats.New_Tier ?? 0) != 0)?.MatchStats?.Current_Tier ?? 0;
+                int rrChange = sortedSeasonMatchStats.Sum(x => x.MatchStats.Rr_change);
+                int kills = sortedSeasonMatchStats.Sum(x => x.MatchStats.Kills);
+                int deaths = sortedSeasonMatchStats.Sum(x => x.MatchStats.Deaths);
+                int assists = sortedSeasonMatchStats.Sum(x => x.MatchStats.Assists);
+                int aces = sortedSeasonMatchStats.Sum(x => x.MatchStats.Aces);
+                int numMatches = sortedSeasonMatchStats.Count();
+                int numMinutes = (int)Math.Floor(TimeSpan.FromSeconds(sortedSeasonMatchStats.Sum(x => x.Matches.Game_Length)).TotalMinutes);
+                string mostSelectedAgent = sortedSeasonMatchStats
+                        .GroupBy(match => match.MatchStats.Character) // Group matches by agent
+                        .OrderByDescending(group => group.Count()) // Order groups by count in descending order
+                        .FirstOrDefault()?.Key ?? string.Empty;
+                string kda = $"{kills}/{deaths}/{assists}";
+                double averageHeadshots = sortedSeasonMatchStats.Average(x => x.MatchStats.Headshots);
+                double averageBodyshots = sortedSeasonMatchStats.Average(x => x.MatchStats.Bodyshots);
+                double averageLegshots = 100.0 - (averageHeadshots + averageBodyshots);
+                string touchGrass = numMinutes/(endDate - startDate).TotalMinutes * 100 > ValorantConstants.TOUCH_GRASS_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.TouchGrass.Id()}" : string.Empty;
+                string toeShooter = averageLegshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.ToeShooter.Id()}" : string.Empty;
+
+                EmbedFieldBuilder field = new()
+                {
+                    Name = $"{user.UserInfo.Val_username}#{user.UserInfo.Val_tagname}{touchGrass}{toeShooter}" +
+                    $" {((RankEmojis)startingTier).Id()} {MemeEmojisEnum.ArrowRight.Id()} {((RankEmojis)endTier).Id()}" +
+                    $" {(rrChange >= 0 ? "+" : string.Empty)}{rrChange} RR",
+                    Value = $"Matches: {numMatches} | Minutes: {numMinutes} | Aces: {aces}" +
+                    $"\nK/D/A: {kda} | Most Played: {mostSelectedAgent}" +
+                    $"\nHeadshot: {averageHeadshots:0.##}% | Bodyshot: {averageBodyshots:0.##}%"
+                };
+
+                embedFieldBuildersPuuid.Add(puuid, field);
+            }
+
+            return embedFieldBuildersPuuid;
+        }
+
+        /// <summary>
+        /// Sends a message to all users
+        /// Embeds cap at 25 fields. If there are more than 20, create a new embed (or page with pagination)
+        /// TODO: Add pagination here
+        /// </summary>
+        private async Task SendReport(string title, string description, Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid)
+        {
+            HashSet<ulong> channelsToSend = [];
+            embedFieldBuildersPuuid.Keys.ToList().ForEach(x => channelsToSend.UnionWith(GetValorantUser(x)?.ChannelIds ?? Enumerable.Empty<ulong>()));
+
+            foreach (ulong channelId in channelsToSend)
+            {
+                List<EmbedFieldBuilder> fieldByChannels = embedFieldBuildersPuuid
+                    .Where(x => GetValorantUser(x.Key)?.IsInChannel(channelId) ?? false)
+                    .Select(x => x.Value)
+                    .ToList();
+
+                int fieldCount = 0;
+                int pageNumber = 1;
+                EmbedBuilder embed = new EmbedBuilder()
+                    .WithTitle($"{title} - Page {pageNumber}")
+                    .WithDescription(description)
+                    .WithColor(Color.DarkBlue);
+
+                foreach (EmbedFieldBuilder field in fieldByChannels)
+                {
+                    embed.AddField(field);
+                    fieldCount++;
+
+                    // Check if we have reached 20 fields
+                    if (fieldCount % 20 == 0 || fieldCount == fieldByChannels.Count)
+                    {
+                        await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, null, embed, Logger);
+
+                        // Re-initialize the embed for the next page if there are more fields
+                        if (fieldCount < fieldByChannels.Count)
+                        {
+                            pageNumber++;
+                            embed = new EmbedBuilder()
+                                .WithTitle($"{title} - Page {pageNumber}")
+                                .WithDescription(description)
+                                .WithColor(Color.DarkBlue);
+                        }
+                    }
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Update discord config.
+        /// This should contain any statuses of the bot that are variable.
+        /// </summary>
+        /// <returns></returns>
+        public async Task UpdateDiscordBotConfig()
+        {
+            int serverCount = _client.Guilds.Count;
+            await _client.SetGameAsync($"Valorant | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)}", type: ActivityType.Watching);
+        }
+
+        #endregion Daily Check
+
+        #region Timer Utils
+
+        private void StopScheduledMessageTimer()
+        {
+            lock (SendMessageTimerLock)
+            {
+                ScheduledMessageTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+        }
+
+        private void StartScheduledMessageTimer()
+        {
+            lock (SendMessageTimerLock)
+            {
+                ScheduledMessageTimer.Change(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5));
+            }
+        }
+
+        #endregion Timer Utils
 
         #endregion
     }

@@ -110,7 +110,7 @@ namespace ValorantApp.DiscordBot
             // Could not find the valorant account
             if (valorantUser == null)
             {
-                result = "Valorant user cannot be found. Please check the user info again.";
+                result = "Valorant user cannot be found or API failed to respond. Please check the user info again.";
                 await RespondErrorAsync(result);
                 return;
             }

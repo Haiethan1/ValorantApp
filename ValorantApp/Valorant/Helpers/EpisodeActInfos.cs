@@ -14,6 +14,11 @@
             StartDate = startDate;
             EndDate = endDate;
         }
+
+        public override string ToString()
+        {
+            return $"Episode {Episode} Act {Act}";
+        }
     }
 
     public class EpisodeActExtension
@@ -79,6 +84,15 @@
             return Mapping.FirstOrDefault(
                 x => x.Value.StartDate <= dateUTC && x.Value.EndDate > dateUTC, Mapping.Last()
                 ).Value;
+        }
+
+        public static EpisodeActInfos? GetEpisodeActInfosForEndDate(DateTime endDateUTC)
+        {
+            DateTime endDate = new DateTime(endDateUTC.Year, endDateUTC.Month, endDateUTC.Day, 0, 0, 0, DateTimeKind.Utc);
+            KeyValuePair<string, EpisodeActInfos>? kvp = Mapping.FirstOrDefault(
+                x => x.Value.EndDate == endDate
+                );
+            return kvp.HasValue ? kvp.Value.Value : null;
         }
     }
 }

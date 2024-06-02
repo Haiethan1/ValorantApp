@@ -20,9 +20,6 @@ namespace ValorantApp
         private CommandService _commands;
         private InteractionService _interactions;
         private IServiceProvider _servicesProvider;
-        private Timer _timer;
-        private readonly object timerLock = new object();
-        private bool timerIsRunning;
         private readonly BaseValorantProgram _program;
         private readonly ILogger<ValorantApp> _logger;
 
@@ -106,8 +103,6 @@ namespace ValorantApp
             _client.Ready += ReadyAsync;
 
             _logger.LogInformation("Starting timed messages");
-            _timer = new Timer(SendScheduledMessage, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
-            timerIsRunning = true;
 
             // Block the program until it is closed
             await Task.Delay(-1);
@@ -184,6 +179,8 @@ namespace ValorantApp
                 _logger.LogError(json);
             }
             //return Task.CompletedTask;
+
+            await _program.UpdateDiscordBotConfig();
         }
 
         public async Task RegisterCommandsAsync()
@@ -231,54 +228,6 @@ namespace ValorantApp
                 await arg.RespondAsync($"Error when executing command {arg.Data}");
                 _logger.LogError($"{nameof(HandleInteractionAsync)} exception: {ex}");
             }
-        }
-
-        public async void SendScheduledMessage(object? state)
-        {
-            StopTimer();
-            try
-            {
-                await _program.SendScheduledMessage(_client);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error: {nameof(SendScheduledMessage)} - {ex.Message}");
-            }
-            finally
-            {
-                StartTimer();
-            }
-        }
-
-        private void StopTimer()
-        {
-            lock(timerLock)
-            {
-                _timer.Change(Timeout.Infinite, Timeout.Infinite);
-                timerIsRunning = false;
-            }
-        }
-
-        private void StartTimer()
-        {
-            lock (timerLock)
-            {
-                _timer.Change(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5));
-                timerIsRunning = true;
-            }
-        }
-
-        private bool TimerIsRunning()
-        {
-            lock(timerLock)
-            {
-                return timerIsRunning;
-            }
-        }
-
-        public bool TimedFunctionIsRunning()
-        {
-            return !TimerIsRunning();
         }
     }
 }

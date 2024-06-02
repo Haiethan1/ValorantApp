@@ -19,11 +19,17 @@ namespace ValorantApp.Valorant.Enums
         [Description("Arrow Up")]
         ArrowUp,
 
-        [Description("ArrowDoubleUp")]
+        [Description("Arrow Double Up")]
         ArrowDoubleUp,
 
         [Description("Sparkles")]
         Sparkles,
+
+        [Description("Arrow Right")]
+        ArrowRight,
+
+        [Description("Touch Grass")]
+        TouchGrass,
     }
 
     public static class MemeEmojisEnumExtensions
@@ -37,13 +43,15 @@ namespace ValorantApp.Valorant.Enums
         {
             return emoji switch
             {
-                MemeEmojisEnum.ToeShooter => "a:toeshooter:1243584122153336912",
+                MemeEmojisEnum.ToeShooter => "<a:toeshooter:1243584122153336912>",
                 MemeEmojisEnum.Clown => ":clown:",
                 MemeEmojisEnum.Sunglasses => ":sunglasses:",
                 MemeEmojisEnum.ArrowDown => ":arrow_down:",
                 MemeEmojisEnum.ArrowUp => ":arrow_up:",
                 MemeEmojisEnum.ArrowDoubleUp => ":arrow_double_up:",
                 MemeEmojisEnum.Sparkles => ":sparkles:",
+                MemeEmojisEnum.ArrowRight => ":arrow_right:",
+                MemeEmojisEnum.TouchGrass => "<a:touchgrass:1224024506482425946>",
                 _ => "",
             };
         }
