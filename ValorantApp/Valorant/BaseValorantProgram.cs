@@ -772,6 +772,7 @@ namespace ValorantApp.Valorant
         /// <param name="state"></param>
         public async void SendDailyCheckTimer(object? state)
         {
+            Logger.LogInformation($"Starting {nameof(SendDailyCheckTimer)}");
             try
             {
                 EpisodeActInfos? episodeActInfos = EpisodeActExtension.GetEpisodeActInfosForEndDate(DateTime.UtcNow);
@@ -863,6 +864,18 @@ namespace ValorantApp.Valorant
                 double averageLegshots = 100.0 - (averageHeadshots + averageBodyshots);
                 string touchGrass = numMinutes/(endDate - startDate).TotalMinutes * 100 > ValorantConstants.TOUCH_GRASS_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.TouchGrass.Id()}" : string.Empty;
                 string toeShooter = averageLegshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.ToeShooter.Id()}" : string.Empty;
+
+                Logger.LogInformation($@"{nameof(SetupReport)}: {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname}
+                        StartingTier = {startingTier}
+                        EndTier = {endTier}
+                        RR = {rrChange}
+                        NumMatches = {numMatches}
+                        NumMinutes = {numMinutes}
+                        Aces = {aces}
+                        KDA = {kda}
+                        MostSelectedAgent = {mostSelectedAgent}
+                        AverageHeadshots = {averageHeadshots:0.##}
+                        AverageBodyshots = {averageBodyshots:0.##}");
 
                 EmbedFieldBuilder field = new()
                 {
