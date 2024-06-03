@@ -69,7 +69,8 @@ namespace ValorantApp.DiscordBot
                     Text = $"RR Change to last game: {mmr.Current_Data.Mmr_Change_To_Last_Game}"
                 }
                 );
-            await RespondAsync(embed: embed.Build());
+
+            await RespondSuccessAsync(embed);
         }
 
         [SlashCommand("addme", "Add your Valorant account to the bot")]
@@ -303,6 +304,13 @@ namespace ValorantApp.DiscordBot
             var embed = new EmbedBuilder()
                 .WithDescription(message)
                 .WithColor(Color.DarkGreen);
+
+            await RespondAsync(embed: embed.Build());
+        }
+
+        private async Task RespondSuccessAsync(EmbedBuilder embed)
+        {
+            embed.WithColor(Color.DarkGreen);
 
             await RespondAsync(embed: embed.Build());
         }

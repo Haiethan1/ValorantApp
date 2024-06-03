@@ -846,7 +846,7 @@ namespace ValorantApp.Valorant
 
                 // Field properties
                 int startingTier = sortedSeasonMatchStats.FirstOrDefault(x => (x.MatchStats.Current_Tier ?? 0) != 0)?.MatchStats.Current_Tier ?? 0;
-                int endTier = sortedSeasonMatchStats.LastOrDefault(x => (x.MatchStats.New_Tier ?? 0) != 0)?.MatchStats?.Current_Tier ?? 0;
+                int endTier = sortedSeasonMatchStats.LastOrDefault(x => (x.MatchStats.New_Tier ?? 0) != 0)?.MatchStats?.New_Tier ?? 0;
                 int rrChange = sortedSeasonMatchStats.Sum(x => x.MatchStats.Rr_change);
                 int kills = sortedSeasonMatchStats.Sum(x => x.MatchStats.Kills);
                 int deaths = sortedSeasonMatchStats.Sum(x => x.MatchStats.Deaths);
