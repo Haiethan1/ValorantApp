@@ -749,7 +749,7 @@ namespace ValorantApp.Valorant
                         .WithThumbnailUrl($"{AgentsExtension.AgentFromString(mostSelectedAgent).ImageURLFromAgent()}")
                         .WithTitle($"{match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}{clown}{toeShooter}")
                         .WithDescription($"{((RankEmojis)previousTier).Id()} {arrowIcon} {((RankEmojis)(valorantUser.CurrentTier ?? 0)).Id()}")
-                        .AddField($"{((RankEmojis)previousTier).ToDescriptionString()} Competitive Stats", $"Matches: {numberOfMatchesAtPreviousTier} | Minutes: {numberOfMinutesAtPreviousTier}\nK/D/A: {kda}\nHeadshot: {averageHeadshots}% | Bodyshot: {averageBodyshots}%");
+                        .AddField($"{((RankEmojis)previousTier).ToDescriptionString()} Competitive Stats", $"Matches: {numberOfMatchesAtPreviousTier} | Minutes: {numberOfMinutesAtPreviousTier}\nK/D/A: {kda}\nHeadshot: {averageHeadshots:0.##}% | Bodyshot: {averageBodyshots:0.##}%");
 
                     HashSet<ulong> channelIds = valorantUser.ChannelIds ?? [];
                     foreach (ulong channelId in channelIds)
