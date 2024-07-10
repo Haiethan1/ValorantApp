@@ -229,7 +229,7 @@ namespace ValorantApp.Valorant
                 HashSet<ulong> channelsToSend = [];
                 sortedByMatch.ForEach(x => channelsToSend.UnionWith(GetValorantUser(x.UserInfo.Val_puuid)?.ChannelIds ?? []));
                 
-                foreach (var channelId in channelsToSend)
+                foreach (ulong channelId in channelsToSend)
                 {
                     List<BaseValorantMatch> sortedByMatchAndChannel = sortedByMatch.Where(x => GetValorantUser(x.UserInfo.Val_puuid)?.IsInChannel(channelId) ?? false).ToList();
                     sortedByMatchAndChannel.Sort((x, y) => y.MatchStats.Score.CompareTo(x.MatchStats.Score));
@@ -274,7 +274,7 @@ namespace ValorantApp.Valorant
 
                 try
                 {
-                    var MatchStatsAndMMRHistories = GetQueueUsersMatchStats(queueUsers).Result;
+                    (Dictionary<string, Task<MatchJson?>>, Dictionary<string, MmrHistoryJson>) MatchStatsAndMMRHistories = GetQueueUsersMatchStats(queueUsers).Result;
                     // TODO: this will skip a users match if they have multiple entries
                     // an example of multiple entries - restarts app, 3 games have passed with different users.
                     Dictionary<string, Task<MatchJson?>> matchTasks = MatchStatsAndMMRHistories.Item1;
@@ -357,7 +357,7 @@ namespace ValorantApp.Valorant
             }
 
             HashSet<string> updatedUsers = [];
-            var MatchStatsAndMMRHistories = GetAllUsersMatchStats().Result;
+            (Dictionary<string, Task<MatchJson?>>, Dictionary<string, MmrHistoryJson>) MatchStatsAndMMRHistories = GetAllUsersMatchStats().Result;
             Dictionary<string, Task<MatchJson?>> matchTasks = MatchStatsAndMMRHistories.Item1;
             Dictionary<string, MmrHistoryJson> matchHistories = MatchStatsAndMMRHistories.Item2;
 
@@ -420,7 +420,7 @@ namespace ValorantApp.Valorant
             if (match == null
                 || match.Metadata?.Mode == null
                 || string.IsNullOrEmpty(puuid)
-                || (ModesExtension.ModeFromString(match.Metadata?.Mode ?? "") == Modes.Competitive && mmrHistory == null)
+                || (ModesExtension.ModeFromString(match.Metadata?.Mode ?? "") == Modes.Competitive && mmrHistory == null && (match.Players?.All_Players?.FirstOrDefault(x => x.Puuid == puuid)?.CurrentTier ?? 0) != 0)
                 )
             {
                 return false;
@@ -586,12 +586,7 @@ namespace ValorantApp.Valorant
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithThumbnailUrl($"{AgentsExtension.AgentFromString(stats.Character).ImageURLFromAgent()}")
-                .WithAuthor(
-                    new EmbedAuthorBuilder
-                    {
-                        Name = $"\n{ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()} - {matches.Map}"
-                    }
-                );
+                .WithTitle($"{ModesExtension.ModeFromString(matches.Mode.Safe().ToLower()).StringFromMode()} - {matches.Map.Safe()}");
 
             SetUpPlayerField(embed, stats, matches, baseValorantMatch.UserInfo);
             SetUpMatchInfo(embed, stats, matches);
@@ -618,12 +613,7 @@ namespace ValorantApp.Valorant
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithThumbnailUrl(MapsExtension.MapFromString(setupMatches.Map.Safe()).ImageUrlFromMap())
-                .WithAuthor(
-                    new EmbedAuthorBuilder
-                    {
-                        Name = $"\n{ModesExtension.ModeFromString(setupMatches.Mode.Safe().ToLower()).StringFromMode()} - {setupMatches.Map.Safe()}"
-                    }
-                );
+                .WithTitle($"{ModesExtension.ModeFromString(setupMatches.Mode.Safe().ToLower()).StringFromMode()} - {setupMatches.Map.Safe()}");
 
             foreach (BaseValorantMatch match in baseValorantMatches)
             {
@@ -647,9 +637,9 @@ namespace ValorantApp.Valorant
             double legshots = 100.0 - (stats.Headshots + stats.Bodyshots);
             EmbedFieldBuilder embedField = new()
             {
-                Name = $"{userInfo.Val_username} - {AgentsExtension.AgentFromString(stats.Character).StringFromAgent()} {((RankEmojis)(stats.Current_Tier ?? 0)).Id()}" +
+                Name = $"{AgentsExtension.AgentFromString(stats.Character).Id()} {userInfo.Val_username} | {((RankEmojis)(stats.Current_Tier ?? 0)).Id()}" +
                 $"{(stats.MVP ? $" {MemeEmojisEnum.Sparkles.Id()}" : "")}" +
-                $"{(legshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.ToeShooter.Id()}" : "")}",
+                $"{(legshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT && legshots != 100.0 ? $" {MemeEmojisEnum.ToeShooter.Id()}" : "")}",
                 Value = $"Combat Score: {stats.Score / matches.Rounds_Played}, K/D/A: {stats.Kills}/{stats.Deaths}/{stats.Assists}\nHeadshot: {stats.Headshots:0.00}%, RR: {stats.Rr_change}"
             };
             embed.AddField(embedField);
@@ -676,6 +666,7 @@ namespace ValorantApp.Valorant
                 ? matches.Blue_Team_Win ?? false
                 : !matches.Blue_Team_Win ?? false;
             embed.WithColor(matches.Blue_Team_Rounds_Won == matches.Red_Team_Rounds_Won ? Color.DarkerGrey : didTeamWin ? Color.Green : Color.Red);
+            embed.WithUrl($"https://tracker.gg/valorant/match/{matches.Match_Id}");
         }
 
         #endregion
@@ -733,7 +724,7 @@ namespace ValorantApp.Valorant
                     double averageBodyshots = seasonMatchStatsPreviousTier.Average(x => x.MatchStats.Bodyshots);
                     double averageLegshots = 100.0 - (averageHeadshots + averageBodyshots);
                     string clown = previousTier > currentTier ? $" {MemeEmojisEnum.Clown.Id()}" : $" {MemeEmojisEnum.Sunglasses.Id()}";
-                    string toeShooter = averageLegshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.ToeShooter.Id()}" : "";
+                    string toeShooter = averageLegshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT && averageLegshots != 100.0 ? $" {MemeEmojisEnum.ToeShooter.Id()}" : "";
 
                     Logger.LogInformation($@"{nameof(UpdateCurrentTierAllUsers)}: {match.UserInfo.Val_username}#{match.UserInfo.Val_tagname}
                         PreviousTier = {previousTier}
@@ -795,13 +786,13 @@ namespace ValorantApp.Valorant
 
         private async Task SendDailyReport()
         {
-            DateTime now = DateTime.UtcNow;
-            DateTime endDate = new(now.Year, now.Month, now.Day, 11, 0, 0, DateTimeKind.Utc);
-            DateTime startDate = endDate.AddDays(-1).AddSeconds(1);
+            DateTime nowUTC = DateTime.UtcNow;
+            DateTime endDateUTC = new(nowUTC.Year, nowUTC.Month, nowUTC.Day, 11, 0, 0, DateTimeKind.Utc);
+            DateTime startDateUTC = endDateUTC.AddDays(-1).AddSeconds(1);
 
-            Logger.LogInformation($"Starting {nameof(SendDailyReport)}: {startDate} - {endDate} UTC");
+            Logger.LogInformation($"Starting {nameof(SendDailyReport)}: {startDateUTC} - {endDateUTC} UTC");
 
-            Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid = SetupReport(startDate, endDate);
+            Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid = SetupReport(startDateUTC, endDateUTC);
 
             await SendReport("Daily Report Summary", "Let's see who played today..", embedFieldBuildersPuuid);
         }
@@ -818,10 +809,10 @@ namespace ValorantApp.Valorant
         /// <summary>
         /// Set up report fields for every user in a specified time period
         /// </summary>
-        /// <param name="startDate"></param>
-        /// <param name="endDate"></param>
+        /// <param name="startDateUTC"></param>
+        /// <param name="endDateUTC"></param>
         /// <returns></returns>
-        private Dictionary<string, EmbedFieldBuilder> SetupReport(DateTime startDate, DateTime endDate)
+        private Dictionary<string, EmbedFieldBuilder> SetupReport(DateTime startDateUTC, DateTime endDateUTC)
         {
             IEnumerable<string> userPuuids = Users.Keys;
             Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid = [];
@@ -834,7 +825,7 @@ namespace ValorantApp.Valorant
                     continue;
                 }
 
-                IEnumerable<BaseValorantMatch> seasonMatchStats = user.GetBaseValorantMatch(startDate, endDate);
+                IEnumerable<BaseValorantMatch> seasonMatchStats = user.GetBaseValorantMatch(startDateUTC, endDateUTC);
                 if (seasonMatchStats.IsNullOrEmpty())
                 {
                     continue;
@@ -862,8 +853,8 @@ namespace ValorantApp.Valorant
                 double averageHeadshots = sortedSeasonMatchStats.Average(x => x.MatchStats.Headshots);
                 double averageBodyshots = sortedSeasonMatchStats.Average(x => x.MatchStats.Bodyshots);
                 double averageLegshots = 100.0 - (averageHeadshots + averageBodyshots);
-                string touchGrass = numMinutes/(endDate - startDate).TotalMinutes * 100 > ValorantConstants.TOUCH_GRASS_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.TouchGrass.Id()}" : string.Empty;
-                string toeShooter = averageLegshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.ToeShooter.Id()}" : string.Empty;
+                string touchGrass = numMinutes/(endDateUTC - startDateUTC).TotalMinutes * 100 > ValorantConstants.TOUCH_GRASS_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.TouchGrass.Id()}" : string.Empty;
+                string toeShooter = averageLegshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT && averageLegshots != 100.0 ? $" {MemeEmojisEnum.ToeShooter.Id()}" : string.Empty;
 
                 Logger.LogInformation($@"{nameof(SetupReport)}: {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname}
                         StartingTier = {startingTier}
@@ -883,7 +874,7 @@ namespace ValorantApp.Valorant
                     $" {((RankEmojis)startingTier).Id()} {MemeEmojisEnum.ArrowRight.Id()} {((RankEmojis)endTier).Id()}" +
                     $" {(rrChange >= 0 ? "+" : string.Empty)}{rrChange} RR",
                     Value = $"Matches: {numMatches} | Minutes: {numMinutes} | Aces: {aces}" +
-                    $"\nK/D/A: {kda} | Most Played: {mostSelectedAgent}" +
+                    $"\nK/D/A: {kda} | Most Played: {AgentsExtension.AgentFromString(mostSelectedAgent).Id()}" +
                     $"\nHeadshot: {averageHeadshots:0.##}% | Bodyshot: {averageBodyshots:0.##}%"
                 };
 

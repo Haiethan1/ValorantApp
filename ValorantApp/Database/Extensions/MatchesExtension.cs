@@ -147,7 +147,7 @@ namespace ValorantApp.Database.Extensions
             {
                 blueTeamRoundsWon = (byte)(blueTeam.Rounds_Won ?? 0);
                 int playersWithTier = 0;
-                foreach (var player in blueTeamPlayers)
+                foreach (MatchPlayerJson player in blueTeamPlayers)
                 {
                     if (player.CurrentTier >= (int)RankEmojis.Iron1)
                     {
@@ -163,7 +163,7 @@ namespace ValorantApp.Database.Extensions
             {
                 redTeamRoundsWon = (byte)(redTeam.Rounds_Won ?? 0);
                 int playersWithTier = 0;
-                foreach (var player in redTeamPlayers)
+                foreach (MatchPlayerJson player in redTeamPlayers)
                 {
                     if (player.CurrentTier >= (int)RankEmojis.Iron1)
                     {
@@ -177,7 +177,7 @@ namespace ValorantApp.Database.Extensions
             if (ModesExtension.ModeFromString(metadata.Mode.Safe()) == Modes.Deathmatch && match.Players?.All_Players != null)
             {
                 int playersWithTier = 0;
-                foreach (var player in match.Players.All_Players)
+                foreach (MatchPlayerJson player in match.Players.All_Players)
                 {
                     if (player.CurrentTier >= (int)RankEmojis.Iron1)
                     {

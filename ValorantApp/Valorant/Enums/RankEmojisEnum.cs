@@ -65,6 +65,7 @@ namespace ValorantApp.Valorant.Enums
         /// <returns></returns>
         public static string Id(this RankEmojis emoji)
         {
+            // TODO: change id's into emoji class
             return emoji switch
             {
                 RankEmojis.Iron1 => "<:iro1:1214384551418269737>",

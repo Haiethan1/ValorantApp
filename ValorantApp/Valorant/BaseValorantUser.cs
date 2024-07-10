@@ -101,9 +101,9 @@ namespace ValorantApp.Valorant
         /// </summary>
         /// <param name="season"></param>
         /// <returns></returns>
-        private IEnumerable<MatchStats> GetCompMatchStats(DateTime startDate, DateTime endDate)
+        private IEnumerable<MatchStats> GetCompMatchStats(DateTime startDateUTC, DateTime endDateUTC)
         {
-            return MatchStatsExtension.GetCompMatchStats(Puuid, startDate, endDate);
+            return MatchStatsExtension.GetCompMatchStats(Puuid, startDateUTC, endDateUTC);
         }
 
         private IEnumerable<Matches> GetMatches(IEnumerable<string> matchIds)
@@ -116,9 +116,9 @@ namespace ValorantApp.Valorant
             return GetBaseValorantMatch(season.StartDate, season.EndDate);
         }
 
-        public IEnumerable<BaseValorantMatch> GetBaseValorantMatch(DateTime startDate, DateTime endDate)
+        public IEnumerable<BaseValorantMatch> GetBaseValorantMatch(DateTime startDateUTC, DateTime endDateUTC)
         {
-            IEnumerable<MatchStats> matchStats = GetCompMatchStats(startDate, endDate);
+            IEnumerable<MatchStats> matchStats = GetCompMatchStats(startDateUTC, endDateUTC);
             IEnumerable<Matches> matches = GetMatches(matchStats.Select(x => x.Match_id));
 
             return matchStats.Join(matches, stats => stats.Match_id, match => match.Match_Id, (stats, match) => new BaseValorantMatch(stats, match, UserInfo, Logger));
@@ -236,20 +236,30 @@ namespace ValorantApp.Valorant
 
         public bool UpdateCurrentTier(MatchStats stats, Matches matches, out int previousTier)
         {
-            previousTier = CurrentTier ?? 0;
+            previousTier = 0;
+
             if (stats == null
                 || matches == null
                 || stats.Val_puuid != Puuid
                 || stats.Match_id != matches.Match_Id
                 || ModesExtension.ModeFromString(matches.Mode.Safe()) != Modes.Competitive
-                || stats.New_Tier == CurrentTier
-                || currentTier == 0
-                || stats.New_Tier == 0)
+                || stats.New_Tier == null
+                || stats.New_Tier == 0
+                || stats.Current_Tier == null
+                || stats.Current_Tier == 0)
             {
                 return false;
             }
 
-            currentTier = stats.New_Tier;
+            currentTier = stats.Current_Tier.Value;
+            previousTier = CurrentTier ?? stats.Current_Tier.Value;
+
+            if (stats.New_Tier == CurrentTier)
+            {
+                return false;
+            }
+
+            currentTier = stats.New_Tier.Value;
             return true;
         }
 

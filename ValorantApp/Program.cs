@@ -2,14 +2,17 @@
 using Discord.Commands;
 using Discord.Interactions;
 using Discord.Net;
+using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Serilog;
 using System.Configuration;
+using System.Diagnostics;
 using System.Reflection;
 using ValorantApp.Database.Extensions;
+using ValorantApp.DiscordBot;
 using ValorantApp.Valorant;
 
 namespace ValorantApp
@@ -28,11 +31,17 @@ namespace ValorantApp
             string connectionString = ConfigurationManager.ConnectionStrings["Database"].ConnectionString;
             ITable.CreateTables(connectionString);
 
-            var discordSocketConfig = new DiscordSocketConfig()
+            DiscordSocketConfig discordSocketConfig = new DiscordSocketConfig()
             {
                 // Other config options can be presented here.
                 GatewayIntents = GatewayIntents.All
             };
+
+            //DiscordRestConfig discordRestConfig = new DiscordRestConfig()
+            //{
+            //    // Other config options can be presented here.
+            //    GatewayIntents = GatewayIntents.All
+            //};
 
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Conditional(
@@ -55,7 +64,7 @@ namespace ValorantApp
                 )
                 .CreateLogger();
 
-            var services = new ServiceCollection();
+            ServiceCollection services = new ServiceCollection();
             services.AddHttpClient("HenrikApiClient", client =>
             {
                 client.BaseAddress = new Uri("https://api.henrikdev.xyz/valorant/");
@@ -65,9 +74,12 @@ namespace ValorantApp
             services.UseMinimalHttpLogger();
             services.AddSingleton<BaseValorantProgram>();
             services.AddSingleton(new DiscordSocketClient(discordSocketConfig));
+            //services.AddSingleton(new DiscordRestClient(discordRestConfig));
             services.AddSingleton<CommandService>();
             services.AddSingleton<InteractionService>();
+            //services.AddSingleton<InteractionHandler>();
             services.AddSingleton<ValorantApp>();
+            services.AddSingleton<DiscordBotSlashCommands>();
             
             //services.AddLogging()
 
@@ -91,7 +103,7 @@ namespace ValorantApp
 
         public async Task RunBotAsync()
         {
-            var token = ConfigurationManager.AppSettings["BotToken"];
+            string? token = ConfigurationManager.AppSettings[Debugger.IsAttached ? "DevelopBotToken" : "BotToken"];
             
             _client.Log += LogAsync;
 
@@ -101,8 +113,6 @@ namespace ValorantApp
             await _client.StartAsync();
 
             _client.Ready += ReadyAsync;
-
-            _logger.LogInformation("Starting timed messages");
 
             // Block the program until it is closed
             await Task.Delay(-1);
@@ -146,6 +156,10 @@ namespace ValorantApp
                     .AddOption("username", ApplicationCommandOptionType.User, "The username of the user to delete", isRequired: true)
                     .WithDefaultMemberPermissions(GuildPermission.KickMembers)
                     .WithDMPermission(false),
+                new SlashCommandBuilder()
+                    .WithName("heatmap")
+                    .WithDescription("Generate a heatmap of the selected game")
+                    .WithDMPermission(false),
 
             };
 
@@ -187,6 +201,7 @@ namespace ValorantApp
         {
             //_client.MessageReceived += HandleCommandAsync;
             _client.SlashCommandExecuted += HandleInteractionAsync;
+            _client.SelectMenuExecuted += HandleInteractionAsync;
 
             //await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _servicesProvider);
             await _interactions.AddModulesAsync(Assembly.GetEntryAssembly(), _servicesProvider);
@@ -229,5 +244,19 @@ namespace ValorantApp
                 _logger.LogError($"{nameof(HandleInteractionAsync)} exception: {ex}");
             }
         }
+
+        //private async Task SelectMenuHandlerAsync(SocketMessageComponent arg)
+        //{
+        //    try
+        //    {
+        //        SocketInteractionContext interactionContext = new SocketInteractionContext(_client, arg);
+        //        await _interactions.inter(interactionContext, _servicesProvider);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        await arg.RespondAsync($"Error when executing command {arg.Data}");
+        //        _logger.LogError($"{nameof(HandleInteractionAsync)} exception: {ex}");
+        //    }
+        //}
     }
 }
