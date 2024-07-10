@@ -234,20 +234,28 @@ namespace ValorantApp.Database.Extensions
             return MatchStats.CreateFromRow(reader);
         }
 
-        public static IEnumerable<MatchStats> GetCompMatchStats(string puuid, DateTime startDate, DateTime endDate)
+        public static IEnumerable<MatchStats> GetCompMatchStats(string puuid, DateTime startDateUTC, DateTime endDateUTC)
         {
-            List<MatchStats> matches = new List<MatchStats>();
+            List<MatchStats> matches = [];
 
             using SqliteConnection connection = new(connectionString);
             connection.Open();
 
-            string sql = "SELECT * FROM MatchStats WHERE val_puuid = @val_puuid AND mode = @mode COLLATE NOCASE AND game_start_patched >= @start_date AND game_start_patched <= @end_date";
+            string sql = @"SELECT ms.*
+                FROM MatchStats ms
+                JOIN Matches m ON ms.match_id = m.match_id
+                WHERE ms.val_puuid = @val_puuid
+                AND ms.mode = @mode COLLATE NOCASE
+                AND m.game_start_patched_utc >= @start_date
+                AND m.game_start_patched_utc <= @end_date
+                ORDER BY m.game_start_patched_utc DESC;
+                ";
 
             using SqliteCommand command = new(sql, connection);
             command.Parameters.AddWithValue("@val_puuid", puuid);
             command.Parameters.AddWithValue("@mode", Modes.Competitive.ToDescriptionString());
-            command.Parameters.AddWithValue("@start_date", startDate);
-            command.Parameters.AddWithValue("@end_date", endDate);
+            command.Parameters.AddWithValue("@start_date", startDateUTC);
+            command.Parameters.AddWithValue("@end_date", endDateUTC);
 
             using SqliteDataReader reader = command.ExecuteReader();
 
@@ -383,7 +391,7 @@ namespace ValorantApp.Database.Extensions
 
             int score = stats?.Score ?? 0;
             bool mvp = true;
-            foreach (var mvpPlayer in match.Players.All_Players)
+            foreach (MatchPlayerJson mvpPlayer in match.Players.All_Players)
             {
                 if (mvpPlayer == null)
                 {
@@ -405,30 +413,46 @@ namespace ValorantApp.Database.Extensions
             short damageFromAllies = 0;
             uint gameLength = (uint)metadata.Game_Length;
 
-            foreach (var temp in match.Rounds ?? Array.Empty<MatchRoundsJson>())
+            // TODO: this is inefficient
+            foreach (MatchRoundsJson round in match.Rounds ?? Array.Empty<MatchRoundsJson>())
             {
-                var playerRoundStats = temp.Player_Stats?.FirstOrDefault(x => x.Player_Puuid == puuid);
+                MatchRoundPlayerStatsJson? playerRoundStats = round.Player_Stats?.FirstOrDefault(x => x.Player_Puuid == puuid);
                 if (playerRoundStats == null)
                 {
                     continue;
                 }
 
-                switch(playerRoundStats.Kills)
+                int kills = 0;
+                if (playerRoundStats.Kill_Events == null)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < playerRoundStats.Kill_Events.Length; i++)
+                {
+                    RoundKillEventsJson killEvents = playerRoundStats.Kill_Events[i];
+                    if (killEvents.Victim_Puuid != puuid && killEvents.Killer_Team != killEvents.Victim_Team)
+                    {
+                        kills++;
+                    }
+                }
+
+                switch (kills)
                 {
                     case 2:
                         doubleKills++;
-                        break;
+                        continue;
                     case 3:
                         tripleKills++;
-                        break;
+                        continue;
                     case 4:
                         quadKills++;
-                        break;
-                    case 5:
+                        continue;
+                    case >= 5:
                         aces++;
-                        break;
+                        continue;
                     default:
-                        break;
+                        continue;
                 }
 
                 //foreach (var killEvents in playerRoundStats.Kill_Events)

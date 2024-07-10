@@ -36,6 +36,9 @@ namespace ValorantApp.Valorant.Enums
         [Description("Sunset")]
         Sunset,
 
+        [Description("Abyss")]
+        Abyss,
+
         #endregion
 
         #region Team Deathmatch
@@ -90,6 +93,8 @@ namespace ValorantApp.Valorant.Enums
                     return Maps.Kasbah;
                 case "Piazza":
                     return Maps.Piazza;
+                case "Abyss":
+                    return Maps.Abyss;
                 default:
                     return Maps.Unknown;
             }
@@ -125,6 +130,8 @@ namespace ValorantApp.Valorant.Enums
                     return "Kasbah";
                 case Maps.Piazza:
                     return "Piazza";
+                case Maps.Abyss:
+                    return "Abyss";
                 default:
                     return "";
             }
@@ -160,6 +167,8 @@ namespace ValorantApp.Valorant.Enums
                     return "https://static.wikia.nocookie.net/valorant/images/7/7f/Kasbah_Splash.png/revision/latest/scale-to-width-down/1000?cb=20230627133041";
                 case Maps.Piazza:
                     return "https://static.wikia.nocookie.net/valorant/images/e/e2/Piazza_Splash.png/revision/latest/scale-to-width-down/1000?cb=20230627133044";
+                case Maps.Abyss:
+                    return "https://static.wikia.nocookie.net/valorant/images/6/61/Loading_Screen_Abyss.png/revision/latest/scale-to-width-down/1000?cb=20240612152007";
                 default:
                     return "";
             }

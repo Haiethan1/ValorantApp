@@ -8,6 +8,172 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Images\Agents\Astra_icon.webp" />
+    <None Remove="Images\Agents\Breach_icon.webp" />
+    <None Remove="Images\Agents\Brimstone_icon.webp" />
+    <None Remove="Images\Agents\Chamber_icon.webp" />
+    <None Remove="Images\Agents\Clove_icon.webp" />
+    <None Remove="Images\Agents\Cypher_icon.webp" />
+    <None Remove="Images\Agents\Deadlock_icon.webp" />
+    <None Remove="Images\Agents\Fade_icon.webp" />
+    <None Remove="Images\Agents\Gekko_icon.webp" />
+    <None Remove="Images\Agents\Harbor_icon.webp" />
+    <None Remove="Images\Agents\Iso_icon.webp" />
+    <None Remove="Images\Agents\Jett_icon.webp" />
+    <None Remove="Images\Agents\KAYO_icon.webp" />
+    <None Remove="Images\Agents\Killjoy_icon.webp" />
+    <None Remove="Images\Agents\Neon_icon.webp" />
+    <None Remove="Images\Agents\Omen_icon.webp" />
+    <None Remove="Images\Agents\Phoenix_icon.webp" />
+    <None Remove="Images\Agents\Raze_icon.webp" />
+    <None Remove="Images\Agents\Reyna_icon.webp" />
+    <None Remove="Images\Agents\Sage_icon.webp" />
+    <None Remove="Images\Agents\Skye_icon.webp" />
+    <None Remove="Images\Agents\Sova_icon.webp" />
+    <None Remove="Images\Agents\Viper_icon.webp" />
+    <None Remove="Images\Agents\Yoru_icon.webp" />
+    <None Remove="Images\Maps\Abyss.webp" />
+    <None Remove="Images\Maps\Ascent.webp" />
+    <None Remove="Images\Maps\Bind.webp" />
+    <None Remove="Images\Maps\Breeze.webp" />
+    <None Remove="Images\Maps\District.webp" />
+    <None Remove="Images\Maps\Drift.webp" />
+    <None Remove="Images\Maps\Fracture.webp" />
+    <None Remove="Images\Maps\Haven.webp" />
+    <None Remove="Images\Maps\Icebox.webp" />
+    <None Remove="Images\Maps\Kasbah.webp" />
+    <None Remove="Images\Maps\Lotus.webp" />
+    <None Remove="Images\Maps\Pearl.webp" />
+    <None Remove="Images\Maps\Piazza.webp" />
+    <None Remove="Images\Maps\Range.webp" />
+    <None Remove="Images\Maps\Split.webp" />
+    <None Remove="Images\Maps\Sunset.webp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Images\Agents\Astra_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Breach_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Brimstone_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Chamber_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Clove_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Cypher_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Deadlock_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Fade_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Gekko_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Harbor_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Iso_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Jett_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\KAYO_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Killjoy_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Neon_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Omen_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Phoenix_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Raze_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Reyna_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Sage_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Skye_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Sova_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Viper_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Agents\Yoru_icon.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Abyss.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Ascent.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Bind.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Breeze.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\District.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Drift.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Fracture.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Haven.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Icebox.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Kasbah.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Lotus.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Pearl.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Piazza.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Range.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Split.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\Maps\Sunset.webp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>
 
@@ -17,7 +183,6 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
-    <PackageReference Include="MinimalHttpLogger" Version="2.0.0" />
     <PackageReference Include="Moq" Version="4.20.70" />
     <PackageReference Include="Serilog" Version="3.1.1" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
