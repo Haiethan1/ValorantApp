@@ -99,26 +99,32 @@ namespace ValorantApp.Valorant
         /// Get all comp match stats for the specified season.
         /// Slightly expensive query.
         /// </summary>
-        /// <param name="season"></param>
+        /// <param name="startDateUTC"></param>
+        /// <param name="endDateUTC"></param>
         /// <returns></returns>
         private IEnumerable<MatchStats> GetCompMatchStats(DateTime startDateUTC, DateTime endDateUTC)
         {
             return MatchStatsExtension.GetCompMatchStats(Puuid, startDateUTC, endDateUTC);
         }
 
-        private IEnumerable<Matches> GetMatches(IEnumerable<string> matchIds)
+        private IEnumerable<MatchStats> GetMatchStatsExceptForDeathMatch(DateTime startDateUTC, DateTime endDateUTC)
+        {
+            return MatchStatsExtension.GetMatchStatsExceptForDeathMatch(Puuid, startDateUTC, endDateUTC);
+        }
+
+        private static IEnumerable<Matches> GetMatches(IEnumerable<string> matchIds)
         {
             return MatchesExtension.GetListOfRows(matchIds);
         }
 
         public IEnumerable<BaseValorantMatch> GetBaseValorantMatchBySeason(EpisodeActInfos season)
         {
-            return GetBaseValorantMatch(season.StartDate, season.EndDate);
+            return GetBaseValorantMatch(season.StartDate, season.EndDate, true);
         }
 
-        public IEnumerable<BaseValorantMatch> GetBaseValorantMatch(DateTime startDateUTC, DateTime endDateUTC)
+        public IEnumerable<BaseValorantMatch> GetBaseValorantMatch(DateTime startDateUTC, DateTime endDateUTC, bool competitiveOnly)
         {
-            IEnumerable<MatchStats> matchStats = GetCompMatchStats(startDateUTC, endDateUTC);
+            IEnumerable<MatchStats> matchStats = competitiveOnly ? GetCompMatchStats(startDateUTC, endDateUTC) : GetMatchStatsExceptForDeathMatch(startDateUTC, endDateUTC);
             IEnumerable<Matches> matches = GetMatches(matchStats.Select(x => x.Match_id));
 
             return matchStats.Join(matches, stats => stats.Match_id, match => match.Match_Id, (stats, match) => new BaseValorantMatch(stats, match, UserInfo, Logger));

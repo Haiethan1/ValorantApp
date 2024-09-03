@@ -267,6 +267,39 @@ namespace ValorantApp.Database.Extensions
             return matches;
         }
 
+        public static IEnumerable<MatchStats> GetMatchStatsExceptForDeathMatch(string puuid, DateTime startDateUTC, DateTime endDateUTC)
+        {
+            List<MatchStats> matches = [];
+
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+
+            string sql = @"SELECT ms.*
+                FROM MatchStats ms
+                JOIN Matches m ON ms.match_id = m.match_id
+                WHERE ms.val_puuid = @val_puuid
+                AND ms.mode != @mode COLLATE NOCASE
+                AND m.game_start_patched_utc >= @start_date
+                AND m.game_start_patched_utc <= @end_date
+                ORDER BY m.game_start_patched_utc DESC;
+                ";
+
+            using SqliteCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@val_puuid", puuid);
+            command.Parameters.AddWithValue("@mode", Modes.Deathmatch.ToDescriptionString());
+            command.Parameters.AddWithValue("@start_date", startDateUTC);
+            command.Parameters.AddWithValue("@end_date", endDateUTC);
+
+            using SqliteDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                matches.Add(MatchStats.CreateFromRow(reader));
+            }
+
+            return matches;
+        }
+
         public static OverallMatchStats? GetSumOfMatchStats(string valPuuid, Maps? map, Agents? agent, Modes? mode, DateTime? fromDate, DateTime? toDate)
         {
             using SqliteConnection connection = new SqliteConnection(connectionString);

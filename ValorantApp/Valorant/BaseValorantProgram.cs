@@ -832,7 +832,7 @@ namespace ValorantApp.Valorant
 
             Logger.LogInformation($"Starting {nameof(SendDailyReport)}: {startDateUTC} - {endDateUTC} UTC");
 
-            Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid = SetupReport(startDateUTC, endDateUTC);
+            Dictionary<string, (int, EmbedFieldBuilder)> embedFieldBuildersPuuid = SetupReport(startDateUTC, endDateUTC);
 
             await SendReport("Daily Report Summary", "Let's see who played today..", embedFieldBuildersPuuid);
         }
@@ -841,7 +841,7 @@ namespace ValorantApp.Valorant
         {
             Logger.LogInformation($"Starting {nameof(SendEpisodeActInfoReport)}: {episodeActInfos}");
 
-            Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid = SetupReport(episodeActInfos.StartDate, episodeActInfos.EndDate);
+            Dictionary<string, (int, EmbedFieldBuilder)> embedFieldBuildersPuuid = SetupReport(episodeActInfos.StartDate, episodeActInfos.EndDate);
 
             await SendReport($"{episodeActInfos} Report Summary", "Congratulations on another Episode/Act finished!\nGood luck on the next split!", embedFieldBuildersPuuid);
         }
@@ -851,11 +851,11 @@ namespace ValorantApp.Valorant
         /// </summary>
         /// <param name="startDateUTC"></param>
         /// <param name="endDateUTC"></param>
-        /// <returns></returns>
-        private Dictionary<string, EmbedFieldBuilder> SetupReport(DateTime startDateUTC, DateTime endDateUTC)
+        /// <returns>A dictionary of puuid, (rr change, embed field). RR change added for sorting.</returns>
+        private Dictionary<string, (int, EmbedFieldBuilder)> SetupReport(DateTime startDateUTC, DateTime endDateUTC)
         {
             IEnumerable<string> userPuuids = Users.Keys;
-            Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid = [];
+            Dictionary<string, (int, EmbedFieldBuilder)> embedFieldBuildersPuuid = [];
 
             foreach (string puuid in userPuuids)
             {
@@ -865,7 +865,7 @@ namespace ValorantApp.Valorant
                     continue;
                 }
 
-                IEnumerable<BaseValorantMatch> seasonMatchStats = user.GetBaseValorantMatch(startDateUTC, endDateUTC);
+                IEnumerable<BaseValorantMatch> seasonMatchStats = user.GetBaseValorantMatch(startDateUTC, endDateUTC, false);
                 if (seasonMatchStats.IsNullOrEmpty())
                 {
                     continue;
@@ -918,7 +918,7 @@ namespace ValorantApp.Valorant
                     $"\nHeadshot: {averageHeadshots:0.##}% | Bodyshot: {averageBodyshots:0.##}%"
                 };
 
-                embedFieldBuildersPuuid.Add(puuid, field);
+                embedFieldBuildersPuuid.Add(puuid, (rrChange, field));
             }
 
             return embedFieldBuildersPuuid;
@@ -929,7 +929,7 @@ namespace ValorantApp.Valorant
         /// Embeds cap at 25 fields. If there are more than 20, create a new embed (or page with pagination)
         /// TODO: Add pagination here
         /// </summary>
-        private async Task SendReport(string title, string description, Dictionary<string, EmbedFieldBuilder> embedFieldBuildersPuuid)
+        private async Task SendReport(string title, string description, Dictionary<string, (int, EmbedFieldBuilder)> embedFieldBuildersPuuid)
         {
             HashSet<ulong> channelsToSend = [];
             embedFieldBuildersPuuid.Keys.ToList().ForEach(x => channelsToSend.UnionWith(GetValorantUser(x)?.ChannelIds ?? Enumerable.Empty<ulong>()));
@@ -940,7 +940,8 @@ namespace ValorantApp.Valorant
                 {
                     List<EmbedFieldBuilder> fieldByChannels = embedFieldBuildersPuuid
                     .Where(x => GetValorantUser(x.Key)?.IsInChannel(channelId) ?? false)
-                    .Select(x => x.Value)
+                    .OrderByDescending(x => x.Value.Item1)
+                    .Select(x => x.Value.Item2)
                     .ToList();
 
                     int fieldCount = 0;

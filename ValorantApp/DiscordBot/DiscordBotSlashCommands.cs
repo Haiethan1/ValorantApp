@@ -103,7 +103,7 @@ namespace ValorantApp.DiscordBot
             try
             {
                 // Try creating the user. This can throw an exception if the username, tagname, and affinity don't match to a valorant account
-                valorantUser = new BaseValorantUser(username, tagname, "na", userInfo.Id, _httpClientFactory, _servicesProvider.GetService<ILogger<BaseValorantProgram>>());
+                valorantUser = new BaseValorantUser(username, tagname, "na", userInfo.Id, _httpClientFactory, _servicesProvider.GetRequiredService<ILogger<BaseValorantProgram>>());
             }
             catch (Exception e)
             {
@@ -261,7 +261,7 @@ namespace ValorantApp.DiscordBot
 
             // Get the last 10 comp games in 72 hours
             DateTime nowUTC = DateTime.UtcNow;
-            IEnumerable<BaseValorantMatch> valorantMatches = valorantUser.GetBaseValorantMatch(nowUTC.AddHours(-72), nowUTC).Take(10);
+            IEnumerable<BaseValorantMatch> valorantMatches = valorantUser.GetBaseValorantMatch(nowUTC.AddHours(-72), nowUTC, true).Take(10);
 
             SelectMenuBuilder selectMenu = new SelectMenuBuilder()
                 .WithCustomId("match_selection")
