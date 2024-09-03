@@ -988,7 +988,7 @@ namespace ValorantApp.Valorant
         {
             int serverCount = _client.Guilds.Count;
             int matchesFound = MatchStatsExtension.MatchTotalCount();
-            await _client.SetGameAsync($"Valorant Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)}", type: ActivityType.Watching);
+            await _client.SetGameAsync($"Valorant Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)}", type: ActivityType.CustomStatus);
         }
 
         #endregion Daily Check
