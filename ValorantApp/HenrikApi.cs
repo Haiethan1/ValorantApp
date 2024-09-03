@@ -134,15 +134,16 @@ namespace ValorantApp
                 int rateLimit = int.Parse(rateLimitValues.First());
                 int rateRemaining = int.Parse(rateRemainingValues.First());
                 int rateReset = int.Parse(rateResetValues.First());
-                int rateLimitTotal = rateLimit + rateRemaining;
-                double percentRateLimit = rateLimit * 1.0 / rateLimitTotal;
-                if (percentRateLimit >= 0.6)
+                int rateUsed = rateLimit - rateRemaining;
+                int rateLimitTotal = rateLimit;
+                double percentRateLimit = rateUsed * 1.0 / rateLimitTotal;
+                if (percentRateLimit >= 0.8)
                 {
-                    Logger.LogWarning($"Current {rateLimit} / Remaining {rateRemaining}. Usage at {percentRateLimit*100:00}% - reset in {rateReset}");
+                    Logger.LogError($"Used {rateUsed} / Remaining {rateRemaining}. Usage at {percentRateLimit*100:00}% - reset in {rateReset}");
                 }
-                else if (percentRateLimit >= 0.8)
+                else if (percentRateLimit >= 0.6)
                 {
-                    Logger.LogError($"Current {rateLimit} / Remaining {rateRemaining}. Usage at {percentRateLimit * 100:00}% - reset in {rateReset}");
+                    Logger.LogWarning($"Used {rateUsed} / Remaining {rateRemaining}. Usage at {percentRateLimit * 100:00}% - reset in {rateReset}");
                 }
             }
         }

@@ -355,6 +355,18 @@ namespace ValorantApp.Database.Extensions
             return reader.Read();
         }
 
+        public static int MatchTotalCount()
+        {
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+
+            string sql = "SELECT COUNT(*) FROM MatchStats";
+
+            using SqliteCommand command = new(sql, connection);
+
+            return Convert.ToInt32(command.ExecuteScalar());
+        }
+
         public static MatchStats? CreateFromJson(MatchJson? match, MmrHistoryJson? mmr, string puuid)
         {
             if (match == null

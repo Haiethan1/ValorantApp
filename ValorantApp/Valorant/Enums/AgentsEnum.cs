@@ -75,7 +75,10 @@ namespace ValorantApp.Valorant.Enums
         Iso,
 
         [Description("Clove")]
-        Clove
+        Clove,
+
+        [Description("Vyse")]
+        Vyse
     }
 
     public static class AgentsExtension
@@ -132,6 +135,7 @@ namespace ValorantApp.Valorant.Enums
                 Agents.Deadlock => "https://static.wikia.nocookie.net/valorant/images/a/aa/Deadlock_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20230627132700",
                 Agents.Iso => "https://static.wikia.nocookie.net/valorant/images/5/5f/Iso_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20231031131018",
                 Agents.Clove => "https://static.wikia.nocookie.net/valorant/images/0/0b/Clove_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20240326163704",
+                Agents.Vyse => "https://static.wikia.nocookie.net/valorant/images/d/d4/Vyse_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20240827165746",
                 _ => "",
             };
         }
@@ -169,6 +173,7 @@ namespace ValorantApp.Valorant.Enums
                 Agents.Skye => "<:skye:1251244001063993366>",
                 Agents.Sova => "<:sova:1251243977852846162>",
                 Agents.Viper => "<:viper:1251243975587794975>",
+                Agents.Vyse => "<:vyze:1280527291704807486>",
                 Agents.Yoru => "<:yoru:1251245478029299845>",
                 _ => agent.StringFromAgent(),
             };

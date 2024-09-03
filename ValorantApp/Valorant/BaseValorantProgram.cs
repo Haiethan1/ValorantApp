@@ -54,7 +54,20 @@ namespace ValorantApp.Valorant
 
         public BaseValorantUser? GetValorantUser(string puuid)
         {
-            return Users.GetValueOrDefault(puuid);
+            if (Users.TryGetValue(puuid, out BaseValorantUser? valorantUser))
+            {
+                return valorantUser;
+            }
+            else
+            {
+                Logger.LogError($"Could not find Valorant user with PUUID: {puuid}");
+                return null;
+            }
+        }
+
+        public bool ContainsValorantUser(string puuid)
+        {
+            return Users.ContainsKey(puuid);
         }
 
         #endregion
@@ -291,12 +304,23 @@ namespace ValorantApp.Valorant
                         {
                             if (!matchTasks.ContainsKey(user.Puuid))
                             {
+                                Logger.LogWarning($"MatchTasks not found for PUUID: {user.Puuid}");
                                 continue;
                             }
                             MatchJson? match = matchTasks[user.Puuid].Result;
 
                             if (match == null
                                 || match.Metadata?.MatchId == null)
+                            {
+                                Logger.LogError($"MatchJson is null or incorrect. PUUID: {user.Puuid}");
+                                continue;
+                            }
+
+                            // Skip sending a match if it's too old. If we miss a few matches and the user hasn't played in a while,
+                            // other user's mmr history might not have this match anymore.
+                            // Not a system error, as there will be many users who haven't played in 3 days.
+                            if (DateTime.TryParse(match.Metadata.Game_Start_Patched, out DateTime gameStartPatched)
+                                && gameStartPatched < DateTime.UtcNow.AddDays(-3))
                             {
                                 continue;
                             }
@@ -313,15 +337,15 @@ namespace ValorantApp.Valorant
                                     continue;
                                 }
 
-                                MmrHistoryJson? mmrHistory = matchHistories.ContainsKey(userInMatch.Puuid) ? matchHistories[userInMatch.Puuid] : userInMatch.GetMatchMMR(match.Metadata.MatchId);
+                                MmrHistoryJson? mmrHistory = matchHistories.TryGetValue(userInMatch.Puuid, out MmrHistoryJson? value) ? value : userInMatch.GetMatchMMR(match.Metadata.MatchId);
 
-                                if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
+                                if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats, out string errorMessage))
                                 {
                                     Logger.LogInformation($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched.Safe()}");
                                 }
                                 else
                                 {
-                                    Logger.LogInformation($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
+                                    Logger.LogInformation($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.\n{errorMessage}");
                                 }
                             }
                         }
@@ -395,7 +419,7 @@ namespace ValorantApp.Valorant
 
                         MmrHistoryJson? mmrHistory = matchHistories.ContainsKey(userInMatch.Puuid) ? matchHistories[userInMatch.Puuid] : userInMatch.GetMatchMMR(match.Metadata.MatchId);
 
-                        if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats))
+                        if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats, out _))
                         {
                             updatedUsers.Add(userInMatch.UserInfo.Val_puuid);
                             Logger.LogInformation($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched.Safe()}");
@@ -415,14 +439,25 @@ namespace ValorantApp.Valorant
             return true;
         }
 
-        private bool CheckMatch(MatchJson? match, MmrHistoryJson? mmrHistory, string puuid, ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
+        private bool CheckMatch(MatchJson? match, MmrHistoryJson? mmrHistory, string puuid, ConcurrentDictionary<string, BaseValorantMatch> userMatchStats, out string errorMessage)
         {
+            errorMessage = string.Empty;
+
+            // TODO: add logging to check match, or return a string out error message.
             if (match == null
                 || match.Metadata?.Mode == null
                 || string.IsNullOrEmpty(puuid)
-                || (ModesExtension.ModeFromString(match.Metadata?.Mode ?? "") == Modes.Competitive && mmrHistory == null && (match.Players?.All_Players?.FirstOrDefault(x => x.Puuid == puuid)?.CurrentTier ?? 0) != 0)
                 )
             {
+                errorMessage = "Match or metadata is null";
+                return false;
+            }
+
+            if (ModesExtension.ModeFromString(match.Metadata?.Mode ?? "") == Modes.Competitive 
+                && mmrHistory == null 
+                && (match.Players?.All_Players?.FirstOrDefault(x => x.Puuid == puuid)?.CurrentTier ?? 0) != 0)
+            {
+                errorMessage = "Competitive game with a null mmr history and has a rank";
                 return false;
             }
 
@@ -430,6 +465,7 @@ namespace ValorantApp.Valorant
 
             if (matchStats == null)
             {
+                errorMessage = "Failed to create MatchStats row";
                 return false;
             }
 
@@ -444,6 +480,7 @@ namespace ValorantApp.Valorant
 
                 if (matches == null)
                 {
+                    errorMessage = "Failed to create Matches row";
                     return false;
                 }
                 MatchesExtension.InsertRow(matches);
@@ -451,6 +488,7 @@ namespace ValorantApp.Valorant
 
             if (matches == null)
             {
+                errorMessage = "Failed to grab Matches row";
                 return false;
             }
 
@@ -458,7 +496,8 @@ namespace ValorantApp.Valorant
             BaseValorantUser? valorantUser = GetValorantUser(puuid);
             if (valorantUser == null)
             {
-                return true;
+                errorMessage = "User is no longer associated. Reload user list.";
+                return false;
             }
 
             userMatchStats.TryAdd(puuid, new BaseValorantMatch(matchStats, matches, valorantUser.UserInfo, Logger));
@@ -485,6 +524,7 @@ namespace ValorantApp.Valorant
                 if (matchPlayer == null
                     || matchPlayer.Puuid == null
                     || updatedPuuids.Contains(matchPlayer.Puuid)
+                    || !ContainsValorantUser(matchPlayer.Puuid)
                     )
                 {
                     continue;
@@ -896,38 +936,45 @@ namespace ValorantApp.Valorant
 
             foreach (ulong channelId in channelsToSend)
             {
-                List<EmbedFieldBuilder> fieldByChannels = embedFieldBuildersPuuid
+                try
+                {
+                    List<EmbedFieldBuilder> fieldByChannels = embedFieldBuildersPuuid
                     .Where(x => GetValorantUser(x.Key)?.IsInChannel(channelId) ?? false)
                     .Select(x => x.Value)
                     .ToList();
 
-                int fieldCount = 0;
-                int pageNumber = 1;
-                EmbedBuilder embed = new EmbedBuilder()
-                    .WithTitle($"{title} - Page {pageNumber}")
-                    .WithDescription(description)
-                    .WithColor(Color.DarkBlue);
+                    int fieldCount = 0;
+                    int pageNumber = 1;
+                    EmbedBuilder embed = new EmbedBuilder()
+                        .WithTitle($"{title} - Page {pageNumber}")
+                        .WithDescription(description)
+                        .WithColor(Color.DarkBlue);
 
-                foreach (EmbedFieldBuilder field in fieldByChannels)
-                {
-                    embed.AddField(field);
-                    fieldCount++;
-
-                    // Check if we have reached 20 fields
-                    if (fieldCount % 20 == 0 || fieldCount == fieldByChannels.Count)
+                    foreach (EmbedFieldBuilder field in fieldByChannels)
                     {
-                        await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, null, embed, Logger);
+                        embed.AddField(field);
+                        fieldCount++;
 
-                        // Re-initialize the embed for the next page if there are more fields
-                        if (fieldCount < fieldByChannels.Count)
+                        // Check if we have reached 20 fields
+                        if (fieldCount % 20 == 0 || fieldCount == fieldByChannels.Count)
                         {
-                            pageNumber++;
-                            embed = new EmbedBuilder()
-                                .WithTitle($"{title} - Page {pageNumber}")
-                                .WithDescription(description)
-                                .WithColor(Color.DarkBlue);
+                            await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, null, embed, Logger);
+
+                            // Re-initialize the embed for the next page if there are more fields
+                            if (fieldCount < fieldByChannels.Count)
+                            {
+                                pageNumber++;
+                                embed = new EmbedBuilder()
+                                    .WithTitle($"{title} - Page {pageNumber}")
+                                    .WithDescription(description)
+                                    .WithColor(Color.DarkBlue);
+                            }
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"Daily report error: {ex}");
                 }
             }
         }
@@ -940,7 +987,8 @@ namespace ValorantApp.Valorant
         public async Task UpdateDiscordBotConfig()
         {
             int serverCount = _client.Guilds.Count;
-            await _client.SetGameAsync($"Valorant | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)}", type: ActivityType.Watching);
+            int matchesFound = MatchStatsExtension.MatchTotalCount();
+            await _client.SetGameAsync($"Valorant Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)}", type: ActivityType.Watching);
         }
 
         #endregion Daily Check

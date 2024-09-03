@@ -125,7 +125,7 @@
     public class PlayerEconomyMoneyJson
     {
         public int? Overall { get; set; }
-        public int? Average { get; set; }
+        public double? Average { get; set; }
     }
     #endregion
 }
