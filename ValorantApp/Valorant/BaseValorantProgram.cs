@@ -453,9 +453,10 @@ namespace ValorantApp.Valorant
                 return false;
             }
 
+            MatchPlayerJson? player = match.Players?.All_Players?.FirstOrDefault(x => x.Puuid == puuid);
             if (ModesExtension.ModeFromString(match.Metadata?.Mode ?? "") == Modes.Competitive 
                 && mmrHistory == null 
-                && (match.Players?.All_Players?.FirstOrDefault(x => x.Puuid == puuid)?.CurrentTier ?? 0) != 0)
+                && (player?.CurrentTier ?? 0) != 0)
             {
                 errorMessage = "Competitive game with a null mmr history and has a rank";
                 return false;
@@ -502,6 +503,12 @@ namespace ValorantApp.Valorant
 
             userMatchStats.TryAdd(puuid, new BaseValorantMatch(matchStats, matches, valorantUser.UserInfo, Logger));
             MatchStatsExtension.InsertRow(matchStats);
+
+            if (player?.Name != null && player?.Tag != null)
+            {
+                valorantUser.UpdateUser(player.Name, player.Tag);
+            }
+            
             return true;
         }
 

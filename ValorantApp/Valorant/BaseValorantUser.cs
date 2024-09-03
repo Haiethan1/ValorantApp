@@ -174,6 +174,37 @@ namespace ValorantApp.Valorant
             return ValorantUsersExtension.DeleteRow(UserInfo.Val_puuid, UserInfo.Disc_id);
         }
 
+        /// <summary>
+        /// Update the user. A user's username and tagname can change.
+        /// </summary>
+        /// <param name="username"></param>
+        /// <param name="tagname"></param>
+        /// <returns></returns>
+        public bool UpdateUser(string username, string tagname)
+        {
+            if (username.IsNullOrEmpty() || tagname.IsNullOrEmpty())
+            {
+                Logger.LogWarning($"{nameof(UpdateUser)}: Username and tagname cannot be null");
+                return false;
+            }
+
+            // Check if either the username or tagname is different (case-insensitive)
+            if (!string.Equals(UserInfo.Val_username, username, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(UserInfo.Val_tagname, tagname, StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.LogInformation($"{UserInfo.Val_username}#{UserInfo.Val_tagname} -> {username}#{tagname}");
+
+                UserInfo.Val_username = username;
+                UserInfo.Val_tagname = tagname;
+
+                return ValorantUsersExtension.UpdateRow(UserInfo);
+            }
+
+            // If no updates were needed, return false
+            return false;
+
+        }
+
         #endregion Database - Valorant User
 
         #endregion Database

@@ -24,13 +24,13 @@ namespace ValorantApp.Database.Extensions
 
         public static bool InsertRow(ValorantUsers user)
         {
-            using var connection = new SqliteConnection(connectionString);
+            using SqliteConnection connection = new SqliteConnection(connectionString);
             connection.Open();
             string InsertRowQuery = @"
                 INSERT OR IGNORE INTO ValorantUsers (val_username, val_tagname, val_affinity, val_puuid, disc_id)
                 VALUES (@val_username, @val_tagname, @val_affinity, @val_puuid, @disc_id)";
 
-            using var insertCommand = new SqliteCommand(InsertRowQuery, connection);
+            using SqliteCommand insertCommand = new SqliteCommand(InsertRowQuery, connection);
             insertCommand.Parameters.AddWithValue("@val_username", user.Val_username);
             insertCommand.Parameters.AddWithValue("@val_tagname", user.Val_tagname);
             insertCommand.Parameters.AddWithValue("@val_affinity", user.Val_affinity);
@@ -41,20 +41,20 @@ namespace ValorantApp.Database.Extensions
             return result > 0;
         }
 
-        public static bool UpdateRow(ValorantUsers newUser, string oldPuuid)
+        public static bool UpdateRow(ValorantUsers updatedUser)
         {
-            using var connection = new SqliteConnection(connectionString);
+            using SqliteConnection connection = new SqliteConnection(connectionString);
             connection.Open();
             string UpdateRowQuery = @"
                 UPDATE ValorantUsers SET val_username = @val_username, val_tagname = @val_tagname, val_affinity = @val_affinity, disc_id = @disc_id
                 WHERE val_puuid = @oldpuuid";
 
-            using var insertCommand = new SqliteCommand(UpdateRowQuery, connection);
-            insertCommand.Parameters.AddWithValue("@val_username", newUser.Val_username);
-            insertCommand.Parameters.AddWithValue("@val_tagname", newUser.Val_tagname);
-            insertCommand.Parameters.AddWithValue("@val_affinity", newUser.Val_affinity);
-            insertCommand.Parameters.AddWithValue("@oldPuuid", oldPuuid);
-            insertCommand.Parameters.AddWithValue("@disc_id", newUser.Disc_id);
+            using SqliteCommand insertCommand = new SqliteCommand(UpdateRowQuery, connection);
+            insertCommand.Parameters.AddWithValue("@val_username", updatedUser.Val_username);
+            insertCommand.Parameters.AddWithValue("@val_tagname", updatedUser.Val_tagname);
+            insertCommand.Parameters.AddWithValue("@val_affinity", updatedUser.Val_affinity);
+            insertCommand.Parameters.AddWithValue("@oldPuuid", updatedUser.Val_puuid);
+            insertCommand.Parameters.AddWithValue("@disc_id", updatedUser.Disc_id);
             int result = insertCommand.ExecuteNonQuery();
 
             return result > 0;
