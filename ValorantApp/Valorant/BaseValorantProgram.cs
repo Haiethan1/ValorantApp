@@ -872,7 +872,7 @@ namespace ValorantApp.Valorant
                     continue;
                 }
 
-                IEnumerable<BaseValorantMatch> seasonMatchStats = user.GetBaseValorantMatch(startDateUTC, endDateUTC, false);
+                IEnumerable<BaseValorantMatch> seasonMatchStats = user.GetBaseValorantMatch(startDateUTC, endDateUTC, true);
                 if (seasonMatchStats.IsNullOrEmpty())
                 {
                     continue;

@@ -47,7 +47,7 @@ namespace ValorantApp.Database.Extensions
             connection.Open();
             string UpdateRowQuery = @"
                 UPDATE ValorantUsers SET val_username = @val_username, val_tagname = @val_tagname, val_affinity = @val_affinity, disc_id = @disc_id
-                WHERE val_puuid = @oldpuuid";
+                WHERE val_puuid = @oldPuuid";
 
             using SqliteCommand insertCommand = new SqliteCommand(UpdateRowQuery, connection);
             insertCommand.Parameters.AddWithValue("@val_username", updatedUser.Val_username);
