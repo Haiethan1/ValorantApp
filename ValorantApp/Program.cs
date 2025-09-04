@@ -2,7 +2,6 @@
 using Discord.Commands;
 using Discord.Interactions;
 using Discord.Net;
-using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -76,11 +75,11 @@ namespace ValorantApp
             services.AddSingleton(new DiscordSocketClient(discordSocketConfig));
             //services.AddSingleton(new DiscordRestClient(discordRestConfig));
             services.AddSingleton<CommandService>();
-            services.AddSingleton<InteractionService>();
+            services.AddSingleton(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>()));
             //services.AddSingleton<InteractionHandler>();
             services.AddSingleton<ValorantApp>();
             services.AddSingleton<DiscordBotSlashCommands>();
-            
+
             //services.AddLogging()
 
             ServiceProvider serviceProvider = services.BuildServiceProvider();
@@ -104,7 +103,7 @@ namespace ValorantApp
         public async Task RunBotAsync()
         {
             string? token = ConfigurationManager.AppSettings[Debugger.IsAttached ? "DevelopBotToken" : "BotToken"];
-            
+
             _client.Log += LogAsync;
 
             await RegisterCommandsAsync();
@@ -135,31 +134,31 @@ namespace ValorantApp
                     .WithName("mmr")
                     .WithDescription("Get user's Valorant MMR")
                     .AddOption("username", ApplicationCommandOptionType.User, "The username of the user to get MMR for", isRequired: false)
-                    .WithDMPermission(false),
+                    .WithContextTypes(InteractionContextType.Guild),
                 new SlashCommandBuilder()
                     .WithName("addme")
                     .WithDescription("Add your Valorant account to the bot")
                     .AddOption("username", ApplicationCommandOptionType.String, "Your Valorant Riot ID", isRequired: true)
                     .AddOption("tagname", ApplicationCommandOptionType.String, "Your Valorant Riot tag", isRequired: true)
-                    .WithDMPermission(false),
+                    .WithContextTypes(InteractionContextType.Guild),
                 new SlashCommandBuilder()
                     .WithName("addchannel")
                     .WithDescription("Add this channel to shamebot's send messages for you")
-                    .WithDMPermission(false),
+                    .WithContextTypes(InteractionContextType.Guild),
                 new SlashCommandBuilder()
                     .WithName("deletechannel")
                     .WithDescription("Delete this channel for your account in shamebot, and your account if channels is empty.")
-                    .WithDMPermission(false),
+                    .WithContextTypes(InteractionContextType.Guild),
                 new SlashCommandBuilder()
                     .WithName("deleteuser")
                     .WithDescription("Delete a discord user from shamebot (Admins only)")
                     .AddOption("username", ApplicationCommandOptionType.User, "The username of the user to delete", isRequired: true)
                     .WithDefaultMemberPermissions(GuildPermission.KickMembers)
-                    .WithDMPermission(false),
+                    .WithContextTypes(InteractionContextType.Guild),
                 new SlashCommandBuilder()
                     .WithName("heatmap")
                     .WithDescription("Generate a heatmap of the selected game")
-                    .WithDMPermission(false),
+                    .WithContextTypes(InteractionContextType.Guild),
 
             };
 

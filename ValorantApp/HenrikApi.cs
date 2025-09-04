@@ -39,7 +39,7 @@ namespace ValorantApp
                 }
                 this.puuid = account.Puuid;
             }
-            
+
         }
 
         public async Task<JsonObjectHenrik<AccountJson>>? AccountQuery()
@@ -92,11 +92,11 @@ namespace ValorantApp
             string endpoint = $"v3/by-puuid/matches/{affinity}/{puuid}?";
             if (mode != Modes.Unknown)
             {
-                endpoint += $"&mode={mode.StringFromMode()}";
+                endpoint += $"&mode={mode.StringFromMode().ToLower()}";
             }
             if (map != Maps.Unknown)
             {
-                endpoint += $"&map={map.StringFromMap()}";
+                endpoint += $"&map={map.StringFromMap().ToLower()}";
             }
             endpoint += $"&size={size}";
 
@@ -112,7 +112,7 @@ namespace ValorantApp
             return ParseAndLogJson<JsonObjectHenrik<List<MatchJson>>>(response.Content.ReadAsStringAsync().Result, endpoint, nameof(Match));
         }
 
-        private T ParseAndLogJson<T>(string json, string endpoint, string caller) 
+        private T ParseAndLogJson<T>(string json, string endpoint, string caller)
         {
             T? jsonObject = json.TryParse<T>(out string errormsg);
 
@@ -134,15 +134,16 @@ namespace ValorantApp
                 int rateLimit = int.Parse(rateLimitValues.First());
                 int rateRemaining = int.Parse(rateRemainingValues.First());
                 int rateReset = int.Parse(rateResetValues.First());
-                int rateLimitTotal = rateLimit + rateRemaining;
-                double percentRateLimit = rateLimit * 1.0 / rateLimitTotal;
-                if (percentRateLimit >= 0.6)
+                int rateUsed = rateLimit - rateRemaining;
+                int rateLimitTotal = rateLimit;
+                double percentRateLimit = rateUsed * 1.0 / rateLimitTotal;
+                if (percentRateLimit >= 0.8)
                 {
-                    Logger.LogWarning($"Current {rateLimit} / Remaining {rateRemaining}. Usage at {percentRateLimit*100:00}% - reset in {rateReset}");
+                    Logger.LogError($"Used {rateUsed} / Remaining {rateRemaining}. Usage at {percentRateLimit * 100:00}% - reset in {rateReset}");
                 }
-                else if (percentRateLimit >= 0.8)
+                else if (percentRateLimit >= 0.6)
                 {
-                    Logger.LogError($"Current {rateLimit} / Remaining {rateRemaining}. Usage at {percentRateLimit * 100:00}% - reset in {rateReset}");
+                    Logger.LogWarning($"Used {rateUsed} / Remaining {rateRemaining}. Usage at {percentRateLimit * 100:00}% - reset in {rateReset}");
                 }
             }
         }

@@ -22,11 +22,11 @@
  * SOFTWARE.
  */
 
-using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using ValorantApp.GenericExtensions;
 
 namespace Microsoft.Extensions.DependencyInjection

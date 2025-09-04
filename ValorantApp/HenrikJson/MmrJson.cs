@@ -9,7 +9,7 @@ namespace ValorantApp
         public string? Tag { get; set; }
         public MmrCurrentDataJson Current_Data { get; set; }
         public MmrHighestRankJson Highest_Rank { get; set; }
-        
+
         [JsonIgnore]
         public string? By_Season { get; set; }
     }
@@ -32,7 +32,7 @@ namespace ValorantApp
         public int Tier { get; set; }
         public string? Patched_Tier { get; set; }
         public string? Season { get; set; }
-        public int? Converted {  get; set; }
+        public int? Converted { get; set; }
     }
 
     public class MmrJson

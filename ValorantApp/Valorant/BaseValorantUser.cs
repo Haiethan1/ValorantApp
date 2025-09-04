@@ -19,7 +19,7 @@ namespace ValorantApp.Valorant
             Console.WriteLine("Valorant user created");
         }
 
-        public  BaseValorantUser(ValorantUsers valorantUser, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
+        public BaseValorantUser(ValorantUsers valorantUser, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
         {
             HenrikApi = new HenrikApi(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, valorantUser.Val_puuid, httpClientFactory, logger);
             puuid = HenrikApi.puuid;
@@ -99,26 +99,32 @@ namespace ValorantApp.Valorant
         /// Get all comp match stats for the specified season.
         /// Slightly expensive query.
         /// </summary>
-        /// <param name="season"></param>
+        /// <param name="startDateUTC"></param>
+        /// <param name="endDateUTC"></param>
         /// <returns></returns>
         private IEnumerable<MatchStats> GetCompMatchStats(DateTime startDateUTC, DateTime endDateUTC)
         {
             return MatchStatsExtension.GetCompMatchStats(Puuid, startDateUTC, endDateUTC);
         }
 
-        private IEnumerable<Matches> GetMatches(IEnumerable<string> matchIds)
+        private IEnumerable<MatchStats> GetMatchStatsExceptForDeathMatch(DateTime startDateUTC, DateTime endDateUTC)
+        {
+            return MatchStatsExtension.GetMatchStatsExceptForDeathMatch(Puuid, startDateUTC, endDateUTC);
+        }
+
+        private static IEnumerable<Matches> GetMatches(IEnumerable<string> matchIds)
         {
             return MatchesExtension.GetListOfRows(matchIds);
         }
 
         public IEnumerable<BaseValorantMatch> GetBaseValorantMatchBySeason(EpisodeActInfos season)
         {
-            return GetBaseValorantMatch(season.StartDate, season.EndDate);
+            return GetBaseValorantMatch(season.StartDate, season.EndDate, true);
         }
 
-        public IEnumerable<BaseValorantMatch> GetBaseValorantMatch(DateTime startDateUTC, DateTime endDateUTC)
+        public IEnumerable<BaseValorantMatch> GetBaseValorantMatch(DateTime startDateUTC, DateTime endDateUTC, bool competitiveOnly)
         {
-            IEnumerable<MatchStats> matchStats = GetCompMatchStats(startDateUTC, endDateUTC);
+            IEnumerable<MatchStats> matchStats = competitiveOnly ? GetCompMatchStats(startDateUTC, endDateUTC) : GetMatchStatsExceptForDeathMatch(startDateUTC, endDateUTC);
             IEnumerable<Matches> matches = GetMatches(matchStats.Select(x => x.Match_id));
 
             return matchStats.Join(matches, stats => stats.Match_id, match => match.Match_Id, (stats, match) => new BaseValorantMatch(stats, match, UserInfo, Logger));
@@ -151,7 +157,7 @@ namespace ValorantApp.Valorant
         #endregion Database - Channel Mappings
 
         #region Database - Valorant User
-        
+
         /// <summary>
         /// Persist the user. UserInfo must be set if it is a new user.
         /// </summary>
@@ -166,6 +172,37 @@ namespace ValorantApp.Valorant
         public bool DeleteUser()
         {
             return ValorantUsersExtension.DeleteRow(UserInfo.Val_puuid, UserInfo.Disc_id);
+        }
+
+        /// <summary>
+        /// Update the user. A user's username and tagname can change.
+        /// </summary>
+        /// <param name="username"></param>
+        /// <param name="tagname"></param>
+        /// <returns></returns>
+        public bool UpdateUser(string username, string tagname)
+        {
+            if (username.IsNullOrEmpty() || tagname.IsNullOrEmpty())
+            {
+                Logger.LogWarning($"{nameof(UpdateUser)}: Username and tagname cannot be null");
+                return false;
+            }
+
+            // Check if either the username or tagname is different (case-insensitive)
+            if (!string.Equals(UserInfo.Val_username, username, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(UserInfo.Val_tagname, tagname, StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.LogInformation($"{UserInfo.Val_username}#{UserInfo.Val_tagname} -> {username}#{tagname}");
+
+                UserInfo.Val_username = username;
+                UserInfo.Val_tagname = tagname;
+
+                return ValorantUsersExtension.UpdateRow(UserInfo);
+            }
+
+            // If no updates were needed, return false
+            return false;
+
         }
 
         #endregion Database - Valorant User

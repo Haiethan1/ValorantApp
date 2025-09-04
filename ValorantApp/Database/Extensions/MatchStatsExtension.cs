@@ -1,4 +1,6 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
+using System.Data;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
@@ -12,8 +14,8 @@ namespace ValorantApp.Database.Extensions
 
         public new static string CreateTable()
         {
-            string createTableQuery = @"
-                CREATE TABLE IF NOT EXISTS MatchStats (
+            string createTableQuery =
+                @"CREATE TABLE IF NOT EXISTS MatchStats (
                     match_id TEXT NOT NULL,
                     val_puuid TEXT NOT NULL,
                     map TEXT NOT NULL,
@@ -57,8 +59,8 @@ namespace ValorantApp.Database.Extensions
             using SqliteConnection connection = new(connectionString);
             connection.Open();
 
-            string InsertRowQuery = @"
-                INSERT OR IGNORE INTO MatchStats (
+            string InsertRowQuery =
+                @"INSERT OR IGNORE INTO MatchStats (
                     match_id, val_puuid, map, mode, rounds, character,
                     rr_change, double_kills, triple_kills, quad_kills, aces, kills, knife_kills, 
                     deaths, knife_deaths, assists, bodyshots, headshots, score, damage,
@@ -108,6 +110,62 @@ namespace ValorantApp.Database.Extensions
             command.Parameters.AddWithValue("@New_tier", matchStats.New_Tier);
 
             command.ExecuteNonQuery();
+            connection.Close();
+
+            using SqlConnection sqlConnection = new(sqlConnectionString);
+            sqlConnection.Open();
+
+            string insertSqlQuery =
+                @"IF NOT EXISTS (
+                    SELECT 1 
+                    FROM lu_match_stats WITH(NOLOCK)
+                    WHERE match_id = @Match_id AND val_puuid = @Val_puuid
+                )
+                BEGIN
+                    INSERT INTO lu_match_stats (
+                        match_id, val_puuid, val_character,
+                        rr_change, double_kills, triple_kills, quad_kills, aces, kills, 
+                        deaths, assists, bodyshots, headshots, score, damage,
+                        c_casts, q_casts, e_casts, x_casts, damage_to_allies, damage_from_allies, 
+                        mvp, current_tier, team, new_tier
+                    ) 
+                    VALUES (
+                        @Match_id, @Val_puuid, @Val_Character, 
+                        @Rr_change, @Double_kills, @Triple_kills, @Quad_kills, @Aces, @Kills,
+                        @Deaths, @Assists, @Bodyshots, @Headshots, @Score, @Damage, 
+                        @C_casts, @Q_casts, @E_casts, @X_casts, @Damage_to_allies, @Damage_from_allies, 
+                        @MVP, @Current_tier, @Team, @New_tier
+                    );
+                END";
+
+            using SqlCommand sqlCommand = new SqlCommand(insertSqlQuery, sqlConnection);
+            sqlCommand.AddParameter("@Match_id", SqlDbType.VarChar, matchStats.Match_id);
+            sqlCommand.AddParameter("@Val_puuid", SqlDbType.VarChar, matchStats.Val_puuid);
+            sqlCommand.AddParameter("@Val_Character", SqlDbType.VarChar, matchStats.Character);
+            sqlCommand.AddParameter("@Rr_change", SqlDbType.SmallInt, matchStats.Rr_change);
+            sqlCommand.AddParameter("@Double_kills", SqlDbType.TinyInt, matchStats.Double_Kills);
+            sqlCommand.AddParameter("@Triple_kills", SqlDbType.TinyInt, matchStats.Triple_Kills);
+            sqlCommand.AddParameter("@Quad_kills", SqlDbType.TinyInt, matchStats.Quad_Kills);
+            sqlCommand.AddParameter("@Aces", SqlDbType.TinyInt, matchStats.Aces);
+            sqlCommand.AddParameter("@Kills", SqlDbType.TinyInt, matchStats.Kills);
+            sqlCommand.AddParameter("@Deaths", SqlDbType.TinyInt, matchStats.Deaths);
+            sqlCommand.AddParameter("@Assists", SqlDbType.TinyInt, matchStats.Assists);
+            sqlCommand.AddParameter("@Bodyshots", SqlDbType.Float, matchStats.Bodyshots);
+            sqlCommand.AddParameter("@Headshots", SqlDbType.Float, matchStats.Headshots);
+            sqlCommand.AddParameter("@Score", SqlDbType.SmallInt, matchStats.Score);
+            sqlCommand.AddParameter("@Damage", SqlDbType.SmallInt, matchStats.Damage);
+            sqlCommand.AddParameter("@C_casts", SqlDbType.TinyInt, matchStats.C_casts);
+            sqlCommand.AddParameter("@Q_casts", SqlDbType.TinyInt, matchStats.Q_casts);
+            sqlCommand.AddParameter("@E_casts", SqlDbType.TinyInt, matchStats.E_casts);
+            sqlCommand.AddParameter("@X_casts", SqlDbType.TinyInt, matchStats.X_casts);
+            sqlCommand.AddParameter("@Damage_to_allies", SqlDbType.SmallInt, matchStats.Damage_To_Allies);
+            sqlCommand.AddParameter("@Damage_from_allies", SqlDbType.SmallInt, matchStats.Damage_From_Allies);
+            sqlCommand.AddParameter("@MVP", SqlDbType.Bit, matchStats.MVP);
+            sqlCommand.AddParameter("@Current_tier", SqlDbType.TinyInt, matchStats.Current_Tier);
+            sqlCommand.AddParameter("@Team", SqlDbType.VarChar, matchStats.Team);
+            sqlCommand.AddParameter("@New_tier", SqlDbType.TinyInt, matchStats.New_Tier);
+
+            SqlExtensions.ExecuteNonQuery(sqlCommand);
         }
 
         public static void UpdateRow(MatchStats matchStats)
@@ -116,41 +174,41 @@ namespace ValorantApp.Database.Extensions
             {
                 connection.Open();
 
-                string UpdateRowQuery = @"
-                UPDATE MatchStats
-                SET
-                    val_puuid = @Val_puuid,
-                    map = @Map,
-                    mode = @Mode,
-                    rounds = @Rounds
-                    character = @Character,
-                    rr_change = @Rr_change,
-                    double_kills = @Double_kills,
-                    triple_kills = @Triple_kills,
-                    quad_kills = @Quad_kills,
-                    aces = @Aces,
-                    kills = @Kills,
-                    knife_kills = @Knife_kills,
-                    deaths = @Deaths,
-                    knife_deaths = @Knife_deaths,
-                    assists = @Assists,
-                    bodyshots = @Bodyshots,
-                    headshots = @Headshots,
-                    score = @Score,
-                    damage = @Damage,
-                    c_casts = @C_casts,
-                    q_casts = @Q_casts,
-                    e_casts = @E_casts,
-                    x_casts = @X_casts,
-                    damage_to_allies = @Damage_to_allies,
-                    damage_from_allies = @Damage_from_allies,
-                    game_length = @Game_length,
-                    game_start_patched = @Game_start_patched,
-                    mvp = @MVP,
-                    current_tier = @Current_tier,
-                    team = @Team,
-                    new_tier = @New_tier
-                WHERE match_id = @Match_id";
+                string UpdateRowQuery =
+                    @"UPDATE MatchStats
+                    SET
+                        val_puuid = @Val_puuid,
+                        map = @Map,
+                        mode = @Mode,
+                        rounds = @Rounds
+                        character = @Character,
+                        rr_change = @Rr_change,
+                        double_kills = @Double_kills,
+                        triple_kills = @Triple_kills,
+                        quad_kills = @Quad_kills,
+                        aces = @Aces,
+                        kills = @Kills,
+                        knife_kills = @Knife_kills,
+                        deaths = @Deaths,
+                        knife_deaths = @Knife_deaths,
+                        assists = @Assists,
+                        bodyshots = @Bodyshots,
+                        headshots = @Headshots,
+                        score = @Score,
+                        damage = @Damage,
+                        c_casts = @C_casts,
+                        q_casts = @Q_casts,
+                        e_casts = @E_casts,
+                        x_casts = @X_casts,
+                        damage_to_allies = @Damage_to_allies,
+                        damage_from_allies = @Damage_from_allies,
+                        game_length = @Game_length,
+                        game_start_patched = @Game_start_patched,
+                        mvp = @MVP,
+                        current_tier = @Current_tier,
+                        team = @Team,
+                        new_tier = @New_tier
+                    WHERE match_id = @Match_id";
 
                 using (SqliteCommand command = new(UpdateRowQuery, connection))
                 {
@@ -241,7 +299,8 @@ namespace ValorantApp.Database.Extensions
             using SqliteConnection connection = new(connectionString);
             connection.Open();
 
-            string sql = @"SELECT ms.*
+            string sql =
+                @"SELECT ms.*
                 FROM MatchStats ms
                 JOIN Matches m ON ms.match_id = m.match_id
                 WHERE ms.val_puuid = @val_puuid
@@ -267,13 +326,47 @@ namespace ValorantApp.Database.Extensions
             return matches;
         }
 
+        public static IEnumerable<MatchStats> GetMatchStatsExceptForDeathMatch(string puuid, DateTime startDateUTC, DateTime endDateUTC)
+        {
+            List<MatchStats> matches = [];
+
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+
+            string sql =
+                @"SELECT ms.*
+                FROM MatchStats ms
+                JOIN Matches m ON ms.match_id = m.match_id
+                WHERE ms.val_puuid = @val_puuid
+                AND ms.mode != @mode COLLATE NOCASE
+                AND m.game_start_patched_utc >= @start_date
+                AND m.game_start_patched_utc <= @end_date
+                ORDER BY m.game_start_patched_utc DESC;
+                ";
+
+            using SqliteCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@val_puuid", puuid);
+            command.Parameters.AddWithValue("@mode", Modes.Deathmatch.ToDescriptionString());
+            command.Parameters.AddWithValue("@start_date", startDateUTC);
+            command.Parameters.AddWithValue("@end_date", endDateUTC);
+
+            using SqliteDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                matches.Add(MatchStats.CreateFromRow(reader));
+            }
+
+            return matches;
+        }
+
         public static OverallMatchStats? GetSumOfMatchStats(string valPuuid, Maps? map, Agents? agent, Modes? mode, DateTime? fromDate, DateTime? toDate)
         {
             using SqliteConnection connection = new SqliteConnection(connectionString);
             connection.Open();
 
-            string UpdateRowQuery = @"
-                SELECT 
+            string UpdateRowQuery =
+                @"SELECT 
                     val_puuid,
 		            SUM(rounds) as sum_of_rounds,
                     SUM(rr_change) as sum_of_rr_change,
@@ -353,6 +446,18 @@ namespace ValorantApp.Database.Extensions
 
             using SqliteDataReader reader = command.ExecuteReader();
             return reader.Read();
+        }
+
+        public static int MatchTotalCount()
+        {
+            using SqliteConnection connection = new(connectionString);
+            connection.Open();
+
+            string sql = "SELECT COUNT(*) FROM MatchStats";
+
+            using SqliteCommand command = new(sql, connection);
+
+            return Convert.ToInt32(command.ExecuteScalar());
         }
 
         public static MatchStats? CreateFromJson(MatchJson? match, MmrHistoryJson? mmr, string puuid)

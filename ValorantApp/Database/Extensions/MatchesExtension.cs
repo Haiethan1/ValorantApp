@@ -1,4 +1,6 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
+using System.Data;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
 using ValorantApp.HenrikJson;
@@ -12,9 +14,10 @@ namespace ValorantApp.Database.Extensions
 
         public new static string CreateTable()
         {
-            string createTableQuery = @"
-                CREATE TABLE IF NOT EXISTS Matches (
-                    match_id TEXT PRIMARY KEY,
+            string createTableQuery =
+                @"CREATE TABLE IF NOT EXISTS Matches (
+                    match_index INTEGER PRIMARY KEY AUTOINCREMENT,
+                    match_id TEXT UNIQUE,
                     map TEXT,
                     mode TEXT,
                     mode_id TEXT,
@@ -37,8 +40,8 @@ namespace ValorantApp.Database.Extensions
         {
             using SqliteConnection connection = new(connectionString);
             connection.Open();
-            string InsertRowQuery = @"
-                INSERT INTO Matches 
+            string insertRowQuery =
+                @"INSERT INTO Matches 
                     (match_id, map, mode, mode_id, game_length, game_start, game_start_patched_utc, 
                     rounds_played, blue_team_rounds_won, blue_team_average_rank, red_team_average_rank, 
                     red_team_rounds_won, blue_team_win, season_id)
@@ -48,7 +51,7 @@ namespace ValorantApp.Database.Extensions
                     @Red_Team_Rounds_Won, @Blue_Team_Win, @Season_Id
                     )";
 
-            using SqliteCommand command = new SqliteCommand(InsertRowQuery, connection);
+            using SqliteCommand command = new SqliteCommand(insertRowQuery, connection);
             command.Parameters.AddWithValue("@Match_Id", match.Match_Id);
             command.Parameters.AddWithValue("@Map", match.Map);
             command.Parameters.AddWithValue("@Mode", match.Mode);
@@ -65,6 +68,38 @@ namespace ValorantApp.Database.Extensions
             command.Parameters.AddWithValue("@Season_Id", match.Season_Id);
 
             command.ExecuteNonQuery();
+            connection.Close();
+
+            using SqlConnection sqlConnection = new(sqlConnectionString);
+            sqlConnection.Open();
+            string insertSqlRowQuery =
+                @"INSERT INTO lu_matches 
+                    (match_id, map, mode, mode_id, game_length, game_start, game_start_patched_utc, 
+                    rounds_played, blue_team_rounds_won, blue_team_average_rank, red_team_average_rank, 
+                    red_team_rounds_won, blue_team_win, season_id)
+                VALUES 
+                    (@Match_Id, @Map, @Mode, @Mode_Id, @Game_Length, @Game_Start, @Game_Start_Patched_UTC, 
+                    @Rounds_Played, @Blue_Team_Rounds_Won, @Blue_Team_Average_Rank, @Red_Team_Average_Rank, 
+                    @Red_Team_Rounds_Won, @Blue_Team_Win, @Season_Id
+                    )";
+
+            using SqlCommand sqlCommand = new(insertSqlRowQuery, sqlConnection);
+            sqlCommand.AddParameter("@Match_Id", SqlDbType.VarChar, match.Match_Id);
+            sqlCommand.AddParameter("@Map", SqlDbType.VarChar, match.Map);
+            sqlCommand.AddParameter("@Mode", SqlDbType.VarChar, match.Mode);
+            sqlCommand.AddParameter("@Mode_Id", SqlDbType.VarChar, match.Mode_Id);
+            sqlCommand.AddParameter("@Game_Length", SqlDbType.SmallInt, match.Game_Length);
+            sqlCommand.AddParameter("@Game_Start", SqlDbType.Int, match.Game_Start);
+            sqlCommand.AddParameter("@Game_Start_Patched_UTC", SqlDbType.DateTime2, match.Game_Start_Patched_UTC);
+            sqlCommand.AddParameter("@Rounds_Played", SqlDbType.TinyInt, match.Rounds_Played);
+            sqlCommand.AddParameter("@Blue_Team_Rounds_Won", SqlDbType.TinyInt, match.Blue_Team_Rounds_Won);
+            sqlCommand.AddParameter("@Blue_Team_Average_Rank", SqlDbType.TinyInt, match.Blue_Team_Average_Rank);
+            sqlCommand.AddParameter("@Red_Team_Average_Rank", SqlDbType.TinyInt, match.Red_Team_Average_Rank);
+            sqlCommand.AddParameter("@Red_Team_Rounds_Won", SqlDbType.TinyInt, match.Red_Team_Rounds_Won);
+            sqlCommand.AddParameter("@Blue_Team_Win", SqlDbType.Bit, match.Blue_Team_Win);
+            sqlCommand.AddParameter("@Season_Id", SqlDbType.VarChar, match.Season_Id);
+
+            SqlExtensions.ExecuteNonQuery(sqlCommand);
         }
 
         public static Matches? GetRow(string matchId)

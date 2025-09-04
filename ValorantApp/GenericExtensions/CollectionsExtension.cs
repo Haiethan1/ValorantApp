@@ -2,7 +2,7 @@
 {
     public static class CollectionsExtension
     {
-        public static bool IsNullOrEmpty<T>(this IEnumerable<T> collection) 
+        public static bool IsNullOrEmpty<T>(this IEnumerable<T> collection)
         {
             if (collection == null || collection.Count() == 0)
             {

@@ -295,58 +295,58 @@ namespace ValorantApp.DiscordBot
         //[Command("heatmap")]
         //public async Task SendHeatmaps()
         //{
-            // TODO
-            //SocketUser userInfo = Context.User;
-            //if (userInfo.Id != 158031143231422466)
-            //{
-            //    return;
-            //}
+        // TODO
+        //SocketUser userInfo = Context.User;
+        //if (userInfo.Id != 158031143231422466)
+        //{
+        //    return;
+        //}
 
-            //if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
-            //{
-            //    await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
-            //    return;
-            //}
+        //if (!GetUserAndProgram(userInfo, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+        //{
+        //    await ReplyAsync($"Could not find Valorant User for Discord User {userInfo.Username}");
+        //    return;
+        //}
 
-            //// Assuming you have a method to get or generate heatmap images
-            //List<string> heatmapPaths = GetHeatmapImagePaths();
+        //// Assuming you have a method to get or generate heatmap images
+        //List<string> heatmapPaths = GetHeatmapImagePaths();
 
-            //// Limit the number of images per embedded message
-            //int imagesPerEmbed = 5;
+        //// Limit the number of images per embedded message
+        //int imagesPerEmbed = 5;
 
-            //for (int i = 0; i < heatmapPaths.Count; i += imagesPerEmbed)
-            //{
-            //    int remainingImages = Math.Min(imagesPerEmbed, heatmapPaths.Count - i);
-            //    var imageStreams = heatmapPaths.Skip(i).Take(remainingImages).Select(path => new FileStream(path, FileMode.Open));
+        //for (int i = 0; i < heatmapPaths.Count; i += imagesPerEmbed)
+        //{
+        //    int remainingImages = Math.Min(imagesPerEmbed, heatmapPaths.Count - i);
+        //    var imageStreams = heatmapPaths.Skip(i).Take(remainingImages).Select(path => new FileStream(path, FileMode.Open));
 
-            //    // Create an embedded message
-            //    var embedBuilder = new EmbedBuilder
-            //    {
-            //        Title = "Heatmaps for Rounds",
-            //        Color = Color.Green,
-            //    };
+        //    // Create an embedded message
+        //    var embedBuilder = new EmbedBuilder
+        //    {
+        //        Title = "Heatmaps for Rounds",
+        //        Color = Color.Green,
+        //    };
 
-            //    // Add fields for each heatmap
-            //    for (int j = 0; j < remainingImages; j++)
-            //    {
-            //        embedBuilder.AddField($"Round {i + j + 1}", $"[Heatmap {j + 1}](attachment://{j + 1}.png)");
-            //    }
+        //    // Add fields for each heatmap
+        //    for (int j = 0; j < remainingImages; j++)
+        //    {
+        //        embedBuilder.AddField($"Round {i + j + 1}", $"[Heatmap {j + 1}](attachment://{j + 1}.png)");
+        //    }
 
-            //    // Send the embedded message with images as attachments
-            //    var message = await Context.Channel.SendFilesAsync(imageStreams, imageStreams.Select((stream, index) => $"{index + 1}.png").ToArray(), embed: embedBuilder.Build()).FirstOrDefault();
+        //    // Send the embedded message with images as attachments
+        //    var message = await Context.Channel.SendFilesAsync(imageStreams, imageStreams.Select((stream, index) => $"{index + 1}.png").ToArray(), embed: embedBuilder.Build()).FirstOrDefault();
 
-            //    // Close the streams after sending
-            //    foreach (var stream in imageStreams)
-            //    {
-            //        stream.Close();
-            //    }
+        //    // Close the streams after sending
+        //    foreach (var stream in imageStreams)
+        //    {
+        //        stream.Close();
+        //    }
 
-            //    // Add reactions for navigation
-            //    if (message != null)
-            //    {
-            //        await message.AddReactionsAsync(new IEmote[] { new Emoji("⬅️"), new Emoji("➡️") });
-            //    }
-            //}
+        //    // Add reactions for navigation
+        //    if (message != null)
+        //    {
+        //        await message.AddReactionsAsync(new IEmote[] { new Emoji("⬅️"), new Emoji("➡️") });
+        //    }
+        //}
         //}
 
         private List<string> GetHeatmapImagePaths()
@@ -399,7 +399,7 @@ namespace ValorantApp.DiscordBot
             }
 
             int apiCallCount = 0;
-            while(true || apiCallCount == 100)
+            while (true || apiCallCount == 100)
             {
                 apiCallCount++;
                 MmrV2Json? lastMatch = valorantUser.GetMMR();

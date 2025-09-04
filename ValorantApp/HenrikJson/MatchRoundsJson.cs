@@ -4,7 +4,7 @@
     {
         public string? Winning_Team { get; set; }
         public string? End_Type { get; set; }
-        public bool? Bomb_Plated { get; set; }
+        public bool? Bomb_Planted { get; set; }
         public bool? Bomb_Defused { get; set; }
         public MatchRoundsPlantEventsJson? Plant_Events { get; set; }
         public MatchRoundsDefuseEventsJson? Defuse_Events { get; set; }
@@ -71,8 +71,8 @@
 
     public class RoundKillEventsJson
     {
-        public int Kill_Time_In_Round { get; set; }
-        public int Kill_Time_In_Match { get; set; }
+        public int? Kill_Time_In_Round { get; set; }
+        public int? Kill_Time_In_Match { get; set; }
         public string? Killer_Puuid { get; set; }
         public string? Killer_Display_Name { get; set; }
         public string? Killer_Team { get; set; }
@@ -125,13 +125,13 @@
         public string? Player_Display_Name { get; set; }
         public string? Player_Team { get; set; }
         public RoundLocationJson? Location { get; set; }
-        public double View_Radians { get; set; }
+        public double? View_Radians { get; set; }
     }
 
     public class RoundLocationJson
     {
-        public int X { get; set; }
-        public int Y { get; set; }
+        public int? X { get; set; }
+        public int? Y { get; set; }
     }
     #endregion
 }

@@ -3,7 +3,6 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.IO;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
@@ -64,7 +63,7 @@ namespace ValorantApp.DiscordBot
                 }
                 )
                 .WithTitle(mmr.Current_Data.CurrentTierPatched.Safe())
-                .WithDescription($"Current RR: {mmr.Current_Data.Ranking_In_Tier % 100}")
+                .WithDescription($"Current RR: {mmr.Current_Data.Ranking_In_Tier}")
                 .WithFooter
                 (new EmbedFooterBuilder
                 {
@@ -103,7 +102,7 @@ namespace ValorantApp.DiscordBot
             try
             {
                 // Try creating the user. This can throw an exception if the username, tagname, and affinity don't match to a valorant account
-                valorantUser = new BaseValorantUser(username, tagname, "na", userInfo.Id, _httpClientFactory, _servicesProvider.GetService<ILogger<BaseValorantProgram>>());
+                valorantUser = new BaseValorantUser(username, tagname, "na", userInfo.Id, _httpClientFactory, _servicesProvider.GetRequiredService<ILogger<BaseValorantProgram>>());
             }
             catch (Exception e)
             {
@@ -261,23 +260,23 @@ namespace ValorantApp.DiscordBot
 
             // Get the last 10 comp games in 72 hours
             DateTime nowUTC = DateTime.UtcNow;
-            IEnumerable<BaseValorantMatch> valorantMatches = valorantUser.GetBaseValorantMatch(nowUTC.AddHours(-72), nowUTC).Take(10);
+            IEnumerable<BaseValorantMatch> valorantMatches = valorantUser.GetBaseValorantMatch(nowUTC.AddHours(-72), nowUTC, true).Take(10);
 
             SelectMenuBuilder selectMenu = new SelectMenuBuilder()
                 .WithCustomId("match_selection")
                 .WithPlaceholder("Choose a competitive match")
                 .WithMinValues(1)
                 .WithMaxValues(1);
-                //.AddOption("Option 1", "option_1", "This is option 1")
-                //.AddOption("Option 2", "option_2", "This is option 2");
-                //.AddOption("Match 1", "match_id", "October 10, 2029. 10:59:00 PM");
+            //.AddOption("Option 1", "option_1", "This is option 1")
+            //.AddOption("Option 2", "option_2", "This is option 2");
+            //.AddOption("Match 1", "match_id", "October 10, 2029. 10:59:00 PM");
 
-            foreach(BaseValorantMatch valorantMatch in valorantMatches)
+            foreach (BaseValorantMatch valorantMatch in valorantMatches)
             {
                 MatchStats stats = valorantMatch.MatchStats;
                 Matches matches = valorantMatch.Matches;
                 string team = stats.Team ?? "Blue";
-                string rounds = team == "Blue" 
+                string rounds = team == "Blue"
                     ? $"{matches.Blue_Team_Rounds_Won ?? 0} : {matches.Red_Team_Rounds_Won ?? 0}"
                     : $"{matches.Red_Team_Rounds_Won ?? 0} : {matches.Blue_Team_Rounds_Won ?? 0}";
                 selectMenu.AddOption(
@@ -311,7 +310,7 @@ namespace ValorantApp.DiscordBot
 
             IUserMessage origMessage = ((IComponentInteraction)Context.Interaction).Message;
             string selectedMatch = selectedMatches.First();
-            
+
             // Select menus should time out after 5 hours.
             if (origMessage.Timestamp.UtcDateTime <= DateTime.UtcNow.AddHours(-5))
             {
