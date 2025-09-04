@@ -19,7 +19,7 @@ namespace ValorantApp.Valorant
             Console.WriteLine("Valorant user created");
         }
 
-        public  BaseValorantUser(ValorantUsers valorantUser, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
+        public BaseValorantUser(ValorantUsers valorantUser, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
         {
             HenrikApi = new HenrikApi(valorantUser.Val_username, valorantUser.Val_tagname, valorantUser.Val_affinity, valorantUser.Val_puuid, httpClientFactory, logger);
             puuid = HenrikApi.puuid;
@@ -157,7 +157,7 @@ namespace ValorantApp.Valorant
         #endregion Database - Channel Mappings
 
         #region Database - Valorant User
-        
+
         /// <summary>
         /// Persist the user. UserInfo must be set if it is a new user.
         /// </summary>

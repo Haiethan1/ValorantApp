@@ -1,10 +1,12 @@
-﻿using Discord;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 namespace ValorantApp.Valorant.Enums
 {
     public enum Agents
     {
+        [Description("Unknown")]
+        Unknown,
+
         [Description("Brimstone")]
         Brimstone,
 
@@ -78,7 +80,13 @@ namespace ValorantApp.Valorant.Enums
         Clove,
 
         [Description("Vyse")]
-        Vyse
+        Vyse,
+
+        [Description("Tejo")]
+        Tejo,
+
+        [Description("Waylay")]
+        Waylay,
     }
 
     public static class AgentsExtension
@@ -93,7 +101,7 @@ namespace ValorantApp.Valorant.Enums
                 }
             }
 
-            throw new ArgumentException("Invalid agent name: " + str, nameof(str));
+            return Agents.Unknown;
         }
 
         public static string StringFromAgent(this Agents agent)
@@ -136,6 +144,8 @@ namespace ValorantApp.Valorant.Enums
                 Agents.Iso => "https://static.wikia.nocookie.net/valorant/images/5/5f/Iso_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20231031131018",
                 Agents.Clove => "https://static.wikia.nocookie.net/valorant/images/0/0b/Clove_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20240326163704",
                 Agents.Vyse => "https://static.wikia.nocookie.net/valorant/images/d/d4/Vyse_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20240827165746",
+                Agents.Tejo => "https://static.wikia.nocookie.net/valorant/images/c/cc/Tejo_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20250107192526",
+                Agents.Waylay => "https://static.wikia.nocookie.net/valorant/images/4/4f/Waylay_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20250304181227",
                 _ => "",
             };
         }
@@ -175,6 +185,8 @@ namespace ValorantApp.Valorant.Enums
                 Agents.Viper => "<:viper:1251243975587794975>",
                 Agents.Vyse => "<:vyze:1280527291704807486>",
                 Agents.Yoru => "<:yoru:1251245478029299845>",
+                Agents.Tejo => "<:tejo:1347600071621087323>",
+                Agents.Waylay => "<:waylay:1347600072673595584>",
                 _ => agent.StringFromAgent(),
             };
         }

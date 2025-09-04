@@ -51,9 +51,11 @@
             { "E8A2", new EpisodeActInfos(8, 2, UTCHours(2024, 03, 05, 0), UTCHours(2024, 04, 30, 0)) },
             { "E8A3", new EpisodeActInfos(8, 3, UTCHours(2024, 04, 30, 0), UTCHours(2024, 06, 25, 0)) },
             { "E9A1", new EpisodeActInfos(9, 1, UTCHours(2024, 06, 25, 0), UTCHours(2024, 08, 27, 0)) },
-            { "E9A2", new EpisodeActInfos(9, 2, UTCHours(2024, 08, 27, 0), UTCHours(2024, 10, 23, 11)) },
-            { "E9A3", new EpisodeActInfos(9, 3, UTCHours(2024, 10, 23, 11), UTCHours(2025, 01, 07, 0)) },
-            { "E10A1", new EpisodeActInfos(10, 1, UTCHours(2025, 01, 07, 0), UTCHours(2030, 01, 07, 0)) }, // TODO: fill in episode 10 and after.
+            { "E9A2", new EpisodeActInfos(9, 2, UTCHours(2024, 08, 27, 0), UTCHours(2024, 10, 23, 0)) },
+            { "E9A3", new EpisodeActInfos(9, 3, UTCHours(2024, 10, 23, 0), UTCHours(2025, 01, 07, 0)) },
+            { "E25A1", new EpisodeActInfos(25, 1, UTCHours(2025, 01, 08, 0), UTCHours(2025, 03, 05, 0)) },
+            { "E25A2", new EpisodeActInfos(25, 1, UTCHours(2025, 03, 05, 0), UTCHours(2030, 04, 30, 0)) },
+            { "E25A3", new EpisodeActInfos(25, 1, UTCHours(2025, 04, 30, 0), UTCHours(2030, 01, 08, 0)) },
         };
 
         private static DateTime UTCHours(int year, int month, int day, int hours)
@@ -67,7 +69,7 @@
             {
                 return result;
             }
-            
+
             return null;
         }
 

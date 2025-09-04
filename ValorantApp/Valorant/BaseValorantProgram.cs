@@ -241,7 +241,7 @@ namespace ValorantApp.Valorant
 
                 HashSet<ulong> channelsToSend = [];
                 sortedByMatch.ForEach(x => channelsToSend.UnionWith(GetValorantUser(x.UserInfo.Val_puuid)?.ChannelIds ?? []));
-                
+
                 foreach (ulong channelId in channelsToSend)
                 {
                     List<BaseValorantMatch> sortedByMatchAndChannel = sortedByMatch.Where(x => GetValorantUser(x.UserInfo.Val_puuid)?.IsInChannel(channelId) ?? false).ToList();
@@ -371,74 +371,6 @@ namespace ValorantApp.Valorant
             return true;
         }
 
-        [Obsolete]
-        public bool UpdateMatchAllUsers(out ConcurrentDictionary<string, BaseValorantMatch> userMatchStats)
-        {
-            userMatchStats = new ConcurrentDictionary<string, BaseValorantMatch>();
-            if (Users == null || !Users.Any())
-            {
-                return false;
-            }
-
-            HashSet<string> updatedUsers = [];
-            (Dictionary<string, Task<MatchJson?>>, Dictionary<string, MmrHistoryJson>) MatchStatsAndMMRHistories = GetAllUsersMatchStats().Result;
-            Dictionary<string, Task<MatchJson?>> matchTasks = MatchStatsAndMMRHistories.Item1;
-            Dictionary<string, MmrHistoryJson> matchHistories = MatchStatsAndMMRHistories.Item2;
-
-            foreach (BaseValorantUser user in Users.Values)
-            {
-                if (user == null || updatedUsers.Contains(user.UserInfo.Val_puuid))
-                {
-                    continue;
-                }
-                try
-                {
-                    if (!matchTasks.ContainsKey(user.Puuid))
-                    {
-                        continue;
-                    }
-                    MatchJson? match = matchTasks[user.Puuid].Result;
-
-                    if (match == null
-                        || match.Metadata?.MatchId == null)
-                    {
-                        continue;
-                    }
-
-                    IEnumerable<BaseValorantUser> usersInMatch = CheckValorantUsersInMatch(match, updatedUsers);
-
-                    foreach (BaseValorantUser userInMatch in usersInMatch)
-                    {
-                        if (user == null
-                            || match == null
-                            || MatchStatsExtension.MatchIdExistsForUser(match.Metadata.MatchId, userInMatch.UserInfo.Val_puuid)
-                            )
-                        {
-                            continue;
-                        }
-
-                        MmrHistoryJson? mmrHistory = matchHistories.ContainsKey(userInMatch.Puuid) ? matchHistories[userInMatch.Puuid] : userInMatch.GetMatchMMR(match.Metadata.MatchId);
-
-                        if (CheckMatch(match, mmrHistory, userInMatch.UserInfo.Val_puuid, userMatchStats, out _))
-                        {
-                            updatedUsers.Add(userInMatch.UserInfo.Val_puuid);
-                            Logger.LogInformation($"Match stats updated for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}. Match ID: {match.Metadata.MatchId}, Match Date: {match.Metadata.Game_Start_Patched.Safe()}");
-                        }
-                        else
-                        {
-                            Logger.LogInformation($"Match stats did not update for {userInMatch.UserInfo.Val_username}#{userInMatch.UserInfo.Val_tagname}.");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError($"Error: {ex.Message} - when updating user {user.UserInfo.Val_username}");
-                }
-            }
-
-            return true;
-        }
-
         private bool CheckMatch(MatchJson? match, MmrHistoryJson? mmrHistory, string puuid, ConcurrentDictionary<string, BaseValorantMatch> userMatchStats, out string errorMessage)
         {
             errorMessage = string.Empty;
@@ -454,8 +386,9 @@ namespace ValorantApp.Valorant
             }
 
             MatchPlayerJson? player = match.Players?.All_Players?.FirstOrDefault(x => x.Puuid == puuid);
-            if (ModesExtension.ModeFromString(match.Metadata?.Mode ?? "") == Modes.Competitive 
-                && mmrHistory == null 
+            bool isComp = ModesExtension.ModeFromString(match.Metadata?.Mode ?? "") == Modes.Competitive;
+            if (isComp
+                && mmrHistory == null
                 && (player?.CurrentTier ?? 0) != 0)
             {
                 errorMessage = "Competitive game with a null mmr history and has a rank";
@@ -485,6 +418,15 @@ namespace ValorantApp.Valorant
                     return false;
                 }
                 MatchesExtension.InsertRow(matches);
+
+                // A new competitive match should insert all of the puuids into ValorantPlayers and MatchPlayers
+                if (isComp)
+                {
+                    // Insert all users
+                    InsertValorantUsersInMatch(match);
+                    // Insert all events asynchronously
+                    InsertMatchEventsAndPlayerLocations(match);
+                }
             }
 
             if (matches == null)
@@ -508,9 +450,11 @@ namespace ValorantApp.Valorant
             {
                 valorantUser.UpdateUser(player.Name, player.Tag);
             }
-            
+
             return true;
         }
+
+        #region Check Match - Helpers
 
         private IEnumerable<BaseValorantUser> CheckValorantUsersInMatch(MatchJson? match, HashSet<string>? updatedPuuids)
         {
@@ -527,7 +471,7 @@ namespace ValorantApp.Valorant
 
             foreach (MatchPlayerJson matchPlayer in match.Players?.All_Players ?? Array.Empty<MatchPlayerJson>())
             {
-                
+
                 if (matchPlayer == null
                     || matchPlayer.Puuid == null
                     || updatedPuuids.Contains(matchPlayer.Puuid)
@@ -549,6 +493,184 @@ namespace ValorantApp.Valorant
             return usersInMatch;
         }
 
+        private void InsertValorantUsersInMatch(MatchJson? match)
+        {
+            if (match?.Players?.All_Players == null
+                || match?.Metadata?.MatchId == null)
+            {
+                return;
+            }
+
+            string matchId = match.Metadata.MatchId;
+
+            foreach (MatchPlayerJson matchPlayer in match.Players?.All_Players ?? [])
+            {
+                if (matchPlayer?.Puuid == null
+                    || matchPlayer.Character == null)
+                {
+                    continue;
+                }
+
+                byte? team = matchPlayer.Team == null ? null : (byte)TeamExtension.TeamFromString(matchPlayer.Team);
+                Agents agent = AgentsExtension.AgentFromString(matchPlayer.Character);
+
+                try
+                {
+                    ValorantPlayersExtension.InsertRow(matchPlayer.Puuid);
+                    MatchPlayersExtension.InsertRow(matchId, matchPlayer.Puuid, team, agent);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"Failed to insert player row for puuid={matchPlayer.Puuid}. {ex.Message}");
+                }
+            }
+        }
+
+        private async Task InsertMatchEventsAndPlayerLocations(MatchJson? match)
+        {
+            await Task.Run(() =>
+            {
+                if (match?.Rounds == null || match?.Metadata?.MatchId == null)
+                {
+                    return;
+                }
+
+                string matchId = match.Metadata.MatchId;
+
+                for (int i = 0; i < match.Rounds.Length; i++)
+                {
+                    MatchRoundsJson round = match.Rounds[i];
+
+                    try
+                    {
+                        if (round.Bomb_Planted == true && round.Plant_Events?.Planted_By?.Puuid != null)
+                        {
+                            MatchRoundsPlantEventsJson plantEvent = round.Plant_Events;
+                            if (MatchEventsExtension.InsertRow(matchId, i, EventType.Plant, plantEvent.Plant_Time_In_Round ?? 0, null, plantEvent.Planted_By.Puuid, null, out long plantEventIndex))
+                            {
+                                InsertPlayerLocations(plantEvent.Player_Locations_On_Plant, plantEventIndex);
+                            }
+                            else
+                            {
+                                Logger.LogWarning($"Failed to insert plant event row for match={match.Metadata?.MatchId ?? "unknown"} round={i}.");
+                            }
+                        }
+
+                        if (round.Bomb_Defused == true && round.Defuse_Events?.Defused_By?.Puuid != null)
+                        {
+                            MatchRoundsDefuseEventsJson defuseEvent = round.Defuse_Events;
+                            if (MatchEventsExtension.InsertRow(matchId, i, EventType.Defuse, defuseEvent.Defuse_Time_In_Round ?? 0, null, defuseEvent.Defused_By.Puuid, null, out long defuseEventIndex))
+                            {
+                                InsertPlayerLocations(defuseEvent.Player_Locations_On_Defuse, defuseEventIndex);
+                            }
+                            else
+                            {
+                                Logger.LogWarning($"Failed to insert defuse event row for match={match.Metadata?.MatchId ?? "unknown"} round={i}.");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError($"Failed to insert event row for match={match.Metadata?.MatchId ?? "unknown"} round={i}. {ex.Message}");
+                    }
+
+                    InsertKillEventsAndPlayerLocations(round.Player_Stats, i, matchId);
+                }
+            });
+
+        }
+
+        private void InsertKillEventsAndPlayerLocations(MatchRoundPlayerStatsJson[]? playerStats, int round, string matchId)
+        {
+            if (playerStats == null || playerStats.IsNullOrEmpty())
+            {
+                return;
+            }
+
+            foreach (MatchRoundPlayerStatsJson playerStat in playerStats)
+            {
+                if (playerStat.Kill_Events == null
+                    || playerStat.Kill_Events.IsNullOrEmpty()
+                    || playerStat.Player_Puuid == null)
+                {
+                    continue;
+                }
+
+                string puuid = playerStat.Player_Puuid;
+
+                foreach (RoundKillEventsJson killEvent in playerStat.Kill_Events)
+                {
+                    if (killEvent.Kill_Time_In_Round == null)
+                    {
+                        continue;
+                    }
+
+                    if (killEvent.Player_Locations_On_kill != null
+                        && killEvent.Victim_Puuid != null
+                        && killEvent.Victim_Death_Location != null)
+                    {
+                        RoundPlayerLocationOnEventJson victimLocationEvent = new()
+                        { 
+                            Location = killEvent.Victim_Death_Location,
+                            Player_Puuid = killEvent.Victim_Puuid,
+                            View_Radians = null,
+                        };
+
+                        killEvent.Player_Locations_On_kill = [.. killEvent.Player_Locations_On_kill, victimLocationEvent];
+                    }
+
+                    try
+                    {
+                        if (MatchEventsExtension.InsertRow(matchId, round, EventType.Kill, (int)killEvent.Kill_Time_In_Round, killEvent.Kill_Time_In_Match, killEvent.Killer_Puuid, killEvent.Victim_Puuid, out long eventIndex))
+                        {
+                            InsertPlayerLocations(killEvent.Player_Locations_On_kill, eventIndex);
+                        }
+                        else
+                        {
+                            Logger.LogWarning($"Failed to insert kill events row for round={round} puuid={puuid}.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError($"Failed to insert kill events row for round={round} puuid={puuid}. {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private void InsertPlayerLocations(RoundPlayerLocationOnEventJson[]? playerLocations, long eventIndex)
+        {
+            if (playerLocations == null || playerLocations.IsNullOrEmpty())
+            {
+                return;
+            }
+
+            foreach (RoundPlayerLocationOnEventJson playerLocation in playerLocations)
+            {
+                if (playerLocation.Player_Puuid == null
+                    || playerLocation.Location?.X == null
+                    || playerLocation.Location.Y == null)
+                {
+                    continue;
+                }
+
+                string puuid = playerLocation.Player_Puuid;
+                int x = (int)playerLocation.Location.X;
+                int y = (int)playerLocation.Location.Y;
+                double? viewRadians = playerLocation.View_Radians;
+
+                try
+                {
+                    PlayerLocationsExtension.InsertRow(eventIndex, puuid, x, y, viewRadians);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"Failed to insert player locations row for eventId={eventIndex} puuid={puuid}. {ex.Message}");
+                }
+            }
+
+        }
+
         private async Task<(Dictionary<string, Task<MatchJson?>>, Dictionary<string, MmrHistoryJson>)> GetQueueUsersMatchStats(IEnumerable<string> users)
         {
             Dictionary<string, Task<MatchJson?>> matchTasks = new();
@@ -567,54 +689,7 @@ namespace ValorantApp.Valorant
             return (matchTasks, new Dictionary<string, MmrHistoryJson>());
         }
 
-        [Obsolete]
-        private async Task<(Dictionary<string, Task<MatchJson?>>, Dictionary<string, MmrHistoryJson>)> GetAllUsersMatchStats()
-        {
-            //Dictionary<string,MmrHistoryJson> mmrHistories = new Dictionary<string, MmrHistoryJson>();
-            //Dictionary<string, Task<MmrHistoryJson?>> mmrHistoryTasks = new();
-            //foreach (BaseValorantUser user in Users.Values)
-            //{
-            //    mmrHistoryTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatchMMR()));
-            //}
-
-            //await Task.WhenAll(mmrHistoryTasks.Values.ToArray());
-
-            //HashSet<string> usersInNewMatch = new HashSet<string>();
-
-            //foreach(KeyValuePair<string, Task<MmrHistoryJson?>> mmrHistoryTask in mmrHistoryTasks)
-            //{
-            //    MmrHistoryJson? mmr = mmrHistoryTask.Value.Result;
-            //    if (mmr == null 
-            //        || mmr.Match_id == null 
-            //        || MatchStatsExtension.MatchIdExistsForUser(mmr.Match_id, mmrHistoryTask.Key))
-            //    {
-            //        continue;
-            //    }
-            //    usersInNewMatch.Add(mmrHistoryTask.Key);
-            //    mmrHistories.Add(mmrHistoryTask.Key, mmr);
-            //}
-
-            //Dictionary<string, Task<MatchJson?>> matchTasks = new();
-            //foreach (BaseValorantUser user in Users.Values)
-            //{
-            //    if (!usersInNewMatch.Contains(user.Puuid))
-            //    {
-            //        continue;
-            //    }
-            //    matchTasks.Add(user.Puuid, Task.Run(() => user.GetLastMatch()));
-            //}
-
-            //await Task.WhenAll(matchTasks.Values.ToArray());
-            //return (matchTasks, mmrHistories);
-            Dictionary<string, Task<MatchJson?>> matchTasks = new();
-            foreach (BaseValorantUser user in Users.Values)
-            {
-                matchTasks.Add(user.Puuid, Task.Run(user.GetLastMatch));
-            }
-
-            await Task.WhenAll(matchTasks.Values.ToArray());
-            return (matchTasks, new Dictionary<string, MmrHistoryJson>() );
-        }
+        #region Check Matches - Helpers Discord Message
 
         private async Task<bool> SendSingleMatch(BaseValorantMatch baseValorantMatch, ulong channelId)
         {
@@ -626,7 +701,7 @@ namespace ValorantApp.Valorant
 
             Logger.LogInformation($"{nameof(SendScheduledMessage)}: Single user in match");
             baseValorantMatch.LogMatch();
-            
+
             string userUpdated = $"<@{baseValorantMatch.UserInfo.Disc_id}>";
             MatchStats stats = baseValorantMatch.MatchStats;
             Matches matches = baseValorantMatch.Matches;
@@ -653,7 +728,7 @@ namespace ValorantApp.Valorant
             }
 
             Logger.LogInformation($"{nameof(SendScheduledMessage)}: Multiple users in match");
-            
+
             string userUpdated = "";
             MatchStats setupMatchStats = baseValorantMatches.First().MatchStats;
             Matches setupMatches = baseValorantMatches.First().Matches;
@@ -716,7 +791,11 @@ namespace ValorantApp.Valorant
             embed.WithUrl($"https://tracker.gg/valorant/match/{matches.Match_Id}");
         }
 
-        #endregion
+        #endregion Check Matches - Helpers Discord Message
+
+        #endregion Check Matches - Helpers
+
+        #endregion Check Matches
 
         #region Check users
 
@@ -824,6 +903,7 @@ namespace ValorantApp.Valorant
                 }
 
                 await UpdateDiscordBotConfig();
+                CleanUpMatchEvents();
             }
             catch (Exception ex)
             {
@@ -900,7 +980,7 @@ namespace ValorantApp.Valorant
                 double averageHeadshots = sortedSeasonMatchStats.Average(x => x.MatchStats.Headshots);
                 double averageBodyshots = sortedSeasonMatchStats.Average(x => x.MatchStats.Bodyshots);
                 double averageLegshots = 100.0 - (averageHeadshots + averageBodyshots);
-                string touchGrass = numMinutes/(endDateUTC - startDateUTC).TotalMinutes * 100 > ValorantConstants.TOUCH_GRASS_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.TouchGrass.Id()}" : string.Empty;
+                string touchGrass = numMinutes / (endDateUTC - startDateUTC).TotalMinutes * 100 > ValorantConstants.TOUCH_GRASS_THRESHOLD_PERCENT ? $" {MemeEmojisEnum.TouchGrass.Id()}" : string.Empty;
                 string toeShooter = averageLegshots >= ValorantConstants.LEGSHOT_THRESHOLD_PERCENT && averageLegshots != 100.0 ? $" {MemeEmojisEnum.ToeShooter.Id()}" : string.Empty;
 
                 Logger.LogInformation($@"{nameof(SetupReport)}: {user.UserInfo.Val_username}#{user.UserInfo.Val_tagname}
@@ -996,7 +1076,17 @@ namespace ValorantApp.Valorant
         {
             int serverCount = _client.Guilds.Count;
             int matchesFound = MatchStatsExtension.MatchTotalCount();
-            await _client.SetGameAsync($"Valorant Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)}", type: ActivityType.CustomStatus);
+            int eventsFound = MatchEventsExtension.EventTotalCount();
+            await _client.SetGameAsync($"Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)} | Events Processed (New) {eventsFound}", type: ActivityType.CustomStatus);
+        }
+
+        /// <summary>
+        /// Delete MatchEvents rows older than 90 days
+        /// </summary>
+        /// <returns></returns>
+        public void CleanUpMatchEvents()
+        {
+            MatchEventsExtension.DeleteRows(90);
         }
 
         #endregion Daily Check

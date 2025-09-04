@@ -39,6 +39,9 @@ namespace ValorantApp.Valorant.Enums
         [Description("Abyss")]
         Abyss,
 
+        [Description("Corrode")]
+        Corrode,
+
         #endregion
 
         #region Team Deathmatch
@@ -95,6 +98,8 @@ namespace ValorantApp.Valorant.Enums
                     return Maps.Piazza;
                 case "Abyss":
                     return Maps.Abyss;
+                case "Corrode":
+                    return Maps.Corrode;
                 default:
                     return Maps.Unknown;
             }
@@ -132,6 +137,8 @@ namespace ValorantApp.Valorant.Enums
                     return "Piazza";
                 case Maps.Abyss:
                     return "Abyss";
+                case Maps.Corrode:
+                    return "Corrode";
                 default:
                     return "";
             }
@@ -169,6 +176,8 @@ namespace ValorantApp.Valorant.Enums
                     return "https://static.wikia.nocookie.net/valorant/images/e/e2/Piazza_Splash.png/revision/latest/scale-to-width-down/1000?cb=20230627133044";
                 case Maps.Abyss:
                     return "https://static.wikia.nocookie.net/valorant/images/6/61/Loading_Screen_Abyss.png/revision/latest/scale-to-width-down/1000?cb=20240612152007";
+                case Maps.Corrode:
+                    return "https://static.wikia.nocookie.net/valorant/images/6/6f/Loading_Screen_Corrode.png/revision/latest/scale-to-width-down/1000?cb=20250624201813";
                 default:
                     return "";
             }

@@ -10,7 +10,7 @@ namespace ValorantApp.Database.Extensions
             try
             {
                 StringBuilder createTableQuery = new StringBuilder();
-                using var connection = new SqliteConnection(connectionString);
+                using SqliteConnection connection = new SqliteConnection(connectionString);
                 connection.Open();
 
                 createTableQuery.AppendLine(ValorantUsersExtension.CreateTable());
@@ -19,7 +19,7 @@ namespace ValorantApp.Database.Extensions
                 createTableQuery.AppendLine(ValorantChannelMappingsExtension.CreateTable());
 
 
-                using var createTableCommand = new SqliteCommand(createTableQuery.ToString(), connection);
+                using SqliteCommand createTableCommand = new SqliteCommand(createTableQuery.ToString(), connection);
                 createTableCommand.ExecuteNonQuery();
 
             }

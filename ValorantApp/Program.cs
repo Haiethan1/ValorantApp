@@ -2,7 +2,6 @@
 using Discord.Commands;
 using Discord.Interactions;
 using Discord.Net;
-using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -80,7 +79,7 @@ namespace ValorantApp
             //services.AddSingleton<InteractionHandler>();
             services.AddSingleton<ValorantApp>();
             services.AddSingleton<DiscordBotSlashCommands>();
-            
+
             //services.AddLogging()
 
             ServiceProvider serviceProvider = services.BuildServiceProvider();
@@ -104,7 +103,7 @@ namespace ValorantApp
         public async Task RunBotAsync()
         {
             string? token = ConfigurationManager.AppSettings[Debugger.IsAttached ? "DevelopBotToken" : "BotToken"];
-            
+
             _client.Log += LogAsync;
 
             await RegisterCommandsAsync();
