@@ -55,7 +55,7 @@ High-level system design and data flow.
 **Components:**
 - Discord Bot
 - Background polling service
-- Riot Games API
+- Henrik API
 - SQL Server (Dockerized)
 
 ---
