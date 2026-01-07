@@ -87,6 +87,9 @@ namespace ValorantApp.Valorant.Enums
 
         [Description("Waylay")]
         Waylay,
+
+        [Description("Veto")]
+        Veto
     }
 
     public static class AgentsExtension
@@ -146,6 +149,7 @@ namespace ValorantApp.Valorant.Enums
                 Agents.Vyse => "https://static.wikia.nocookie.net/valorant/images/d/d4/Vyse_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20240827165746",
                 Agents.Tejo => "https://static.wikia.nocookie.net/valorant/images/c/cc/Tejo_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20250107192526",
                 Agents.Waylay => "https://static.wikia.nocookie.net/valorant/images/4/4f/Waylay_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20250304181227",
+                Agents.Veto => "https://static.wikia.nocookie.net/valorant/images/0/04/Veto_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20251007182704",
                 _ => "",
             };
         }
@@ -187,6 +191,7 @@ namespace ValorantApp.Valorant.Enums
                 Agents.Yoru => "<:yoru:1251245478029299845>",
                 Agents.Tejo => "<:tejo:1347600071621087323>",
                 Agents.Waylay => "<:waylay:1347600072673595584>",
+                Agents.Veto => "<:veto:1425646755235758141>",
                 _ => agent.StringFromAgent(),
             };
         }
