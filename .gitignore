@@ -1,5 +1,14 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Build results
 */bin/
 */obj/
-.vs
+
+# Editor files
 .editorconfig
+
+# Temporary files
 *.temp
