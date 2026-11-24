@@ -21,4 +21,10 @@
     <ProjectReference Include="..\ValorantApp\ValorantApp.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Snapshots\*.approved.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

@@ -50,6 +50,7 @@ selects the production bot token. See "Test mode" below.
 | Component | `DbSettingsTests`, `DevToolsTests`, `BaseValorantProgramTests`, `LinkCommandServiceTests`, `AppStartupTests` (DI composition) | Real DAOs against the temp SQLite DB, `RecordingNotifier` for Discord. `LinkCommandServiceTests` pins every message of `/addme`, `/addchannel`, `/deletechannel`, `/deleteuser`. |
 | End-to-end (in-process) | `PollTickE2ETests`, `DailyReportE2ETests` | Real engine, stubbed `HenrikApiClient` HTTP client, temp SQLite, `RecordingNotifier`, and an injected clock. Poll tick: new match stored and posted once, same match polled twice posts once, two tracked players post one combined recap, the 3-day cutoff on both sides. Daily job: the exact report window boundaries and the act-end report. |
 | End-to-end (out-of-process) | `OutOfProcessE2ETests` | Starts the real `ValorantApp.dll` as a child process in test mode, with a fake HenrikDev server on loopback (`HttpListener`) and a seeded temp SQLite file. Asserts what lands in the recorder file and the DB, that a re-polled match is not posted twice, and that test mode refuses a non-loopback URL. This is the "build it, run it, prove it works" check for agents. The helper always sets `VALORANTAPP_TESTMODE=1`; never add a test that launches the executable without it. |
+| Snapshot | `EmbedSnapshotTests` | Approval-style snapshot tests of full Discord embeds (single/combined non-comp recaps, competitive recaps, tier changes, daily and act reports). |
 | Real Discord (local only) | `RealDiscordSmokeTests` | Opt-in, see below. Skipped by default and in CI. |
 
 Shared helpers: `RecordingNotifier` (fake `IDiscordNotifier`: records sent embeds and statuses), `FixedTimeProvider`
@@ -91,6 +92,17 @@ status. It checks what fakes cannot (the real client against real Discord). It i
 It refuses to run as a bot whose name does not contain "develop" (override with `VALORANTAPP_SMOKE_ALLOW_ANY_BOT=1`
 only if you know why). Run just it with `dotnet test --filter TestCategory=RealDiscord`. Slash commands cannot be
 triggered by a bot, so their logic is tested through `LinkCommandService` instead.
+
+## Snapshot tests
+`ValorantAppTests/EmbedSnapshotTests.cs` runs approval-style tests of complete Discord embeds across all primary bot notifications (non-competitive single recap, two-player combined recap, competitive recap, competitive promotion and demotion tier-change embeds, daily report summary, and act-end report).
+- Embed snapshots are serialized to indented JSON capturing all visible fields: `title`, `description`, `url`, `color`, `thumbnailUrl`, `imageUrl`, `author`, `footer`, `timestampPresence`, and `fields` (name/value/inline).
+- Approved baselines live in `ValorantAppTests/Snapshots/*.approved.json` and copy to the build output directory via `ValorantAppTests.csproj`.
+- If an approved file is missing or differs from test output, `<name>.received.json` is written next to it and the test fails with a clear message.
+- To generate or update approved snapshots, set `VALORANTAPP_UPDATE_SNAPSHOTS=1` and run the tests:
+  ```bash
+  VALORANTAPP_UPDATE_SNAPSHOTS=1 dotnet test --filter EmbedSnapshotTests
+  ```
+- All snapshots are deterministic: they use injected `FixedTimeProvider` instances and fake fixtures with no wall-clock dependencies or randomized identifiers.
 
 ## Writing tests
 - **Static state:** DAOs are static and the temp DB is shared across the run, so tests must not run in parallel
