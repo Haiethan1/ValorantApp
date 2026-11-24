@@ -19,14 +19,19 @@ namespace ValorantApp.Valorant
 
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IDiscordNotifier _notifier;
+        private readonly TimeProvider _timeProvider;
         private readonly ILogger<BaseValorantProgram> Logger;
 
-        public BaseValorantProgram(IDiscordNotifier notifier, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
+        /// <summary>Current UTC time from the injected clock (the system clock in production).</summary>
+        private DateTime NowUtc => _timeProvider.GetUtcNow().UtcDateTime;
+
+        public BaseValorantProgram(IDiscordNotifier notifier, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger, TimeProvider? timeProvider = null)
         {
             Users = new();
             QueueUsers = new();
             _httpClientFactory = httpClientFactory;
             _notifier = notifier;
+            _timeProvider = timeProvider ?? TimeProvider.System;
             Logger = logger;
             ReloadFromDB();
         }
@@ -45,7 +50,7 @@ namespace ValorantApp.Valorant
                 }
 
                 ScheduledMessageTimer = new Timer(SendScheduledMessageTimer, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
-                DailyCheckTimer = new Timer(SendDailyCheckTimer, null, TimerUtils.TimeSpanUntilUTC(11, 0, 0), TimeSpan.FromDays(1));
+                DailyCheckTimer = new Timer(SendDailyCheckTimer, null, TimerUtils.TimeSpanUntilUTC(11, 0, 0, NowUtc), TimeSpan.FromDays(1));
             }
         }
 
@@ -342,7 +347,7 @@ namespace ValorantApp.Valorant
                             // other user's mmr history might not have this match anymore.
                             // Not a system error, as there will be many users who haven't played in 3 days.
                             if (DateTime.TryParse(match.Metadata.Game_Start_Patched, out DateTime gameStartPatched)
-                                && gameStartPatched < DateTime.UtcNow.AddDays(-3))
+                                && gameStartPatched < NowUtc.AddDays(-3))
                             {
                                 continue;
                             }
@@ -850,7 +855,7 @@ namespace ValorantApp.Valorant
                 if (valorantUser.UpdateCurrentTier(match.MatchStats, match.Matches, out int previousTier))
                 {
                     int currentTier = valorantUser.CurrentTier ?? 0;
-                    IEnumerable<BaseValorantMatch> seasonMatchStats = valorantUser.GetBaseValorantMatchBySeason(EpisodeActExtension.GetEpisodeActInfosForDate(DateTime.UtcNow));
+                    IEnumerable<BaseValorantMatch> seasonMatchStats = valorantUser.GetBaseValorantMatchBySeason(EpisodeActExtension.GetEpisodeActInfosForDate(NowUtc));
                     IEnumerable<BaseValorantMatch> seasonMatchStatsPreviousTier = seasonMatchStats.Where(x => x.MatchStats.Current_Tier?.Equals((byte)previousTier) ?? false);
 
                     string userUpdated = $"<@{match.UserInfo.Disc_id}>";
@@ -928,7 +933,7 @@ namespace ValorantApp.Valorant
         /// </summary>
         internal async Task RunDailyCheckAsync()
         {
-            EpisodeActInfos? episodeActInfos = EpisodeActExtension.GetEpisodeActInfosForEndDate(DateTime.UtcNow);
+            EpisodeActInfos? episodeActInfos = EpisodeActExtension.GetEpisodeActInfosForEndDate(NowUtc);
             if (episodeActInfos == null)
             {
                 await SendDailyReport();
@@ -944,7 +949,7 @@ namespace ValorantApp.Valorant
 
         private async Task SendDailyReport()
         {
-            DateTime nowUTC = DateTime.UtcNow;
+            DateTime nowUTC = NowUtc;
             DateTime endDateUTC = new(nowUTC.Year, nowUTC.Month, nowUTC.Day, 11, 0, 0, DateTimeKind.Utc);
             DateTime startDateUTC = endDateUTC.AddDays(-1).AddSeconds(1);
 

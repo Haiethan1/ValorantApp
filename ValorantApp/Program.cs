@@ -70,6 +70,7 @@ namespace ValorantApp
             });
             services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
             services.UseMinimalHttpLogger();
+            services.AddSingleton(TimeProvider.System);
             services.AddSingleton<IDiscordNotifier, DiscordNotifier>();
             services.AddSingleton<BaseValorantProgram>();
             services.AddSingleton(new DiscordSocketClient(discordSocketConfig));

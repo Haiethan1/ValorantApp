@@ -88,7 +88,7 @@ namespace ValorantAppTests
             }
         }
 
-        private static (BaseValorantProgram Program, RecordingNotifier Notifier, StubHttpMessageHandler Handler) CreateProgram(string matchesJson)
+        private static (BaseValorantProgram Program, RecordingNotifier Notifier, StubHttpMessageHandler Handler) CreateProgram(string matchesJson, TimeProvider? timeProvider = null)
         {
             var handler = new StubHttpMessageHandler(matchesJson);
             var httpClient = new HttpClient(handler)
@@ -100,7 +100,7 @@ namespace ValorantAppTests
             factoryMock.Setup(x => x.CreateClient("HenrikApiClient")).Returns(httpClient);
 
             var notifier = new RecordingNotifier();
-            var program = new BaseValorantProgram(notifier, factoryMock.Object, NullLogger<BaseValorantProgram>.Instance);
+            var program = new BaseValorantProgram(notifier, factoryMock.Object, NullLogger<BaseValorantProgram>.Instance, timeProvider);
             return (program, notifier, handler);
         }
 
@@ -194,6 +194,37 @@ namespace ValorantAppTests
                 await program.RunPollTickAsync();
                 Assert.AreEqual(2, MatchesRequests(), "Tick 2 must actually poll the user again, otherwise this test proves nothing");
                 Assert.AreEqual(1, notifier.Sent.Count, "Second poll tick must not re-post the match");
+            }
+            finally
+            {
+                DevToolsExtension.DeleteMatchEverywhere(matchId);
+                CleanUser(EthanPuuid, EthanDiscordId, TestChannelId);
+            }
+        }
+
+        // The poller ignores matches that started more than 3 days ago (BaseValorantProgram, "too old" check).
+        // A fixed clock makes both sides of that boundary testable.
+        [DataTestMethod]
+        [DataRow(-3 * 24 * 60 - 1, false, DisplayName = "1 minute outside the 3 day window: ignored")]
+        [DataRow(-3 * 24 * 60 + 1, true, DisplayName = "1 minute inside the 3 day window: processed")]
+        public async Task PollTick_ThreeDayCutoff_UsesInjectedClock(int matchStartOffsetMinutes, bool expectProcessed)
+        {
+            var clock = new FixedTimeProvider(new DateTimeOffset(2026, 11, 23, 12, 0, 0, TimeSpan.Zero));
+            DateTime matchTime = clock.GetUtcNow().UtcDateTime.AddMinutes(matchStartOffsetMinutes);
+            var (fixtureJson, matchId, _) = LoadRewrittenFixture(matchTime);
+
+            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+
+            try
+            {
+                var (program, notifier, handler) = CreateProgram(fixtureJson, clock);
+
+                await program.RunPollTickAsync();
+
+                // Prove the user really was polled, so "ignored" is the cutoff and not an empty queue.
+                Assert.AreEqual(1, handler.RequestedUrls.Count(u => u.Contains("v3/by-puuid/matches", StringComparison.OrdinalIgnoreCase)));
+                Assert.AreEqual(expectProcessed, MatchesExtension.MatchIdExists(matchId));
+                Assert.AreEqual(expectProcessed ? 1 : 0, notifier.Sent.Count);
             }
             finally
             {
