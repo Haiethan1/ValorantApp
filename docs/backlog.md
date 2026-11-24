@@ -43,10 +43,12 @@ This file covers code-level debt. When an item gets an issue, link it and remove
 - Dead code: `DiscordBot/DiscordBotCommand.cs`. Obsolete `MatchStats` columns (map/mode/rounds/length,
   moved to `Matches` in Mar 2024).
 - SQLite connection string declares `providerName="System.Data.SqlClient"` (cosmetic, unused).
-- No CI, no Dockerfile, no automated backups (SQL Server has none at all).
+- CI runs build + tests (no deploy step). No Dockerfile, no automated backups (SQL Server has none at all).
 - No process supervision on the Pi: the bot runs under `nohup` and stays down after a reboot or crash
   until someone starts it by hand. A systemd unit (`Restart=on-failure`, enabled at boot) would fix
   both, and would also replace the unbounded `nohup.out` with journald.
-- Test coverage: 4 HenrikApi tests only. Nothing for DAO, polling, or Discord handlers.
+- Test coverage is ~52% lines (see docs/testing.md "Not covered yet"). Biggest gaps: SQL Server dual writes, API failure handling, slash command handlers other than linking.
+- **Daily/act report can be silently dropped:** `SendReport` (`BaseValorantProgram.cs` ~1077) paginates by 20 fields only. With worst-case animated emojis a page reaches ~6100+ chars, Discord.Net throws (limit 6000), and the `catch` logs it and drops that channel's report. Pinned by `[Ignore]`d test in `EmbedLimitTests`; fix by also splitting on total embed length, then un-ignore.
+- Rank tiers 0-2 (unranked) have no name mapping (`ToDescriptionString` returns the number). Pinned by an `[Ignore]`d test in `GameContentGuardTests`.
 - Misc TODOs: `ITable.cs:37`, `MatchStatsExtension.cs:257,278,521`, `BaseValorantProgram.cs:291,378,804`,
   `RankEmojisEnum.cs:68`, `HenrikApiTests.cs:293`.
