@@ -217,10 +217,9 @@ namespace ValorantAppTests
             DateTime matchTime = new(2026, 11, 23, 11, 30, 0, DateTimeKind.Utc);
             var (fixtureJson, matchId, _) = LoadRewrittenNonCompFixture(matchTime);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(fixtureJson, timeProvider: clock);
 
                 await program.RunPollTickAsync();
@@ -242,11 +241,10 @@ namespace ValorantAppTests
             DateTime matchTime = new(2026, 11, 23, 11, 30, 0, DateTimeKind.Utc);
             var (fixtureJson, matchId, _) = LoadRewrittenNonCompFixture(matchTime);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-            SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(fixtureJson, timeProvider: clock);
 
                 await program.RunPollTickAsync();
@@ -270,10 +268,9 @@ namespace ValorantAppTests
             var (matchesJson, matchId, _) = LoadRewrittenCompMatchFixture(matchTime);
             string mmrHistoryJson = LoadRewrittenMmrHistoryFixture(matchId, newTier: 22, rrChange: 18);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
@@ -297,10 +294,9 @@ namespace ValorantAppTests
             // CurrentTier in fixture is 22; promotion to 23
             string mmrHistoryJson = LoadRewrittenMmrHistoryFixture(matchId, newTier: 23, rrChange: 21);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
@@ -324,10 +320,9 @@ namespace ValorantAppTests
             // CurrentTier in fixture is 22; demotion to 21
             string mmrHistoryJson = LoadRewrittenMmrHistoryFixture(matchId, newTier: 21, rrChange: -19);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
@@ -349,12 +344,12 @@ namespace ValorantAppTests
             DateTime matchTime = new(2026, 11, 23, 5, 0, 0, DateTimeKind.Utc);
             var (match, stats, matchId) = CreateTestDailyMatch(matchTime);
 
-            SeedUser();
-            MatchesExtension.InsertRow(match);
-            MatchStatsExtension.InsertRow(stats);
-
             try
             {
+                SeedUser();
+                MatchesExtension.InsertRow(match);
+                MatchStatsExtension.InsertRow(stats);
+
                 var (program, notifier) = CreateReportProgram(clock);
 
                 await program.RunDailyCheckAsync();
@@ -376,12 +371,12 @@ namespace ValorantAppTests
             DateTime matchTime = new(2023, 11, 4, 20, 0, 0, DateTimeKind.Utc);
             var (match, stats, matchId) = CreateTestDailyMatch(matchTime, "act-report-match");
 
-            SeedUser();
-            MatchesExtension.InsertRow(match);
-            MatchStatsExtension.InsertRow(stats);
-
             try
             {
+                SeedUser();
+                MatchesExtension.InsertRow(match);
+                MatchStatsExtension.InsertRow(stats);
+
                 var (program, notifier) = CreateReportProgram(clock);
 
                 await program.RunDailyCheckAsync();

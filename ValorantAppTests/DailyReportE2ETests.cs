@@ -98,12 +98,12 @@ namespace ValorantAppTests
             DateTime matchTime = new(2026, 11, 23, 5, 0, 0, DateTimeKind.Utc);
             var (match, stats, matchId) = CreateTestMatch(matchTime);
 
-            SeedUser();
-            MatchesExtension.InsertRow(match);
-            MatchStatsExtension.InsertRow(stats);
-
             try
             {
+                SeedUser();
+                MatchesExtension.InsertRow(match);
+                MatchStatsExtension.InsertRow(stats);
+
                 var (program, notifier) = CreateProgram(clock);
 
                 await program.RunDailyCheckAsync();
@@ -123,7 +123,7 @@ namespace ValorantAppTests
                 Assert.AreEqual("Matches: 1 | Minutes: 31 | Aces: 0\nK/D/A: 19/15/13 | Most Played: <:skye:1251244001063993366>\nHeadshot: 42.5% | Bodyshot: 52.5%", embed.Fields[0].Value);
 
                 Assert.AreEqual(1, notifier.Statuses.Count);
-                // NOTE: possible bug: BaseValorantProgram.cs:1116 pluralizes serverCount backwards: (serverCount == 1 ? 's' : string.Empty) -> "1 Servers"
+                // NOTE: possible bug: BaseValorantProgram.UpdateDiscordBotConfig pluralizes serverCount backwards: (serverCount == 1 ? 's' : string.Empty) -> "1 Servers"
                 Assert.AreEqual("Matches Found 1 | 1 Servers | Events Processed (New) 0", notifier.Statuses[0]);
             }
             finally
@@ -146,14 +146,14 @@ namespace ValorantAppTests
             DateTime afterEnd = new(2026, 11, 23, 11, 0, 1, DateTimeKind.Utc);
             var (match2, stats2, id2) = CreateTestMatch(afterEnd, "outside-after-end");
 
-            SeedUser();
-            MatchesExtension.InsertRow(match1);
-            MatchStatsExtension.InsertRow(stats1);
-            MatchesExtension.InsertRow(match2);
-            MatchStatsExtension.InsertRow(stats2);
-
             try
             {
+                SeedUser();
+                MatchesExtension.InsertRow(match1);
+                MatchStatsExtension.InsertRow(stats1);
+                MatchesExtension.InsertRow(match2);
+                MatchStatsExtension.InsertRow(stats2);
+
                 var (program, notifier) = CreateProgram(clock);
 
                 await program.RunDailyCheckAsync();
@@ -181,12 +181,12 @@ namespace ValorantAppTests
             DateTime matchTime = DateTime.ParseExact(matchTimeStr, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
             var (match, stats, matchId) = CreateTestMatch(matchTime, $"boundary-{matchTime:yyyyMMddHHmmss}");
 
-            SeedUser();
-            MatchesExtension.InsertRow(match);
-            MatchStatsExtension.InsertRow(stats);
-
             try
             {
+                SeedUser();
+                MatchesExtension.InsertRow(match);
+                MatchStatsExtension.InsertRow(stats);
+
                 var (program, notifier) = CreateProgram(clock);
 
                 await program.RunDailyCheckAsync();
@@ -210,12 +210,12 @@ namespace ValorantAppTests
             DateTime matchTime = new(2023, 11, 4, 20, 0, 0, DateTimeKind.Utc);
             var (match, stats, matchId) = CreateTestMatch(matchTime, "act-report-match");
 
-            SeedUser();
-            MatchesExtension.InsertRow(match);
-            MatchStatsExtension.InsertRow(stats);
-
             try
             {
+                SeedUser();
+                MatchesExtension.InsertRow(match);
+                MatchStatsExtension.InsertRow(stats);
+
                 var (program, notifier) = CreateProgram(clock);
 
                 await program.RunDailyCheckAsync();

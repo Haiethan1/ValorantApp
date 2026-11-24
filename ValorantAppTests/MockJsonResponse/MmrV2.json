@@ -1,0 +1,29 @@
+{
+  "status": 200,
+  "data": {
+    "name": "FakePlayer",
+    "tag": "NA1",
+    "current_data": {
+      "currenttier": 22,
+      "currenttierpatched": "Ascendant 2",
+      "images": {
+        "small": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/smallicon.png",
+        "large": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/largeicon.png",
+        "triangle_down": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/ranktriangledown.png",
+        "triangle_up": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/ranktriangleup.png"
+      },
+      "ranking_in_tier": 50,
+      "mmr_change_to_last_game": 18,
+      "elo": 1750,
+      "games_needed_for_rating": 0,
+      "old": false
+    },
+    "highest_rank": {
+      "old": false,
+      "tier": 22,
+      "patched_tier": "Ascendant 2",
+      "season": "e7a3",
+      "converted": null
+    }
+  }
+}

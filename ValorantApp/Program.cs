@@ -121,6 +121,7 @@ namespace ValorantApp
             //services.AddSingleton<InteractionHandler>();
             services.AddSingleton<ValorantApp>();
             services.AddSingleton<LinkCommandService>();
+            services.AddSingleton<MmrCommandService>();
             services.AddSingleton<DiscordBotSlashCommands>();
 
             //services.AddLogging()

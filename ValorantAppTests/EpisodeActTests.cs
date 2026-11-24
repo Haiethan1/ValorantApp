@@ -17,13 +17,13 @@ namespace ValorantAppTests
             Assert.AreEqual(new DateTime(2020, 6, 1, 7, 0, 0, DateTimeKind.Utc), e1a1.StartDate);
             Assert.AreEqual(new DateTime(2020, 8, 4, 0, 0, 0, DateTimeKind.Utc), e1a1.EndDate);
 
-            // NOTE: possible bug: EpisodeActInfos.cs:57 E25A2 has Act = 1 hardcoded instead of 2
+            // NOTE: possible bug: EpisodeActExtension.Mapping: E25A2 has Act = 1 hardcoded instead of 2
             var e25a2 = EpisodeActExtension.GetEpisodeActInfo("E25A2");
             Assert.IsNotNull(e25a2);
             Assert.AreEqual(25, e25a2.Episode);
             Assert.AreEqual(1, e25a2.Act);
 
-            // NOTE: possible bug: EpisodeActInfos.cs:58 E25A3 has Act = 1 hardcoded instead of 3
+            // NOTE: possible bug: EpisodeActExtension.Mapping: E25A3 has Act = 1 hardcoded instead of 3
             var e25a3 = EpisodeActExtension.GetEpisodeActInfo("E25A3");
             Assert.IsNotNull(e25a3);
             Assert.AreEqual(25, e25a3.Episode);
@@ -40,7 +40,7 @@ namespace ValorantAppTests
         [TestMethod]
         public void GetEpisodeActInfo_NullInput_ThrowsArgumentNullException()
         {
-            // NOTE: possible bug: EpisodeActInfos.cs:68 GetEpisodeActInfo does not check null before Dictionary.TryGetValue
+            // NOTE: possible bug: EpisodeActExtension.GetEpisodeActInfo does not check null before Dictionary.TryGetValue
             Assert.ThrowsException<ArgumentNullException>(() => EpisodeActExtension.GetEpisodeActInfo(null!));
         }
 
@@ -76,23 +76,23 @@ namespace ValorantAppTests
         [TestMethod]
         public void GetEpisodeActInfosForDate_StaleAndBoundaryDates_PinsCurrentBehavior()
         {
-            // NOTE: possible bug: EpisodeActInfos.cs:88-90 dates before E1A1 fall back to Mapping.Last() (E25A3) instead of null
+            // NOTE: possible bug: EpisodeActExtension.GetEpisodeActInfosForDate: dates before E1A1 fall back to Mapping.Last() (E25A3) instead of null
             var beforeFirst = EpisodeActExtension.GetEpisodeActInfosForDate(new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc));
             Assert.AreEqual(25, beforeFirst.Episode);
             Assert.AreEqual(1, beforeFirst.Act);
 
-            // NOTE: possible bug: EpisodeActInfos.cs:88-90 gap between E9A3 and E25A1 falls back to Mapping.Last() (E25A3)
+            // NOTE: possible bug: EpisodeActExtension.GetEpisodeActInfosForDate: gap between E9A3 and E25A1 falls back to Mapping.Last() (E25A3)
             var inGap = EpisodeActExtension.GetEpisodeActInfosForDate(new DateTime(2025, 1, 7, 12, 0, 0, DateTimeKind.Utc));
             Assert.AreEqual(25, inGap.Episode);
             Assert.AreEqual(1, inGap.Act);
 
-            // NOTE: possible bug: EpisodeActInfos.cs:57-58 E25A2 and E25A3 ranges overlap; FirstOrDefault returns E25A2 with Act = 1
+            // NOTE: possible bug: EpisodeActExtension.GetEpisodeActInfosForDate: E25A2 and E25A3 ranges overlap; FirstOrDefault returns E25A2 with Act = 1
             var overlap = EpisodeActExtension.GetEpisodeActInfosForDate(new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc));
             Assert.AreEqual(25, overlap.Episode);
             Assert.AreEqual(1, overlap.Act);
             Assert.AreEqual(new DateTime(2030, 4, 30, 0, 0, 0, DateTimeKind.Utc), overlap.EndDate);
 
-            // NOTE: possible bug: EpisodeActInfos.cs:88-90 dates after 2030 fall back to Mapping.Last() (E25A3) instead of null
+            // NOTE: possible bug: EpisodeActExtension.GetEpisodeActInfosForDate: dates after 2030 fall back to Mapping.Last() (E25A3) instead of null
             var afterLast = EpisodeActExtension.GetEpisodeActInfosForDate(new DateTime(2035, 1, 1, 0, 0, 0, DateTimeKind.Utc));
             Assert.AreEqual(25, afterLast.Episode);
             Assert.AreEqual(1, afterLast.Act);
