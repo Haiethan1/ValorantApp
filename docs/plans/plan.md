@@ -5,7 +5,7 @@ validation layer covers the bot's real scenarios. Background and design: [e2e-va
 How the tests work: [../testing.md](../testing.md). Known bugs and gaps: [../backlog.md](../backlog.md).
 
 ## Where we are
-Branch `aiReady`. 168 passing tests, 4 skipped on purpose. Line coverage was ~52% (branch ~42%) before the
+Branch `aiReady`. 198 passing tests, 4 skipped on purpose. Line coverage was ~52% (branch ~42%) before the
 latest additions; re-measure with `dotnet test --collect:"XPlat Code Coverage"` (CI now prints a summary).
 
 Built so far:
@@ -13,7 +13,7 @@ Built so far:
 - Seams: `DbSettings`, `IDiscordNotifier`, on-demand poll/daily runs, `TimeProvider`, `AppOptions` with fail-closed
   test mode, `LinkCommandService`.
 - Tests: unit, characterization, in-process E2E (poll tick, competitive and tier change, daily and act report),
-  out-of-process E2E (real exe in test mode), game-content guards, embed size limits, embed snapshots.
+  out-of-process E2E (real exe in test mode), game-content guards, embed size limits, embed snapshots, API failure matrix, channel routing and user rotation.
 - CI: build + test + coverage summary, no secrets.
 - Safety: tests can never reach SQL Server or prod. `DbSettings.SqlServer` now throws when SQL Server is disabled.
 
@@ -28,34 +28,34 @@ Antigravity, Claude reviews.
 | 2 | Game-content guards (every agent/map/mode/rank has emoji, image, round trip) + unknown-content E2E | S | Gemini | Done |
 | 3 | Embed snapshot tests (full embed output, approved files) | M | Gemini | Done |
 | 4 | Competitive poll + tier-change E2E (promotion, demotion, none) | M | Gemini | Done (double-up, first ranked match, empty history not covered) |
-| 5 | API failure matrix (404/429/5xx, timeout, bad JSON, empty data; no post, user re-queued, next tick recovers) | M | Gemini drafts, Claude reviews timeouts | Not started |
-| 6 | Routing: multiple channels, split channels, 16+ users rotating over ticks, user deleted mid-tick | M | Gemini | Not started |
-| 7 | Embed-limit tests (Discord 6000 total, 25 fields, etc.) | S | Gemini | Done, found a bug (see decisions) |
+| 5 | API failure matrix (404/429/5xx, timeout, bad JSON, empty data; no post, user re-queued, next tick recovers) | M | Gemini drafts, Claude reviews timeouts | Done (`ApiFailureE2ETests`, no bugs found) |
+| 6 | Routing: multiple channels, split channels, 16+ users rotating over ticks, user deleted mid-tick | M | Gemini | Done (`RoutingE2ETests`; found a delete-mid-tick race, see backlog) |
+| 7 | Embed-limit tests (Discord 6000 total, 25 fields, etc.) | S | Gemini | Done, found a bug (issue #142) |
 | 8 | Opt-in fixture recorder (dev HenrikDev key, strip personal data) + contract test over all fixtures; refresh monthly | M | Claude designs | Not started. Needs the owner's API key and live matches |
 | 9 | Old-vs-new replay: run base and PR commits in test mode on the same fixtures and a copy of the prod DB, diff the recorder output | M | Claude | Not started. Strongest "trust the change" signal |
-| 10 | SQL Server in CI (Testcontainers `mssql/server:2022`) to test dual writes, events and locations | L | Claude sets up, Gemini writes asserts | Not started |
+| 10 | SQL Server in CI (Testcontainers `mssql/server:2022`) to test dual writes, events and locations | L | Claude sets up, Gemini writes asserts | Not started. Docker isn't running locally; CI (ubuntu) has it |
 | 11 | Mutation testing (Stryker.NET) on engine, `LinkCommandService`, `MatchesExtension`, `MatchStatsExtension`; per release | M | Gemini runs, Claude triages | Not started |
-| 12 | Move `/mmr` logic into a service like `LinkCommandService` and test it; fix review nits and stale docs | S-M | Gemini | Not started |
+| 12 | Move `/mmr` logic into a service like `LinkCommandService` and test it; fix review nits and stale docs | S-M | Gemini | In progress |
 
 Review nits still open (from the Opus review): `Start_CanBeCalledTwice` asserts nothing; E2E tests seed users before
 `try` (partial-seed leaks); `DateTime.TryParse` uses machine culture (pre-existing); `JsonLinesNotifier` recorded fields
 (now fixed by snapshots); stale NOTE line numbers in test comments.
 
-## Open decisions (waiting on the owner)
-1. **Report overflow bug.** `SendReport` (`BaseValorantProgram.cs` ~1077) paginates by 20 fields only. With
-   worst-case animated emojis a page reaches ~6100+ characters, Discord.Net throws, and that channel's report is
-   silently dropped. Pinned by an `[Ignore]`d test in `EmbedLimitTests`. Fix on `aiReady` (small, un-ignores the test)
-   or file a GitHub issue and fix separately?
-2. **Commit `6678749` has the message "x"** and no attribution (accidental). Squash/reword it (rewrites a few
-   unpushed local commits) or leave it?
-3. **Next up:** start items 5 (API failures) and 6 (routing)? Plan is two Antigravity jobs in separate worktrees
-   with `AGY_TIMEOUT=1800s`.
-4. **Secrets redesign** is tracked separately in issue #141 and waits until this branch is in a decent state.
+## Decisions (2026-11-24)
+1. Report overflow bug: filed as issue #142, fixed separately. Low likelihood at the current scale.
+2. The accidental "x" commit was reworded to `aiReady: Add Discord embed size-limit tests` (tree unchanged; old
+   history kept at tag `backup/aiReady-before-reword` until the branch is pushed).
+3. Items 5 and 6 done via Antigravity; item 12 in progress.
+4. Secrets redesign stays in issue #141.
+
+## Open questions for the owner
+- Item 8 (fixture recorder): needs the owner's HenrikDev key and a decision on scope.
+- Item 10: run SQL Server tests only in CI, or also locally with Docker Desktop?
+- Pi deployment docs (`docs/hosting.md`, `deploy-pi` skill) need the owner's review.
 
 ## What will honestly still need a human
-- Custom emoji IDs existing in the Discord guild, and how embeds look (tone and layout). The opt-in smoke test could
-  be extended to fetch the bot's emojis and HEAD-check image URLs.
-- Slash command registration, propagation and permissions.
+- Custom emoji IDs, embed look, and slash command registration: owner confirmed OK on 2026-11-24. Re-check after
+  changes to those areas.
 - Pi deployment (arm64 build, process supervision).
-- Riot season dates in `EpisodeActInfos`.
+- Riot season dates in `EpisodeActInfos` (known stale and not working as intended; see backlog).
 - Deciding what a HenrikDev API change means once the contract test (item 8) flags it.
