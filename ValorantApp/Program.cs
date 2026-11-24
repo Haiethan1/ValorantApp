@@ -188,7 +188,8 @@ namespace ValorantApp
             try
             {
                 // With global commands we don't need the guild.
-                await _client.BulkOverwriteGlobalApplicationCommandsAsync(globalCommandList.Select(gcmd => gcmd.Build() as ApplicationCommandProperties).ToArray());
+                var registeredCommands = await _client.BulkOverwriteGlobalApplicationCommandsAsync(globalCommandList.Select(gcmd => gcmd.Build() as ApplicationCommandProperties).ToArray());
+                _logger.LogInformation($"Registered global commands: {string.Join(", ", registeredCommands.Select(c => c.Name))}");
                 // Using the ready event is a simple implementation for the sake of the example. Suitable for testing and development.
                 // For a production bot, it is recommended to only run the CreateGlobalApplicationCommandAsync() once for each command.
             }
