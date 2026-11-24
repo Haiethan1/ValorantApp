@@ -116,8 +116,8 @@ needs the `Main` split and a configurable Henrik URL.
 3. ~~`docs/testing.md` and an AGENTS.md "how to validate" section~~ (done; update when the E2E tests land).
 4. ~~Add `TimeProvider`, then E2E tests for the daily report~~ (done: `DailyReportE2ETests`, mutation-checked).
    The tier-change flow is not covered: it needs a competitive fixture with an mmr-history response.
-5. ~~`Program.Main` split, configurable Henrik URL, out-of-process test mode~~ (done; the out-of-process harness test is
-   `OutOfProcessE2ETests` if present in `docs/testing.md`).
+5. ~~`Program.Main` split, configurable Henrik URL, out-of-process test mode~~ (done, with `OutOfProcessE2ETests`:
+   real executable + fake Henrik server + recorder file, mutation-checked).
 6. ~~Unit/component backfill (agent-drafted, human-reviewed), then the real-Discord smoke tier.~~ (done: unit tests,
    `LinkCommandServiceTests`, and the opt-in `RealDiscordSmokeTests`. A bot cannot trigger slash commands, so the smoke
    test covers the notifier only; command logic is covered through `LinkCommandService`.)
