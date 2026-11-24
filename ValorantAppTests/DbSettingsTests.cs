@@ -36,6 +36,13 @@ namespace ValorantAppTests
         }
 
         [TestMethod]
+        public void SqlServerConnectionString_ThrowsWhenDisabled()
+        {
+            Assert.IsFalse(DbSettings.SqlServerEnabled);
+            Assert.ThrowsException<InvalidOperationException>(() => DbSettings.SqlServer);
+        }
+
+        [TestMethod]
         public void SqlServerOnlyDaos_AreNoOps()
         {
             Assert.AreEqual(0, MatchEventsExtension.EventTotalCount());

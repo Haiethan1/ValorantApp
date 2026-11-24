@@ -20,12 +20,21 @@ namespace ValorantApp.Database.Extensions
         }
 
         /// <summary>
-        /// SQL Server connection string (dual writes + heatmap tables). Only read when
-        /// <see cref="SqlServerEnabled"/> is true, so disabling it never touches the config entry.
+        /// SQL Server connection string (dual writes + heatmap tables). Only readable when
+        /// <see cref="SqlServerEnabled"/> is true; otherwise the getter throws (fail closed), so a DAO that forgets its
+        /// SqlServerEnabled check can never connect to a real server from tests or test mode.
         /// </summary>
         public static string SqlServer
         {
-            get => _sqlServer ??= ConfigurationManager.ConnectionStrings[Debugger.IsAttached ? "DatabaseDev" : "DatabaseProd"].ConnectionString;
+            get
+            {
+                if (!SqlServerEnabled)
+                {
+                    throw new InvalidOperationException("SQL Server access is disabled (DbSettings.SqlServerEnabled = false); the caller must check SqlServerEnabled before using the connection string.");
+                }
+
+                return _sqlServer ??= ConfigurationManager.ConnectionStrings[Debugger.IsAttached ? "DatabaseDev" : "DatabaseProd"].ConnectionString;
+            }
             set => _sqlServer = value;
         }
 
