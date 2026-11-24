@@ -38,7 +38,7 @@ ValorantApp/
   DiscordBot/                DiscordBotSlashCommands.cs (live); DiscordBotCommand.cs (dead text commands)
   Database/Tables/           row models; Database/Extensions/ static DAO classes (raw ADO.NET SQL)
   GenericExtensions/, GenericUtils/  helpers (SQL retry, HTTP logging, timers)
-ValorantAppTests/            MSTest: unit, component, and (WIP) end-to-end tests; JSON fixtures in MockJsonResponse/
+ValorantAppTests/            MSTest: unit, component, and end-to-end tests; JSON fixtures in MockJsonResponse/
 db/                          SQL migration history (SQLite + SQL Server), applied by hand
 docs/                        project knowledge for humans and agents
 ```
