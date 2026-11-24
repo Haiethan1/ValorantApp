@@ -71,7 +71,9 @@ Discord is used two ways.
    SQL Server block (about 10 sites) in `if (SqlServerEnabled)`; SQL-Server-only DAOs no-op or return 0
    (`EventTotalCount` runs in `UpdateDiscordBotConfig`). DAOs stay static. `ITable.CreateTables(string)`
    already takes a connection string.
-2. **`IDiscordNotifier`** as above, replacing the 4 send sites and the `:1077/:1080` calls.
+2. **`IDiscordNotifier`. DONE (not yet run against the dev bot).** `IDiscordNotifier`, `DiscordNotifier` (wraps the
+   existing `CheckChannelAndSendMessageAsync`, behavior unchanged), registered in `Program.cs`; `RecordingNotifier`
+   lives in the test project. Original plan: as above, replacing the 4 send sites and the `:1077/:1080` calls.
 3. **Poll tick + `Start()`.** Move timer start out of the constructor into `Start()` (called from
    `RunBotAsync`). Expose one tick as an `internal RunPollTickAsync()` with `InternalsVisibleTo` for the test
    project.

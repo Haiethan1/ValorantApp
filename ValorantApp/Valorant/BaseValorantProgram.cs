@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
+using ValorantApp.DiscordBot;
 using ValorantApp.GenericExtensions;
 using ValorantApp.GenericUtils;
 using ValorantApp.HenrikJson;
@@ -17,15 +18,15 @@ namespace ValorantApp.Valorant
         private static readonly object DbLock = new object();
 
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly DiscordSocketClient _client;
+        private readonly IDiscordNotifier _notifier;
         private readonly ILogger<BaseValorantProgram> Logger;
 
-        public BaseValorantProgram(DiscordSocketClient client, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
+        public BaseValorantProgram(IDiscordNotifier notifier, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
         {
             Users = new();
             QueueUsers = new();
             _httpClientFactory = httpClientFactory;
-            _client = client;
+            _notifier = notifier;
             Logger = logger;
             ReloadFromDB();
 
@@ -714,7 +715,7 @@ namespace ValorantApp.Valorant
             SetUpMatchInfo(embed, stats, matches);
 
             Logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending user data for {baseValorantMatch.UserInfo.Val_username}#{baseValorantMatch.UserInfo.Val_tagname}");
-            await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, userUpdated, embed, Logger);
+            await _notifier.SendEmbedAsync(channelId, userUpdated, embed);
 
             return true;
         }
@@ -749,7 +750,7 @@ namespace ValorantApp.Valorant
             SetUpMatchInfo(embed, setupMatchStats, setupMatches);
 
             Logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending users data for match id {setupMatches.Match_Id}");
-            await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, userUpdated, embed, Logger);
+            await _notifier.SendEmbedAsync(channelId, userUpdated, embed);
 
             return true;
         }
@@ -871,7 +872,7 @@ namespace ValorantApp.Valorant
                     HashSet<ulong> channelIds = valorantUser.ChannelIds ?? [];
                     foreach (ulong channelId in channelIds)
                     {
-                        await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, userUpdated, embed, Logger);
+                        await _notifier.SendEmbedAsync(channelId, userUpdated, embed);
                     }
                 }
             }
@@ -1046,7 +1047,7 @@ namespace ValorantApp.Valorant
                         // Check if we have reached 20 fields
                         if (fieldCount % 20 == 0 || fieldCount == fieldByChannels.Count)
                         {
-                            await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, null, embed, Logger);
+                            await _notifier.SendEmbedAsync(channelId, null, embed);
 
                             // Re-initialize the embed for the next page if there are more fields
                             if (fieldCount < fieldByChannels.Count)
@@ -1074,10 +1075,10 @@ namespace ValorantApp.Valorant
         /// <returns></returns>
         public async Task UpdateDiscordBotConfig()
         {
-            int serverCount = _client.Guilds.Count;
+            int serverCount = _notifier.GuildCount;
             int matchesFound = MatchStatsExtension.MatchTotalCount();
             int eventsFound = MatchEventsExtension.EventTotalCount();
-            await _client.SetGameAsync($"Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)} | Events Processed (New) {eventsFound}", type: ActivityType.CustomStatus);
+            await _notifier.SetStatusAsync($"Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)} | Events Processed (New) {eventsFound}");
         }
 
         /// <summary>
