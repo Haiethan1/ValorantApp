@@ -27,8 +27,7 @@ namespace ValorantApp
 
         static void Main(string[] args)
         {
-            string connectionString = ConfigurationManager.ConnectionStrings["Database"].ConnectionString;
-            ITable.CreateTables(connectionString);
+            ITable.CreateTables(DbSettings.Sqlite);
 
             DiscordSocketConfig discordSocketConfig = new DiscordSocketConfig()
             {

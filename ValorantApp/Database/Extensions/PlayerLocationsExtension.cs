@@ -14,6 +14,8 @@ namespace ValorantApp.Database.Extensions
             , int y
             , double? viewRadians)
         {
+            if (!SqlServerEnabled) return;
+
             using SqlConnection sqlConnection = new(sqlConnectionString);
             sqlConnection.Open();
 

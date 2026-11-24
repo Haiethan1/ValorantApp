@@ -112,6 +112,8 @@ namespace ValorantApp.Database.Extensions
             command.ExecuteNonQuery();
             connection.Close();
 
+            if (!SqlServerEnabled) return;
+
             using SqlConnection sqlConnection = new(sqlConnectionString);
             sqlConnection.Open();
 

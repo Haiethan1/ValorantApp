@@ -18,6 +18,12 @@ namespace ValorantApp.Database.Extensions
             , string? targetPuuid
             , out long eventIndex)
         {
+            if (!SqlServerEnabled)
+            {
+                eventIndex = 0;
+                return false;
+            }
+
             using SqlConnection sqlConnection = new(sqlConnectionString);
             sqlConnection.Open();
 
@@ -69,6 +75,8 @@ namespace ValorantApp.Database.Extensions
 
         public static void DeleteRows(int days)
         {
+            if (!SqlServerEnabled) return;
+
             using SqlConnection sqlConnection = new(sqlConnectionString);
             sqlConnection.Open();
 
@@ -88,6 +96,8 @@ namespace ValorantApp.Database.Extensions
 
         public static int EventTotalCount()
         {
+            if (!SqlServerEnabled) return 0;
+
             using SqlConnection sqlConnection = new(sqlConnectionString);
             sqlConnection.Open();
 
