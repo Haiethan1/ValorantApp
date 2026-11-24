@@ -38,7 +38,7 @@ namespace ValorantAppTests
             Assert.AreEqual("competitive", matches.Mode_Id);
             Assert.AreEqual(1871u, matches.Game_Length);
             Assert.AreEqual(1699144485L, matches.Game_Start);
-            // NOTE: possible bug: MatchesExtension.cs:173 parses Game_Start_Patched without converting to UTC
+            // NOTE: possible bug: MatchesExtension.CreateFromJson parses Game_Start_Patched without converting to UTC
             Assert.AreEqual(new DateTime(2023, 11, 5, 0, 34, 0), matches.Game_Start_Patched_UTC);
             Assert.AreEqual(21, matches.Rounds_Played);
             Assert.AreEqual((byte)13, matches.Blue_Team_Rounds_Won);
@@ -62,7 +62,7 @@ namespace ValorantAppTests
             Assert.AreEqual((byte)0, stats.Quad_Kills);
             Assert.AreEqual((byte)0, stats.Aces);
             Assert.AreEqual((byte)19, stats.Kills);
-            // NOTE: possible bug: MatchStatsExtension.cs:515-518 knife kills/deaths and ally damage hardcoded to 0
+            // NOTE: possible bug: MatchStatsExtension.CreateFromJson: knife kills/deaths and ally damage hardcoded to 0
             Assert.AreEqual((byte)0, stats.Knife_Kills);
             Assert.AreEqual((byte)15, stats.Deaths);
             Assert.AreEqual((byte)0, stats.Knife_Deaths);
@@ -78,7 +78,7 @@ namespace ValorantAppTests
             Assert.AreEqual((short)0, stats.Damage_To_Allies);
             Assert.AreEqual((short)0, stats.Damage_From_Allies);
             Assert.AreEqual(1871u, stats.Game_Length);
-            // NOTE: possible bug: MatchStatsExtension.cs:487-488 converts parsed UTC timestamp to Eastern Standard Time
+            // NOTE: possible bug: MatchStatsExtension.CreateFromJson converts parsed UTC timestamp to Eastern Standard Time
             Assert.AreEqual(new DateTime(2023, 11, 4, 20, 34, 0), stats.Game_Start_Patched);
             Assert.IsFalse(stats.MVP);
             Assert.AreEqual((byte)22, stats.Current_Tier);
@@ -162,7 +162,7 @@ namespace ValorantAppTests
             Assert.AreEqual(1, matches.Rounds_Played);
             Assert.AreEqual((byte)0, matches.Blue_Team_Rounds_Won);
             Assert.AreEqual((byte)0, matches.Red_Team_Rounds_Won);
-            // NOTE: possible bug: MatchesExtension.cs:220 assigns all-player avg rank to Blue_Team_Average_Rank in DM
+            // NOTE: possible bug: MatchesExtension.CreateFromJson assigns all-player avg rank to Blue_Team_Average_Rank in DM
             Assert.AreEqual((short)0, matches.Blue_Team_Average_Rank);
             Assert.AreEqual((short)0, matches.Red_Team_Average_Rank);
             Assert.AreEqual(false, matches.Blue_Team_Win);
@@ -180,7 +180,7 @@ namespace ValorantAppTests
             Assert.AreEqual((byte)0, stats.Double_Kills);
             Assert.AreEqual((byte)0, stats.Triple_Kills);
             Assert.AreEqual((byte)0, stats.Quad_Kills);
-            // NOTE: possible bug: MatchStatsExtension.cs:556 kills >= 5 in deathmatch round is counted as an ace
+            // NOTE: possible bug: MatchStatsExtension.CreateFromJson: kills >= 5 in deathmatch round is counted as an ace
             Assert.AreEqual((byte)1, stats.Aces);
             Assert.AreEqual((byte)25, stats.Kills);
             Assert.AreEqual((byte)0, stats.Knife_Kills);

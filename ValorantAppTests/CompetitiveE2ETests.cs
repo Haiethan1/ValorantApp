@@ -159,10 +159,9 @@ namespace ValorantAppTests
             // Player in Matches_11_4_2023.json has CurrentTier = 22. Same tier => no tier change.
             string mmrHistoryJson = LoadRewrittenMmrHistoryFixture(matchId, newTier: 22, rrChange: 18);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, handler) = CreateProgram(matchesJson, mmrHistoryJson, clock);
                 int MatchesRequests() => handler.RequestedUrls.Count(u => u.Contains("v3/by-puuid/matches", StringComparison.OrdinalIgnoreCase));
 
@@ -219,10 +218,9 @@ namespace ValorantAppTests
             // Promotion to 23 (Ascendant 3)
             string mmrHistoryJson = LoadRewrittenMmrHistoryFixture(matchId, newTier: 23, rrChange: 21);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, _) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
@@ -267,10 +265,9 @@ namespace ValorantAppTests
             // Demotion to 21 (Ascendant 1)
             string mmrHistoryJson = LoadRewrittenMmrHistoryFixture(matchId, newTier: 21, rrChange: -19);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, _) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
@@ -315,10 +312,9 @@ namespace ValorantAppTests
             // Same tier 22 => no tier change
             string mmrHistoryJson = LoadRewrittenMmrHistoryFixture(matchId, newTier: 22, rrChange: 14);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, _) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();

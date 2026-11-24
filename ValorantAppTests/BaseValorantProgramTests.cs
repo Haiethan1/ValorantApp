@@ -50,8 +50,22 @@ namespace ValorantAppTests
         {
             var (program, _) = CreateProgram();
 
-            program.Start();
-            program.Start(); // second call is a no-op
+            // ScheduledMessageTimer and DailyCheckTimer are private fields on BaseValorantProgram
+            // with no public or internal state accessors, so timer instances cannot be inspected directly.
+            // Calling Start() a second time hits the ScheduledMessageTimer != null guard and safely no-ops.
+            // We explicitly assert that calling Start() multiple times does not throw any exception.
+            Exception? thrown = null;
+            try
+            {
+                program.Start();
+                program.Start(); // second call is a no-op
+            }
+            catch (Exception ex)
+            {
+                thrown = ex;
+            }
+
+            Assert.IsNull(thrown, "Calling Start() multiple times should be idempotent and not throw an exception.");
         }
     }
 }

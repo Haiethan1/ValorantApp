@@ -324,10 +324,10 @@ namespace ValorantAppTests
         /// (a) Worst-case daily report where 20 tracked users have high play time (>25% of window)
         /// and high legshot ratio (>=20%), triggering both TouchGrass and ToeShooter animated emojis.
         /// When 20 such fields are placed in a single embed, total character length exceeds Discord's 6000-char limit.
-        /// Production code at BaseValorantProgram.cs:1077-1102 chunks strictly by 20 fields without checking total character length.
+        /// Production code in BaseValorantProgram.SendReport chunks strictly by 20 fields without checking total character length.
         /// </summary>
         [TestMethod]
-        [Ignore("Violates Discord 6000 total characters limit: Page 1 with 20 worst-case emoji fields reaches 6237+ chars (BaseValorantProgram.cs:1077-1102)")]
+        [Ignore("Violates Discord 6000 total characters limit: Page 1 with 20 worst-case emoji fields reaches 6237+ chars (BaseValorantProgram.SendReport)")]
         public async Task DailyReport_30TrackedUsers_WorstCaseEmojis_ExceedsTotalLengthLimit()
         {
             var clock = new FixedTimeProvider(new DateTimeOffset(2026, 11, 23, 11, 30, 0, TimeSpan.Zero));
@@ -425,32 +425,32 @@ namespace ValorantAppTests
 
             var seededUsers = new List<(string Puuid, ulong DiscordId, ulong ChannelId)>();
 
-            for (int i = 0; i < 10; i++)
-            {
-                string puuid = $"20000000-0000-0000-0000-{i:D12}";
-                string username = $"Player16Chars_{i:D2}"; // Exactly 16 chars
-                string tag = $"TAG{i:D2}";               // 5 chars
-                ulong discordId = 4000000000UL + (ulong)i;
-
-                var player = (JObject)allPlayers[i];
-                player["puuid"] = puuid;
-                player["name"] = username;
-                player["tag"] = tag;
-                // Longest agent name in AgentsEnum: "Brimstone" (9 chars)
-                player["character"] = "Brimstone";
-                // Trigger toe shooter emoji with legshots >= 20%
-                player["stats"]!["headshots"] = 10;
-                player["stats"]!["bodyshots"] = 60;
-                player["stats"]!["legshots"] = 30;
-
-                SeedTrackedUser(puuid, username, tag, discordId, TestChannelId1);
-                seededUsers.Add((puuid, discordId, TestChannelId1));
-            }
-
-            string matchesJson = root.ToString(Newtonsoft.Json.Formatting.None);
-
             try
             {
+                for (int i = 0; i < 10; i++)
+                {
+                    string puuid = $"20000000-0000-0000-0000-{i:D12}";
+                    string username = $"Player16Chars_{i:D2}"; // Exactly 16 chars
+                    string tag = $"TAG{i:D2}";               // 5 chars
+                    ulong discordId = 4000000000UL + (ulong)i;
+
+                    var player = (JObject)allPlayers[i];
+                    player["puuid"] = puuid;
+                    player["name"] = username;
+                    player["tag"] = tag;
+                    // Longest agent name in AgentsEnum: "Brimstone" (9 chars)
+                    player["character"] = "Brimstone";
+                    // Trigger toe shooter emoji with legshots >= 20%
+                    player["stats"]!["headshots"] = 10;
+                    player["stats"]!["bodyshots"] = 60;
+                    player["stats"]!["legshots"] = 30;
+
+                    SeedTrackedUser(puuid, username, tag, discordId, TestChannelId1);
+                    seededUsers.Add((puuid, discordId, TestChannelId1));
+                }
+
+                string matchesJson = root.ToString(Newtonsoft.Json.Formatting.None);
+
                 var handler = new StubHttpMessageHandler(matchesJson);
                 var (program, notifier) = CreateProgram(TimeProvider.System, handler);
 

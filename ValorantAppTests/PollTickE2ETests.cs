@@ -126,10 +126,9 @@ namespace ValorantAppTests
             DateTime matchTime = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, DateTime.UtcNow.Hour, DateTime.UtcNow.Minute, 0, DateTimeKind.Utc);
             var (fixtureJson, matchId, epoch) = LoadRewrittenFixture(matchTime);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, handler) = CreateProgram(fixtureJson);
 
                 await program.RunPollTickAsync();
@@ -146,7 +145,7 @@ namespace ValorantAppTests
 
                 // Golden values characterization lock
                 var embed = sent.Embed;
-                // NOTE: possible bug: ModesEnum.cs:37 uses Description("SwiftPlay") with capital 'P', whereas API returns "Swiftplay"
+                // NOTE: possible bug: Modes.SwiftPlay uses Description("SwiftPlay") with capital 'P', whereas API returns "Swiftplay"
                 Assert.AreEqual("SwiftPlay - Ascent", embed.Title);
                 Assert.IsNull(embed.Author);
                 Assert.AreEqual($"https://tracker.gg/valorant/match/{matchId}", embed.Url);
@@ -158,7 +157,7 @@ namespace ValorantAppTests
                 Assert.AreEqual("Combat Score: 227, K/D/A: 6/6/1\nHeadshot: 63.64%, RR: 0", embed.Fields[0].Value);
 
                 Assert.AreEqual($"__{new string(' ', 40)}__\n\nMatch Stats", embed.Fields[1].Name);
-                // NOTE: possible bug: BaseValorantProgram.cs:795-800 compares matchStats.Team to "blue", ordering rounds Red : Blue for Red team
+                // NOTE: possible bug: BaseValorantProgram.SetUpMatchInfo compares matchStats.Team to "blue", ordering rounds Red : Blue for Red team
                 Assert.AreEqual($"<t:{epoch}:f>, 11 minutes\nRounds 3 : 5\nAverage Ranks <:unr:1214734089165475850> : <:unr:1214734089165475850>", embed.Fields[1].Value);
 
                 // HTTP endpoints requested
@@ -178,10 +177,9 @@ namespace ValorantAppTests
             DateTime matchTime = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, DateTime.UtcNow.Hour, DateTime.UtcNow.Minute, 0, DateTimeKind.Utc);
             var (fixtureJson, matchId, _) = LoadRewrittenFixture(matchTime);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, handler) = CreateProgram(fixtureJson);
                 int MatchesRequests() => handler.RequestedUrls.Count(u => u.Contains("v3/by-puuid/matches", StringComparison.OrdinalIgnoreCase));
 
@@ -213,10 +211,9 @@ namespace ValorantAppTests
             DateTime matchTime = clock.GetUtcNow().UtcDateTime.AddMinutes(matchStartOffsetMinutes);
             var (fixtureJson, matchId, _) = LoadRewrittenFixture(matchTime);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, handler) = CreateProgram(fixtureJson, clock);
 
                 await program.RunPollTickAsync();
@@ -239,11 +236,10 @@ namespace ValorantAppTests
             DateTime matchTime = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, DateTime.UtcNow.Hour, DateTime.UtcNow.Minute, 0, DateTimeKind.Utc);
             var (fixtureJson, matchId, epoch) = LoadRewrittenFixture(matchTime);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-            SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, TestChannelId);
                 var (program, notifier, _) = CreateProgram(fixtureJson);
 
                 await program.RunPollTickAsync();
