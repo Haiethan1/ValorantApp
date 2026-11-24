@@ -27,20 +27,34 @@ namespace ValorantApp
 
         static void Main(string[] args)
         {
+            AppOptions options = AppOptions.FromEnvironment();
+
+            if (options.TestMode)
+            {
+                // Fail closed: never the configured database, never SQL Server.
+                DbSettings.Sqlite = $"Data Source={options.SqlitePath}";
+                DbSettings.SqlServerEnabled = false;
+            }
+
             ITable.CreateTables(DbSettings.Sqlite);
 
-            DiscordSocketConfig discordSocketConfig = new DiscordSocketConfig()
+            ConfigureLogging();
+
+            ServiceProvider serviceProvider = BuildServices(options);
+
+            if (options.TestMode)
             {
-                // Other config options can be presented here.
-                GatewayIntents = GatewayIntents.All
-            };
+                RunTestMode(serviceProvider, options);
+                return;
+            }
 
-            //DiscordRestConfig discordRestConfig = new DiscordRestConfig()
-            //{
-            //    // Other config options can be presented here.
-            //    GatewayIntents = GatewayIntents.All
-            //};
+            ValorantApp program = serviceProvider.GetRequiredService<ValorantApp>();
 
+            program.RunBotAsync().GetAwaiter().GetResult();
+        }
+
+        private static void ConfigureLogging()
+        {
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Conditional(
                     x => !x.Properties.ContainsKey("ApiLog"),
@@ -61,17 +75,44 @@ namespace ValorantApp
                     )
                 )
                 .CreateLogger();
+        }
+
+        /// <summary>
+        /// Builds the service container. Creating it has no side effects on Discord (the client is constructed but
+        /// never connected until <see cref="RunBotAsync"/>), so tests can call it too.
+        /// </summary>
+        internal static ServiceProvider BuildServices(AppOptions options)
+        {
+            DiscordSocketConfig discordSocketConfig = new DiscordSocketConfig()
+            {
+                // Other config options can be presented here.
+                GatewayIntents = GatewayIntents.All
+            };
+
+            //DiscordRestConfig discordRestConfig = new DiscordRestConfig()
+            //{
+            //    // Other config options can be presented here.
+            //    GatewayIntents = GatewayIntents.All
+            //};
 
             ServiceCollection services = new ServiceCollection();
             services.AddHttpClient("HenrikApiClient", client =>
             {
-                client.BaseAddress = new Uri("https://api.henrikdev.xyz/valorant/");
-                client.DefaultRequestHeaders.Add("Authorization", ConfigurationManager.AppSettings["HenrikToken"]);
+                client.BaseAddress = new Uri(options.HenrikBaseUrl);
+                // Test mode never reads real credentials.
+                client.DefaultRequestHeaders.Add("Authorization", options.TestMode ? "test-mode-token" : ConfigurationManager.AppSettings["HenrikToken"]);
             });
             services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
             services.UseMinimalHttpLogger();
             services.AddSingleton(TimeProvider.System);
-            services.AddSingleton<IDiscordNotifier, DiscordNotifier>();
+            if (options.TestMode)
+            {
+                services.AddSingleton<IDiscordNotifier>(new JsonLinesNotifier(options.RecordPath!));
+            }
+            else
+            {
+                services.AddSingleton<IDiscordNotifier, DiscordNotifier>();
+            }
             services.AddSingleton<BaseValorantProgram>();
             services.AddSingleton(new DiscordSocketClient(discordSocketConfig));
             //services.AddSingleton(new DiscordRestClient(discordRestConfig));
@@ -83,10 +124,23 @@ namespace ValorantApp
 
             //services.AddLogging()
 
-            ServiceProvider serviceProvider = services.BuildServiceProvider();
-            ValorantApp program = serviceProvider.GetRequiredService<ValorantApp>();
+            return services.BuildServiceProvider();
+        }
 
-            program.RunBotAsync().GetAwaiter().GetResult();
+        /// <summary>
+        /// Test mode: run the real polling engine with the fakes from <see cref="BuildServices"/>, without ever
+        /// logging into Discord. Prints READY once the timers are running, then blocks until stdin is closed.
+        /// </summary>
+        private static void RunTestMode(ServiceProvider serviceProvider, AppOptions options)
+        {
+            BaseValorantProgram program = serviceProvider.GetRequiredService<BaseValorantProgram>();
+            program.Start(options.PollInitialDelay, options.PollInterval);
+
+            Console.WriteLine("READY");
+
+            while (Console.In.ReadLine() != null)
+            {
+            }
         }
 
         public ValorantApp(BaseValorantProgram program, DiscordSocketClient client, CommandService commands, InteractionService interaction, IServiceProvider servicesProvider, ILogger<ValorantApp> logger)

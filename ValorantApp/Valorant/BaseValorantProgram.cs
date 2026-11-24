@@ -40,7 +40,7 @@ namespace ValorantApp.Valorant
         /// Starts the poll and daily timers. Called once from <c>ValorantApp.RunBotAsync</c>; the constructor no longer
         /// starts timers, so tests can build the program and drive ticks themselves. Safe to call more than once.
         /// </summary>
-        public void Start()
+        public void Start(TimeSpan? pollInitialDelay = null, TimeSpan? pollInterval = null)
         {
             lock (SendMessageTimerLock)
             {
@@ -49,7 +49,8 @@ namespace ValorantApp.Valorant
                     return;
                 }
 
-                ScheduledMessageTimer = new Timer(SendScheduledMessageTimer, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
+                _pollInterval = pollInterval ?? DefaultPollInterval;
+                ScheduledMessageTimer = new Timer(SendScheduledMessageTimer, null, pollInitialDelay ?? DefaultPollInitialDelay, _pollInterval);
                 DailyCheckTimer = new Timer(SendDailyCheckTimer, null, TimerUtils.TimeSpanUntilUTC(11, 0, 0, NowUtc), TimeSpan.FromDays(1));
             }
         }
@@ -61,6 +62,10 @@ namespace ValorantApp.Valorant
         private Queue<string> QueueUsers { get; set; }
 
         private static readonly object QueueUsersLock = new();
+
+        private static readonly TimeSpan DefaultPollInitialDelay = TimeSpan.FromMinutes(1);
+        private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMinutes(0.5);
+        private TimeSpan _pollInterval = DefaultPollInterval;
 
         private Timer? ScheduledMessageTimer;
         private readonly object SendMessageTimerLock = new();
@@ -1141,7 +1146,7 @@ namespace ValorantApp.Valorant
         {
             lock (SendMessageTimerLock)
             {
-                ScheduledMessageTimer?.Change(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5));
+                ScheduledMessageTimer?.Change(_pollInterval, _pollInterval);
             }
         }
 
