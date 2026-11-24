@@ -1,6 +1,7 @@
 # Plan: validation layer (unit, component, end-to-end)
 
-**Status:** proposed, revised after an independent code review (Nov 2026). Not started.
+**Status:** implemented on the `aiReady` branch (Nov 2026), after an independent code review of the first draft.
+What exists today and how to use it: [../testing.md](../testing.md). Remaining items are listed under "Open questions".
 
 ## Goal
 The repo should let an AI agent (or a human) build the app, run it, and *prove* a change works, so
@@ -78,8 +79,14 @@ Discord is used two ways.
    `RunBotAsync`). Expose one tick as an `internal RunPollTickAsync()` with `InternalsVisibleTo` for the test
    project.
 
-Deferred until needed: `TimeProvider` (step 4 below), configurable Henrik URL and the `Program.Main` split
-(only for the out-of-process mode).
+Added later, as planned:
+4. **`TimeProvider`. DONE.** Optional `BaseValorantProgram` constructor argument (system clock by default); used by the
+   3-day cutoff, daily report window, act-end check, tier-change season lookup and the daily timer start. Test clock:
+   `FixedTimeProvider`.
+5. **`Program.Main` split + `AppOptions` + test mode. DONE.** `AppOptions` (Henrik URL is now an option), testable
+   `BuildServices`, fail-closed `VALORANTAPP_TESTMODE` with `JsonLinesNotifier` (see `docs/testing.md`).
+6. **`LinkCommandService`. DONE.** The logic of `/addme`, `/addchannel`, `/deletechannel`, `/deleteuser` extracted from the
+   slash handlers (messages and flow unchanged).
 
 ## First E2E test (thin slice)
 Temp SQLite + `CreateTables`; seed one `ValorantUsers` row and one `ValorantChannelMappings` row *before*
@@ -107,10 +114,13 @@ needs the `Main` split and a configurable Henrik URL.
    debugger attached.
 2. ~~The thin E2E test above.~~ (done: `PollTickE2ETests`, mutation-checked.)
 3. ~~`docs/testing.md` and an AGENTS.md "how to validate" section~~ (done; update when the E2E tests land).
-4. Add `TimeProvider` (built into .NET 8; `FakeTimeProvider` for tests), then E2E tests for the daily report and
-   tier change. Both need a frozen clock and a known `EpisodeActInfos` entry (`EpisodeActInfos.cs:93`).
-5. `Program.Main` split, configurable Henrik URL, out-of-process test mode.
-6. Unit/component backfill (agent-drafted, human-reviewed), then the real-Discord smoke tier.
+4. ~~Add `TimeProvider`, then E2E tests for the daily report~~ (done: `DailyReportE2ETests`, mutation-checked).
+   The tier-change flow is not covered: it needs a competitive fixture with an mmr-history response.
+5. ~~`Program.Main` split, configurable Henrik URL, out-of-process test mode~~ (done; the out-of-process harness test is
+   `OutOfProcessE2ETests` if present in `docs/testing.md`).
+6. ~~Unit/component backfill (agent-drafted, human-reviewed), then the real-Discord smoke tier.~~ (done: unit tests,
+   `LinkCommandServiceTests`, and the opt-in `RealDiscordSmokeTests`. A bot cannot trigger slash commands, so the smoke
+   test covers the notifier only; command logic is covered through `LinkCommandService`.)
 7. ~~CI: a GitHub Actions workflow running build + test (no secrets needed).~~ (workflow written, passes locally in
    Release; first Linux run happens when it is pushed.)
 
@@ -118,10 +128,11 @@ needs the `Main` split and a configurable Henrik URL.
 - Replacing the blocking `.Result` calls (`SqlExtensions.cs`, `HenrikApi.cs`, `BaseValorantUser.cs`,
   `BaseValorantProgram.cs:290/310`). They're fine on the thread pool; changing them is churn with regression risk.
 - Faking the Discord gateway.
-- The [secrets redesign](secrets-and-config.md), deferred until this validation exists. It should be the first
-  change validated by it.
+- The [secrets redesign](secrets-and-config.md) (issue #141), deferred until this validation existed. It should be the
+  first change validated by it.
 
 ## Open questions
 - Fixture refresh: how do we notice and update fixtures when the HenrikDev JSON shape changes?
-- Daily-report determinism: depends on episode end dates; decide whether tests pin a date or inject a clock.
-- Real-Discord smoke tier: confirm it stays after the deterministic E2E.
+- Tier-change and competitive poll-tick flows need an mmr-history fixture.
+- `/mmr` and `/heatmap` logic is still inside `DiscordBotSlashCommands`.
+- Resolved: daily-report determinism (inject a clock), real-Discord smoke tier (kept, opt-in, notifier only).
