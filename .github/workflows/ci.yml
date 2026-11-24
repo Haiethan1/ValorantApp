@@ -39,4 +39,83 @@ jobs:
         run: dotnet build ValorantApp.sln --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test ValorantApp.sln --no-build --configuration Release --verbosity normal
+        run: dotnet test ValorantApp.sln --no-build --configuration Release --verbosity normal --collect:'XPlat Code Coverage' --results-directory ./TestResults
+
+      - name: Coverage Summary
+        run: |
+          python3 - << 'EOF'
+          import glob, os, re, sys
+          import xml.etree.ElementTree as ET
+
+          xml_files = glob.glob('./TestResults/**/coverage.cobertura.xml', recursive=True)
+          if not xml_files:
+              print("No coverage report found.")
+              sys.exit(0)
+
+          files = {}
+          for xml_file in xml_files:
+              tree = ET.parse(xml_file)
+              root = tree.getroot()
+              for cls in root.iter('class'):
+                  fn = cls.attrib.get('filename', '').replace('\\', '/')
+                  if not fn:
+                      continue
+                  entry = files.setdefault(fn, {'lines': {}, 'branches': {}})
+                  lines_elem = cls.find('lines')
+                  if lines_elem is not None:
+                      for line in lines_elem:
+                          nr = line.attrib['number']
+                          hits = int(line.attrib.get('hits', 0))
+                          entry['lines'][nr] = max(entry['lines'].get(nr, 0), hits)
+                          if line.attrib.get('branch') == 'True' and 'condition-coverage' in line.attrib:
+                              m = re.search(r'\((\d+)/(\d+)\)', line.attrib['condition-coverage'])
+                              if m:
+                                  cov, total = int(m.group(1)), int(m.group(2))
+                                  entry['branches'][nr] = (cov, total)
+
+          summary_md = [
+              '### Code Coverage Summary\n',
+              '| File | Line Coverage | Branch Coverage |',
+              '| :--- | :---: | :---: |'
+          ]
+
+          tot_lines_valid = 0
+          tot_lines_cov = 0
+          tot_branches_valid = 0
+          tot_branches_cov = 0
+
+          for fn in sorted(files.keys()):
+              data = files[fn]
+              lv = len(data['lines'])
+              lc = sum(1 for h in data['lines'].values() if h > 0)
+              bv = sum(b[1] for b in data['branches'].values())
+              bc = sum(b[0] for b in data['branches'].values())
+
+              tot_lines_valid += lv
+              tot_lines_cov += lc
+              tot_branches_valid += bv
+              tot_branches_cov += bc
+
+              l_pct = f"{(lc / lv * 100):.1f}%" if lv > 0 else "N/A"
+              b_pct = f"{(bc / bv * 100):.1f}%" if bv > 0 else "N/A"
+              summary_md.append(f"| `{fn}` | {lc}/{lv} ({l_pct}) | {bc}/{bv} ({b_pct}) |")
+
+          tot_l_pct = f"{(tot_lines_cov / tot_lines_valid * 100):.1f}%" if tot_lines_valid > 0 else "N/A"
+          tot_b_pct = f"{(tot_branches_cov / tot_branches_valid * 100):.1f}%" if tot_branches_valid > 0 else "N/A"
+
+          summary_md.append(f"| **Total** | **{tot_lines_cov}/{tot_lines_valid} ({tot_l_pct})** | **{tot_branches_cov}/{tot_branches_valid} ({tot_b_pct})** |")
+
+          markdown_output = '\n'.join(summary_md) + '\n'
+
+          summary_file = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary_file:
+              with open(summary_file, 'a', encoding='utf-8') as f:
+                  f.write(markdown_output)
+          print(markdown_output)
+          EOF
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./TestResults/**/coverage.cobertura.xml

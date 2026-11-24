@@ -17,6 +17,17 @@ with the same three commands (`dotnet restore`, `dotnet build -c Release`, `dotn
 failures are most likely path case, or time zone ids (the code uses the Windows id `"Eastern Standard Time"`,
 which needs ICU/tzdata on Linux).
 
+## Coverage
+Generate code coverage locally using the Coverlet collector:
+```bash
+dotnet test --collect:"XPlat Code Coverage"
+```
+The Cobertura report is output to `TestResults/<guid>/coverage.cobertura.xml`.
+
+Notes:
+- `OutOfProcessE2ETests` starts the application as a separate child process, so code executed out-of-process is not counted by the in-process coverage collector.
+- In CI, the test step collects coverage and an inline script prints a per-file and overall line/branch summary to the GitHub Actions job summary (`$GITHUB_STEP_SUMMARY`). The Cobertura XML is also uploaded as a workflow artifact.
+
 ## Safety: tests can never touch prod
 `ValorantAppTests/TestSetup.cs` runs once per test run and:
 - sets `DbSettings.SqlServerEnabled = false`, so every SQL Server write is skipped or a no-op, and
