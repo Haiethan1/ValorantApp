@@ -30,6 +30,21 @@ namespace ValorantApp.DiscordBot
                 title = built.Title,
                 description = built.Description,
                 url = built.Url,
+                color = built.Color.HasValue ? $"#{built.Color.Value.RawValue:X6}" : null,
+                thumbnailUrl = built.Thumbnail?.Url,
+                imageUrl = built.Image?.Url,
+                author = built.Author.HasValue ? new
+                {
+                    name = built.Author.Value.Name,
+                    url = built.Author.Value.Url,
+                    iconUrl = built.Author.Value.IconUrl
+                } : null,
+                footer = built.Footer.HasValue ? new
+                {
+                    text = built.Footer.Value.Text,
+                    iconUrl = built.Footer.Value.IconUrl
+                } : null,
+                timestampPresence = built.Timestamp.HasValue,
                 fields = built.Fields.Select(f => new { name = f.Name, value = f.Value, inline = f.Inline }).ToArray(),
             });
             return Task.CompletedTask;
