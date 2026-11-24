@@ -7,6 +7,10 @@
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+
+    <!-- Don't copy ValorantApp.dll.config (built from App.config, which holds real secrets locally) into the test
+         output. Tests and test mode never read it. The default list also includes .dll.config and .exe.config. -->
+    <AllowedReferenceRelatedFileExtensions>.pdb;.xml;.pri</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 
   <ItemGroup>

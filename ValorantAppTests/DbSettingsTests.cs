@@ -43,6 +43,15 @@ namespace ValorantAppTests
         }
 
         [TestMethod]
+        public void AppConfig_IsNotCopiedIntoTestOutput()
+        {
+            // ValorantApp.dll.config is built from App.config, which holds real secrets locally. The test csproj
+            // excludes it (AllowedReferenceRelatedFileExtensions) so no test can ever pick up prod settings.
+            string path = Path.Combine(AppContext.BaseDirectory, "ValorantApp.dll.config");
+            Assert.IsFalse(File.Exists(path), $"{path} should not be in the test output. Check ValorantAppTests.csproj.");
+        }
+
+        [TestMethod]
         public void SqlServerOnlyDaos_AreNoOps()
         {
             Assert.AreEqual(0, MatchEventsExtension.EventTotalCount());

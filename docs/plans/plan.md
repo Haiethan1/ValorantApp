@@ -24,7 +24,7 @@ Antigravity, Claude reviews.
 | # | Item | Size | Owner | Status |
 |---|---|---|---|---|
 | 1 | Fail-closed SQL Server setting | S | Claude | Done |
-| 1b | Stop copying `ValorantApp.dll.config` into the test build output | S | Claude | Open (getter fix already covers the main risk) |
+| 1b | Stop copying `ValorantApp.dll.config` into the test build output | S | Claude | Done (guard test in `DbSettingsTests`) |
 | 2 | Game-content guards (every agent/map/mode/rank has emoji, image, round trip) + unknown-content E2E | S | Gemini | Done |
 | 3 | Embed snapshot tests (full embed output, approved files) | M | Gemini | Done |
 | 4 | Competitive poll + tier-change E2E (promotion, demotion, none) | M | Gemini | Done (double-up, first ranked match, empty history not covered) |
