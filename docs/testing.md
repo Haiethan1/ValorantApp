@@ -10,6 +10,13 @@ dotnet test        # all tests: pure, local, no secrets, no network, no Discord,
 `dotnet test` must be green before you call anything done. One test is `[Ignore]`d on purpose
 (`MatchTest_Premier_Success`, see [backlog](backlog.md)).
 
+## CI
+`.github/workflows/ci.yml` runs restore, build (Release) and test on Linux for every PR and for pushes to `main` and
+`develop`. It uses no secrets and must stay that way: the suite is hermetic by design. If CI is red, reproduce locally
+with the same three commands (`dotnet restore`, `dotnet build -c Release`, `dotnet test -c Release`). Linux-only
+failures are most likely path case, or time zone ids (the code uses the Windows id `"Eastern Standard Time"`,
+which needs ICU/tzdata on Linux).
+
 ## Safety: tests can never touch prod
 `ValorantAppTests/TestSetup.cs` runs once per test run and:
 - sets `DbSettings.SqlServerEnabled = false`, so every SQL Server write is skipped or a no-op, and

@@ -111,7 +111,8 @@ needs the `Main` split and a configurable Henrik URL.
    tier change. Both need a frozen clock and a known `EpisodeActInfos` entry (`EpisodeActInfos.cs:93`).
 5. `Program.Main` split, configurable Henrik URL, out-of-process test mode.
 6. Unit/component backfill (agent-drafted, human-reviewed), then the real-Discord smoke tier.
-7. CI: a GitHub Actions workflow running build + test (no secrets needed).
+7. ~~CI: a GitHub Actions workflow running build + test (no secrets needed).~~ (workflow written, passes locally in
+   Release; first Linux run happens when it is pushed.)
 
 ## Non-goals
 - Replacing the blocking `.Result` calls (`SqlExtensions.cs`, `HenrikApi.cs`, `BaseValorantUser.cs`,
