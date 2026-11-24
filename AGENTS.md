@@ -83,3 +83,6 @@ docs/                        project knowledge for humans and agents
 - Deploying to the Pi → skill `deploy-pi` (user-triggered only, never deploy on your own).
 - Validating a change: build, test, then run against the **dev** bot/Discord server with a debugger
   attached (see docs/hosting.md#development). Automated validation is a work in progress.
+- Re-triggering a recap on the dev bot: the dev-only slash command `/devdeletematch` (registered only with a
+  debugger attached, bot-owner only) deletes your latest stored match from SQLite and SQL Server so the poller
+  re-posts it on the next tick. Logic lives in `Database/Extensions/DevToolsExtension.cs`.

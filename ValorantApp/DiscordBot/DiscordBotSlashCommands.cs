@@ -3,6 +3,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
@@ -233,6 +234,46 @@ namespace ValorantApp.DiscordBot
 
             await RespondSuccessAsync($"Channel is deleted for Discord User {user.Username}");
             return;
+        }
+
+        /// <summary>
+        /// DEV ONLY. Registered in Program.ReadyAsync only when a debugger is attached (dev bot), and guarded again here.
+        /// Forgets your latest stored match (SQLite + SQL Server) so the poller re-fetches and re-posts it.
+        /// </summary>
+        [SlashCommand("devdeletematch", "DEV ONLY: forget your latest stored match so it is re-posted on the next poll")]
+        public async Task DevDeleteLastMatch()
+        {
+            if (!Debugger.IsAttached)
+            {
+                await RespondErrorAsync("This command is only available on the dev bot.");
+                return;
+            }
+
+            // Bot application owner, so no user id is hardcoded here.
+            IApplication app = await Context.Client.GetApplicationInfoAsync();
+            if (Context.User.Id != app.Owner.Id)
+            {
+                await RespondErrorAsync("Only the bot owner can use this command.");
+                return;
+            }
+
+            ValorantUsers? valorantUser = ValorantUsersExtension.GetRowDiscordId(Context.User.Id);
+            if (valorantUser == null)
+            {
+                await RespondErrorAsync("No Valorant account is linked to you. Use /addme first.");
+                return;
+            }
+
+            string? matchId = DevToolsExtension.GetLatestMatchIdForUser(valorantUser.Val_puuid);
+            if (matchId == null)
+            {
+                await RespondErrorAsync("No stored match found for your account.");
+                return;
+            }
+
+            bool deleted = DevToolsExtension.DeleteMatchEverywhere(matchId);
+            _logger.LogWarning($"DEV: deleted match {matchId} (found in SQLite: {deleted}) for {valorantUser.Val_username}#{valorantUser.Val_tagname}");
+            await RespondSuccessAsync($"Deleted match `{matchId}`. It will be re-posted on the next poll if it is still your latest match and under 3 days old.");
         }
 
         // Only competitive matches.

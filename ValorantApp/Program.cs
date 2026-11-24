@@ -162,6 +162,16 @@ namespace ValorantApp
 
             };
 
+            // Dev-only commands: only registered with a debugger attached (dev bot token). Because registration is a
+            // bulk overwrite, a prod start removes them from the prod bot.
+            if (Debugger.IsAttached)
+            {
+                globalCommandList.Add(new SlashCommandBuilder()
+                    .WithName("devdeletematch")
+                    .WithDescription("DEV ONLY: forget your latest stored match so it is re-posted on the next poll")
+                    .WithContextTypes(InteractionContextType.Guild));
+            }
+
             //var commands = await _client.GetGlobalApplicationCommandsAsync();
             //List<SlashCommandBuilder> newGlobalCommands = new();
             //foreach (SlashCommandBuilder scb in globalCommandList)

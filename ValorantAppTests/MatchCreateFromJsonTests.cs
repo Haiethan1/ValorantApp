@@ -16,7 +16,7 @@ namespace ValorantAppTests
         private const string EthanPuuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
         private const string LawnmowerPuuid = "75bb7e82-e8f4-539e-96b3-8ebf547009c4";
 
-        private static MatchJson LoadMatch(string filename)
+        internal static MatchJson LoadMatch(string filename)
         {
             string json = File.ReadAllText(Path.Combine("../../../MockJsonResponse", filename));
             var obj = json.TryParse<JsonObjectHenrik<List<MatchJson>>>(out string error);
