@@ -50,22 +50,22 @@ namespace ValorantAppTests
         {
             var (program, _) = CreateProgram();
 
-            // ScheduledMessageTimer and DailyCheckTimer are private fields on BaseValorantProgram
-            // with no public or internal state accessors, so timer instances cannot be inspected directly.
-            // Calling Start() a second time hits the ScheduledMessageTimer != null guard and safely no-ops.
-            // We explicitly assert that calling Start() multiple times does not throw any exception.
-            Exception? thrown = null;
-            try
-            {
-                program.Start();
-                program.Start(); // second call is a no-op
-            }
-            catch (Exception ex)
-            {
-                thrown = ex;
-            }
+            // The timers are private with no accessors, so read them by reflection to prove the second call
+            // is a no-op (same timer instances) rather than starting a second set of timers.
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var pollField = typeof(BaseValorantProgram).GetField("ScheduledMessageTimer", flags)!;
+            var dailyField = typeof(BaseValorantProgram).GetField("DailyCheckTimer", flags)!;
 
-            Assert.IsNull(thrown, "Calling Start() multiple times should be idempotent and not throw an exception.");
+            program.Start();
+            object? pollTimer = pollField.GetValue(program);
+            object? dailyTimer = dailyField.GetValue(program);
+            Assert.IsNotNull(pollTimer, "Start should create the poll timer");
+            Assert.IsNotNull(dailyTimer, "Start should create the daily timer");
+
+            program.Start(); // second call is a no-op
+
+            Assert.AreSame(pollTimer, pollField.GetValue(program), "Second Start must not replace the poll timer");
+            Assert.AreSame(dailyTimer, dailyField.GetValue(program), "Second Start must not replace the daily timer");
         }
     }
 }
