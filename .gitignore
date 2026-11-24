@@ -15,3 +15,6 @@
 
 # Local-only files (owner machine specifics; never commit)
 *.local.md
+
+# Snapshot test output
+*.received.json
