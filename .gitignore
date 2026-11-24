@@ -12,3 +12,6 @@
 
 # Temporary files
 *.temp
+
+# Local-only files (owner machine specifics; never commit)
+*.local.md

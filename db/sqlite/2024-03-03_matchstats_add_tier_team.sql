@@ -1,0 +1,2 @@
+ALTER TABLE MatchStats ADD COLUMN current_tier TINYINT;
+ALTER TABLE MatchStats ADD COLUMN team TEXT;

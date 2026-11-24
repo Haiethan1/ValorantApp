@@ -1,130 +1,66 @@
-# Valorant Discord Match Tracker
+# Valorant Discord Match Tracker ("shamebot")
 
-A Discord-integrated service that tracks Valorant matches, aggregates player statistics, and automatically posts match results and daily summaries across multiple Discord servers.
-
----
-
-## Table of Contents
-- [Overview](#overview)
-- [Problem Statement](#problem-statement)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Technical Challenges](#technical-challenges)
-- [Scale Assumptions](#scale-assumptions)
-- [Tech Stack](#tech-stack)
-- [Future Improvements](#future-improvements)
-- [Notes](#notes)
-
----
-
-## Overview
-
-This is a personal, portfolio-focused backend service that integrates with Discord to automatically track and summarize Valorant post-match statistics across multiple Discord servers. Its goal is to help small gaming communities stay engaged by sharing match results and daily stat summaries, even when members aren’t playing together directly.
-
-The service runs 24/7 as a long-lived background system, deployed on a Raspberry Pi with a separate Linux server hosting the database. It polls external Valorant APIs on a fixed schedule, ingests and deduplicates match data, persists historical stats, and posts structured summaries back to Discord. While currently used by a small group of real users, the system is designed with production-style concerns in mind.
-
-A central constraint is the strict rate limiting of the external API (90 requests per minute). Polling, scheduling, and data ingestion are deliberately designed to stay within these limits while leaving room for on-demand queries, influencing both system architecture and scaling assumptions.
-
----
-
-## Problem Statement
-
-Discord communities playing Valorant often lack an automated way to track match results and player stats, relying instead on manual lookups or screenshots. This leads to inconsistent data and lower engagement across servers. Building a reliable tracking system is challenging due to strict API rate limits, occasional downtime, and the need to store and deduplicate match data. Supporting multiple Discord servers adds additional complexity around scheduling and polling. This project solves these problems by providing a long-running, Discord-integrated service that ingests match data, aggregates stats, and posts consistent summaries automatically.
-
----
+A Discord bot that tracks Valorant matches for a group of friends, stores their stats, and posts
+match recaps, rank changes, and daily summaries to Discord servers. It's been running 24/7 on a
+Raspberry Pi since 2023.
 
 ## Features
+- `/addme` links your Riot ID; `/addchannel` subscribes a channel to your matches
+- Automatic match polling (HenrikDev API) with recap embeds: K/D/A, headshot %, multikills, RR change,
+  and roast-worthy stats
+- Rank promotion/demotion announcements and daily reports (11:00 UTC)
+- `/mmr` for current rank
+- Multi-server support: any number of Discord servers and channels per player
+- (WIP) `/heatmap`: per-round kill positions
 
-- Discord bot integration
-- Discord commands
-- Automatic Valorant match polling
-- Match result posting
-- Daily / aggregate stat summaries
-- Persistent data storage
+## Quick start (development)
+Requirements: .NET 8 SDK, a Discord bot token (separate **dev** bot recommended), a
+[HenrikDev API key](https://docs.henrikdev.xyz).
 
----
+```bash
+git clone git@github.com:Haiethan1/ValorantApp.git && cd ValorantApp
+git update-index --assume-unchanged ValorantApp/App.config   # keep your secrets out of git
+# fill in ValorantApp/App.config: DevelopBotToken, HenrikToken (and BotToken / SQL Server strings if needed)
+dotnet build
+dotnet test
+```
+Run from Visual Studio/Rider **with the debugger attached**. That selects the dev bot token and dev
+database. Running without a debugger (including `dotnet run`) uses the **production** settings.
+The SQLite database (`myDatabase.db`) is created automatically in the working directory.
 
-## Architecture
+## How it works
+```
+Discord ◄──► ValorantApp (.NET 8 on Raspberry Pi 4) ──► HenrikDev Valorant API
+                 │  SQLite (primary)
+                 └─► SQL Server on NAS (Docker; dual-write + heatmap data)
+```
+Every 30 s the poller checks 15 tracked players (round-robin) for new matches. That keeps it
+inside HenrikDev's rate limit while leaving headroom for slash commands. With ~30 players, a match
+is usually posted within about 2 minutes of ending.
 
-High-level system design and data flow.
+More detail:
+- [docs/architecture.md](docs/architecture.md): components, runtime loops, commands, API usage
+- [docs/data-model.md](docs/data-model.md): SQLite vs SQL Server, schema, migrations (`db/`)
+- [docs/hosting.md](docs/hosting.md): dev/prod environments, deploying to the Pi, logs, backups
+- [docs/backlog.md](docs/backlog.md): known issues and tech debt
 
-> Include an architecture diagram here.
+## Tech stack
+C# / .NET 8 · Discord.Net · Microsoft.Data.Sqlite · Microsoft.Data.SqlClient · Serilog ·
+OpenTelemetry · MSTest + Moq · deployed self-contained `linux-arm64` to a Raspberry Pi 4.
 
+## Working on this repo with AI
+Agent instructions live in [AGENTS.md](AGENTS.md) (imported by `CLAUDE.md`). Repeatable workflows are
+skills in `.claude/skills/`: `update-game-content` (new agents/maps/modes/acts) and `deploy-pi`.
 
-
-**Components:**
-- Discord Bot
-- Background polling service
-- Henrik API
-- SQL Server (Dockerized)
-
----
-
-## Technical Challenges
-
-API rate limiting: The Henrik Valorant API allows 90 requests per minute, requiring careful scheduling and throttling to poll multiple users while leaving room for ad-hoc queries.
-
-Data ingestion & deduplication: Match data must be stored reliably and checked for duplicates to ensure accurate historical stats.
-
-Long-running background service: Maintaining a 24/7 service on a Raspberry Pi and a separate Linux server required robust error handling, retries, and logging.
-
-Multi-server support: Polling, data storage, and summary posting needed to work seamlessly across multiple Discord servers without conflicts.
-
-Handling external downtime: The system gracefully handles API failures or partial outages, ensuring the service continues running and catches up when data becomes available.
-
----
-
-## Scale Assumptions
-
-Discord servers: The service supports an unlimited number of servers; scaling is constrained primarily by the number of users being tracked rather than server count.
-
-Users & polling: Polling is rate-limited by the Henrik API to ~15 requests per minute, with room to increase to 30 requests per minute. Beyond this, the system would be hard-limited by API restrictions.
-
-Polling latency: With the current load (~30 users), any match is typically polled and recorded within 2 minutes. Doubling the user count (~60 users) would increase the maximum delay to ~4 minutes, and further increases would proportionally raise latency.
-
-Scaling bottlenecks: Increasing users or polling frequency would require either multiple polling instances, a caching layer, or batch requests to stay within API limits while maintaining timely updates.
-
----
-
-## Tech Stack
-
-Language: C#
-
-Discord Integration: Discord.Net
-
-Testing / Mocks: Moq
-
-Logging: Serilog
-
-Databases: SQLite3 (lightweight local storage), SQL Server (Dockerized, for performance-critical storage)
-
-Containerization: Docker (for SQL Server)
-
-Hosting / Deployment: Raspberry Pi (polling service) + separate Linux server (SQL Server)
-
-External APIs: Henrik Valorant API
-
----
-
-## Future Improvements
-
-Ideas for future enhancements.
-
-- Improved stat analysis
-- Web dashboard
-- Caching layer
-- Horizontal scaling
-- Improved fault tolerance
-
----
+## Contributing
+Branches and commits are prefixed with the GitHub issue: `VAL-<issue#>` (e.g. `VAL-64: Added ...`).
+Feature branches → PR into `develop` → `develop` merged into `main` for releases.
 
 ## Notes
+I definitely learned a lot with this. From database table design choices to setting up a service
+from scratch, it was a fun ride. The community we've built around Valorant and this match tracker
+really fueled me to work hard on it and keep improving it. The hype around Valorant has died down
+for our group, but this match tracker will (hopefully) remain in the hearts of many.
 
-I definitely learned a lot with this. From database table design choices to setting up a service from scratch, it was a fun ride.
-The community we've built around Valorant and this match tracker app really fueled me to work hard on it and continuously improve it.
-The hype around Valorant has definitely died down for our group, but this match tracker will (hopefully) remain in the hearts of many.
-
-While this readme was majorily helped by AI, this repository was mainly coded from scratch without the help of AI (can see from when commits were made).
-
----
-
+The original codebase (2023–2025) was written without AI. Since late 2026 the project has been
+revived with AI-assisted development.
