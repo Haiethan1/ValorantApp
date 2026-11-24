@@ -120,6 +120,7 @@ namespace ValorantApp
             services.AddSingleton(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>()));
             //services.AddSingleton<InteractionHandler>();
             services.AddSingleton<ValorantApp>();
+            services.AddSingleton<LinkCommandService>();
             services.AddSingleton<DiscordBotSlashCommands>();
 
             //services.AddLogging()

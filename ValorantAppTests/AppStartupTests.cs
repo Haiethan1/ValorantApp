@@ -140,6 +140,9 @@ namespace ValorantAppTests
             Assert.IsNotNull(provider.GetRequiredService<BaseValorantProgram>());
             // Constructs the Discord client and interaction service but never connects.
             Assert.IsNotNull(provider.GetRequiredService<global::ValorantApp.ValorantApp>());
+            // The slash command module is built by the interaction service from this container at runtime.
+            Assert.IsNotNull(provider.GetRequiredService<DiscordBotSlashCommands>());
+            Assert.IsNotNull(provider.GetRequiredService<LinkCommandService>());
         }
 
         [TestMethod]
