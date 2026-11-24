@@ -27,6 +27,7 @@ production is unchanged.
 | Characterization | `MatchCreateFromJsonTests` | Golden values for `MatchesExtension`/`MatchStatsExtension.CreateFromJson`. Some pin suspected bugs (marked `NOTE: possible bug`, tracked in issue #140). When you fix one, update the pinned value. |
 | API client | `HenrikApiTests` | Mocked HTTP + JSON fixtures in `MockJsonResponse/`. Old and due for a refactor. |
 | Component | `DbSettingsTests`, `DevToolsTests`, `BaseValorantProgramTests` | Real DAOs against the temp SQLite DB, `RecordingNotifier` for Discord. |
+| End-to-end | `PollTickE2ETests` | Real engine through one poll tick: seed user + channel, stub the `HenrikApiClient` HTTP client with a date-rewritten fixture, `RunPollTickAsync()`, assert DB rows and the recorded recap embed. Covers: new match stored and posted once, same match polled twice posts once, two tracked players in one match post one combined recap. |
 
 Shared helpers: `RecordingNotifier` (fake `IDiscordNotifier`: records sent embeds and statuses), `TestSetup`.
 
@@ -50,6 +51,13 @@ Shared helpers: `RecordingNotifier` (fake `IDiscordNotifier`: records sent embed
   competitive matches also need an mmr-history response (no fixture yet) and trigger SQL-Server-only heatmap code.
 - **Time:** code reads `DateTime.UtcNow` directly (daily report, tier change, 3-day cutoff). Daily-report tests
   stay date-fragile until `TimeProvider` is added (planned).
+- **E2E recipe** (copy `PollTickE2ETests`): seed via DAOs, build the program with `RecordingNotifier` and a
+  `Mock<IHttpClientFactory>` returning an `HttpClient` over a stub handler (route by path; unknown endpoints return
+  404, which `HenrikApi` tolerates), call `RunPollTickAsync()`, assert, then clean up in `finally`
+  (`DevToolsExtension.DeleteMatchEverywhere` + remove the seeded user/channel).
+- A "does not happen" assertion (e.g. no duplicate post) must also prove the action was attempted (e.g. the second
+  tick really polled), or it passes trivially. Mutation-check new tests: break the production behavior in a
+  throwaway worktree and confirm the test fails.
 - Don't "fix" a characterization test to what you think is right; fix the code (and the issue), then update it.
 
 ## Manual validation on the dev bot (until more is automated)
@@ -64,5 +72,5 @@ selects the prod token.
 
 ## Not covered yet
 - Slash commands (tightly coupled to Discord.Net socket types; needs logic extraction first).
-- Daily report and tier-change flows (need a clock seam).
+- Daily report and tier-change flows (need a clock seam), competitive-match flow (needs an mmr-history fixture).
 - Real-Discord smoke test, CI workflow, fixture refresh process.

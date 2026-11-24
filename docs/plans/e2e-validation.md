@@ -105,7 +105,7 @@ needs the `Main` split and a configurable Henrik URL.
    the two `CreateFromJson` methods.
 1. Seams 1-3 as separate small PRs. With no safety net yet, run each once against the **dev** bot with a
    debugger attached.
-2. The thin E2E test above.
+2. ~~The thin E2E test above.~~ (done: `PollTickE2ETests`, mutation-checked.)
 3. ~~`docs/testing.md` and an AGENTS.md "how to validate" section~~ (done; update when the E2E tests land).
 4. Add `TimeProvider` (built into .NET 8; `FakeTimeProvider` for tests), then E2E tests for the daily report and
    tier change. Both need a frozen clock and a known `EpisodeActInfos` entry (`EpisodeActInfos.cs:93`).
