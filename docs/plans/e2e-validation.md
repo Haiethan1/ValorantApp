@@ -74,7 +74,7 @@ Discord is used two ways.
 2. **`IDiscordNotifier`. DONE, verified on the dev bot (recap re-posted via the notifier).** `IDiscordNotifier`, `DiscordNotifier` (wraps the
    existing `CheckChannelAndSendMessageAsync`, behavior unchanged), registered in `Program.cs`; `RecordingNotifier`
    lives in the test project. Original plan: as above, replacing the 4 send sites and the `:1077/:1080` calls.
-3. **Poll tick + `Start()`. DONE, not yet run against the dev bot.** `Start()` is called from `RunBotAsync`; `internal RunPollTickAsync()` and `RunDailyCheckAsync()` drive one tick on demand; `InternalsVisibleTo ValorantAppTests`. Original plan: Move timer start out of the constructor into `Start()` (called from
+3. **Poll tick + `Start()`. DONE, verified on the dev bot (first tick at +60 s, then every ~30 s).** `Start()` is called from `RunBotAsync`; `internal RunPollTickAsync()` and `RunDailyCheckAsync()` drive one tick on demand; `InternalsVisibleTo ValorantAppTests`. Original plan: Move timer start out of the constructor into `Start()` (called from
    `RunBotAsync`). Expose one tick as an `internal RunPollTickAsync()` with `InternalsVisibleTo` for the test
    project.
 
@@ -106,7 +106,7 @@ needs the `Main` split and a configurable Henrik URL.
 1. Seams 1-3 as separate small PRs. With no safety net yet, run each once against the **dev** bot with a
    debugger attached.
 2. The thin E2E test above.
-3. `docs/testing.md` and an AGENTS.md "how to validate" section, describing what actually exists.
+3. ~~`docs/testing.md` and an AGENTS.md "how to validate" section~~ (done; update when the E2E tests land).
 4. Add `TimeProvider` (built into .NET 8; `FakeTimeProvider` for tests), then E2E tests for the daily report and
    tier change. Both need a frozen clock and a known `EpisodeActInfos` entry (`EpisodeActInfos.cs:93`).
 5. `Program.Main` split, configurable Henrik URL, out-of-process test mode.

@@ -12,6 +12,7 @@ so treat prod data and deploys with care.
 - Architecture & runtime flow: [docs/architecture.md](docs/architecture.md)
 - Databases, schema, migration history: [docs/data-model.md](docs/data-model.md)
 - Dev/prod hosting, deploy, logs, backups: [docs/hosting.md](docs/hosting.md)
+- Testing and validation (what exists, safety rules, how to write tests): [docs/testing.md](docs/testing.md)
 - Known issues, half-finished features, tech debt, planned work: [docs/backlog.md](docs/backlog.md)
 - Design plans for upcoming work: [docs/plans/](docs/plans/)
 
@@ -37,7 +38,7 @@ ValorantApp/
   DiscordBot/                DiscordBotSlashCommands.cs (live); DiscordBotCommand.cs (dead text commands)
   Database/Tables/           row models; Database/Extensions/ static DAO classes (raw ADO.NET SQL)
   GenericExtensions/, GenericUtils/  helpers (SQL retry, HTTP logging, timers)
-ValorantAppTests/            MSTest tests for HenrikApi with mocked HTTP + JSON fixtures
+ValorantAppTests/            MSTest: unit, component, and (WIP) end-to-end tests; JSON fixtures in MockJsonResponse/
 db/                          SQL migration history (SQLite + SQL Server), applied by hand
 docs/                        project knowledge for humans and agents
 ```
@@ -81,8 +82,9 @@ docs/                        project knowledge for humans and agents
 ## Common workflows
 - New agent / map / game mode / episode-act → skill `update-game-content` (`.claude/skills/`).
 - Deploying to the Pi → skill `deploy-pi` (user-triggered only, never deploy on your own).
-- Validating a change: build, test, then run against the **dev** bot/Discord server with a debugger
-  attached (see docs/hosting.md#development). Automated validation is a work in progress.
+- Validating a change: build, `dotnet test`, then (for behavior changes) run against the **dev** bot/Discord server
+  with a debugger attached (see docs/hosting.md#development). How tests are organized, the safety rules (tests can
+  never reach SQL Server or prod), and how to write them: [docs/testing.md](docs/testing.md).
 - Re-triggering a recap on the dev bot: the dev-only slash command `/devdeletematch` (registered only with a
   debugger attached, bot-owner only) deletes your latest stored match from SQLite and SQL Server so the poller
   re-posts it on the next tick. Logic lives in `Database/Extensions/DevToolsExtension.cs`.
