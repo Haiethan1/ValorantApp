@@ -56,6 +56,9 @@ Only if Riot changes the rank ladder. Rank tiers are stored as `TINYINT` (`curre
 ## 6. Verify
 1. `dotnet build` and `dotnet test` from the repo root.
 2. If a fixture match JSON for the new content is available, add a test in `ValorantAppTests/`.
+   Also keep the pinned tests in sync: add any new `Agents` members to `PersistedEnumTests.cs` (it fails if a
+   new member isn't appended after the last pinned value, which is the point), and update `EpisodeActTests.cs`
+   golden values if you change the act table (they pin the current, partly stale table).
 3. Have the user check on the **dev** bot (debugger attached): `/mmr` or wait for a recap of a match
    using the new agent/map/mode.
 4. Commit as `VAL-<issue>: Add <content>`.
