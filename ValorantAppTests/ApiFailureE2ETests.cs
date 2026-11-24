@@ -274,10 +274,10 @@ namespace ValorantAppTests
             DateTime matchTime = new(2026, 11, 23, 11, 30, 0, DateTimeKind.Utc);
             var (fixtureJson, matchId, _) = LoadRewrittenSwiftplayFixture(matchTime);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+
                 var handler = new ApiFailureHttpMessageHandler
                 {
                     MatchesFailure = failureMode,
@@ -326,10 +326,10 @@ namespace ValorantAppTests
             var (matchesJson, matchId, _) = LoadRewrittenCompMatchFixture(matchTime);
             string mmrHistoryJson = LoadRewrittenMmrHistoryFixture(matchId, newTier: 22, rrChange: 18);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+
                 var handler = new ApiFailureHttpMessageHandler
                 {
                     HealthyMatchesJson = matchesJson,
@@ -372,11 +372,11 @@ namespace ValorantAppTests
             const string failingPuuid = "99999999-9999-9999-9999-999999999999";
             const ulong failingDiscordId = 999888777UL;
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-            SeedUser(failingPuuid, "FailUser", "NA1", "na", failingDiscordId, TestChannelId);
-
             try
             {
+                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(failingPuuid, "FailUser", "NA1", "na", failingDiscordId, TestChannelId);
+
                 var handler = new ApiFailureHttpMessageHandler
                 {
                     HealthyMatchesJson = fixtureJson
