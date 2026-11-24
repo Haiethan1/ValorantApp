@@ -1,6 +1,9 @@
 # Plan: secrets & configuration redesign
 
-**Status:** proposed, not started. Discussed Nov 2026; to be picked up in a dedicated session.
+**Status:** proposed, not started. Tracked in [issue #141](https://github.com/Haiethan1/ValorantApp/issues/141).
+Parked in Nov 2026 until the validation layer existed (it now does, see [../testing.md](../testing.md)); to be picked
+up by the owner in a dedicated session. The issue lists where the code stands now (`DbSettings`, `AppOptions`, the
+`BuildServices` / `RunBotAsync` config reads), which changed after this plan was written.
 
 ## Problem
 - Secrets (bot tokens, HenrikDev key, SQL Server logins) live in `ValorantApp/App.config`. It's

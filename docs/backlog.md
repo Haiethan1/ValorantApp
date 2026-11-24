@@ -6,7 +6,7 @@ This file covers code-level debt. When an item gets an issue, link it and remove
 ## Next up (planned)
 - [ ] **Secrets & config redesign:** move secrets out of `App.config` into user-secrets (dev) and a
   prod secrets file outside the deploy dir, and replace `Debugger.IsAttached` with `VALORANTAPP_ENV`.
-  Full plan: [plans/secrets-and-config.md](plans/secrets-and-config.md).
+  Full plan: [plans/secrets-and-config.md](plans/secrets-and-config.md). Issue: #141.
 - [ ] **Validation skill** (`.claude/skills/validate`): a repeatable way for agents to verify changes
   beyond `dotnet build`/`dotnet test`. To design:
   - Tiers: build + unit tests → tests against a copy of the prod SQLite DB → dev bot run in the dev
