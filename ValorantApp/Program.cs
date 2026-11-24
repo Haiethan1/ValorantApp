@@ -104,6 +104,9 @@ namespace ValorantApp
         {
             string? token = ConfigurationManager.AppSettings[Debugger.IsAttached ? "DevelopBotToken" : "BotToken"];
 
+            // Timers used to start in BaseValorantProgram's constructor; start them here, at the same point in startup.
+            _program.Start();
+
             _client.Log += LogAsync;
 
             await RegisterCommandsAsync();

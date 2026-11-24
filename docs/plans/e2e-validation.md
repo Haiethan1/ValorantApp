@@ -64,17 +64,17 @@ Discord is used two ways.
    Until then they are covered only by the real-Discord smoke tier.
 
 ## Seams (separate small PRs, in this order)
-1. **DB settings + SQL Server switch. DONE (not yet run against the dev bot).** `DbSettings` (lazy defaults from
+1. **DB settings + SQL Server switch. DONE, verified on the dev bot (dual writes still land).** `DbSettings` (lazy defaults from
    App.config, settable) + 13 guarded SQL Server sites; the test assembly sets `SqlServerEnabled = false` and a temp
    SQLite file in `TestSetup.cs` (fail closed). Original plan: Replace the two `static readonly` fields in `BaseTable` with a
    settable `DbSettings { Sqlite; SqlServer?; SqlServerEnabled }`. `Main` fills it from config. Wrap each
    SQL Server block (about 10 sites) in `if (SqlServerEnabled)`; SQL-Server-only DAOs no-op or return 0
    (`EventTotalCount` runs in `UpdateDiscordBotConfig`). DAOs stay static. `ITable.CreateTables(string)`
    already takes a connection string.
-2. **`IDiscordNotifier`. DONE (not yet run against the dev bot).** `IDiscordNotifier`, `DiscordNotifier` (wraps the
+2. **`IDiscordNotifier`. DONE, verified on the dev bot (recap re-posted via the notifier).** `IDiscordNotifier`, `DiscordNotifier` (wraps the
    existing `CheckChannelAndSendMessageAsync`, behavior unchanged), registered in `Program.cs`; `RecordingNotifier`
    lives in the test project. Original plan: as above, replacing the 4 send sites and the `:1077/:1080` calls.
-3. **Poll tick + `Start()`.** Move timer start out of the constructor into `Start()` (called from
+3. **Poll tick + `Start()`. DONE, not yet run against the dev bot.** `Start()` is called from `RunBotAsync`; `internal RunPollTickAsync()` and `RunDailyCheckAsync()` drive one tick on demand; `InternalsVisibleTo ValorantAppTests`. Original plan: Move timer start out of the constructor into `Start()` (called from
    `RunBotAsync`). Expose one tick as an `internal RunPollTickAsync()` with `InternalsVisibleTo` for the test
    project.
 

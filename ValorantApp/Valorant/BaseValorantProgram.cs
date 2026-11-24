@@ -29,9 +29,24 @@ namespace ValorantApp.Valorant
             _notifier = notifier;
             Logger = logger;
             ReloadFromDB();
+        }
 
-            ScheduledMessageTimer = new Timer(SendScheduledMessageTimer, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
-            DailyCheckTimer = new Timer(SendDailyCheckTimer, null, TimerUtils.TimeSpanUntilUTC(11, 0, 0), TimeSpan.FromDays(1));
+        /// <summary>
+        /// Starts the poll and daily timers. Called once from <c>ValorantApp.RunBotAsync</c>; the constructor no longer
+        /// starts timers, so tests can build the program and drive ticks themselves. Safe to call more than once.
+        /// </summary>
+        public void Start()
+        {
+            lock (SendMessageTimerLock)
+            {
+                if (ScheduledMessageTimer != null)
+                {
+                    return;
+                }
+
+                ScheduledMessageTimer = new Timer(SendScheduledMessageTimer, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
+                DailyCheckTimer = new Timer(SendDailyCheckTimer, null, TimerUtils.TimeSpanUntilUTC(11, 0, 0), TimeSpan.FromDays(1));
+            }
         }
 
         #region Globals
@@ -42,10 +57,10 @@ namespace ValorantApp.Valorant
 
         private static readonly object QueueUsersLock = new();
 
-        private readonly Timer ScheduledMessageTimer;
+        private Timer? ScheduledMessageTimer;
         private readonly object SendMessageTimerLock = new();
 
-        private readonly Timer DailyCheckTimer;
+        private Timer? DailyCheckTimer;
 
         #endregion
 
@@ -216,6 +231,12 @@ namespace ValorantApp.Valorant
                 StartScheduledMessageTimer();
             }
         }
+
+        /// <summary>
+        /// Runs one poll tick on demand (no timer involved). Exceptions propagate, unlike the timer wrapper.
+        /// Used by tests.
+        /// </summary>
+        internal Task RunPollTickAsync() => SendScheduledMessage();
 
         private async Task SendScheduledMessage()
         {
@@ -893,23 +914,32 @@ namespace ValorantApp.Valorant
             Logger.LogInformation($"Starting {nameof(SendDailyCheckTimer)}");
             try
             {
-                EpisodeActInfos? episodeActInfos = EpisodeActExtension.GetEpisodeActInfosForEndDate(DateTime.UtcNow);
-                if (episodeActInfos == null)
-                {
-                    await SendDailyReport();
-                }
-                else
-                {
-                    await SendEpisodeActInfoReport(episodeActInfos);
-                }
-
-                await UpdateDiscordBotConfig();
-                CleanUpMatchEvents();
+                await RunDailyCheckAsync();
             }
             catch (Exception ex)
             {
                 Logger.LogError($"Error: {nameof(SendDailyCheckTimer)} - {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Runs the daily job on demand (no timer involved). Exceptions propagate, unlike the timer wrapper.
+        /// Used by tests.
+        /// </summary>
+        internal async Task RunDailyCheckAsync()
+        {
+            EpisodeActInfos? episodeActInfos = EpisodeActExtension.GetEpisodeActInfosForEndDate(DateTime.UtcNow);
+            if (episodeActInfos == null)
+            {
+                await SendDailyReport();
+            }
+            else
+            {
+                await SendEpisodeActInfoReport(episodeActInfos);
+            }
+
+            await UpdateDiscordBotConfig();
+            CleanUpMatchEvents();
         }
 
         private async Task SendDailyReport()
@@ -1098,7 +1128,7 @@ namespace ValorantApp.Valorant
         {
             lock (SendMessageTimerLock)
             {
-                ScheduledMessageTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                ScheduledMessageTimer?.Change(Timeout.Infinite, Timeout.Infinite);
             }
         }
 
@@ -1106,7 +1136,7 @@ namespace ValorantApp.Valorant
         {
             lock (SendMessageTimerLock)
             {
-                ScheduledMessageTimer.Change(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5));
+                ScheduledMessageTimer?.Change(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5));
             }
         }
 
