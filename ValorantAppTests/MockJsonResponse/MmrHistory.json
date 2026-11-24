@@ -1,0 +1,49 @@
+{
+  "status": 200,
+  "name": "FakePlayer",
+  "tag": "NA1",
+  "data": [
+    {
+      "currenttier": 22,
+      "currenttierpatched": "Ascendant 2",
+      "images": {
+        "small": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/smallicon.png",
+        "large": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/largeicon.png",
+        "triangle_down": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/ranktriangledown.png",
+        "triangle_up": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/ranktriangleup.png"
+      },
+      "match_id": "26e19cf3-4eec-42a5-864e-1b31a0f630de",
+      "map": {
+        "name": "Lotus",
+        "id": "d960549e-485c-68e3-6170-7197e1556d70"
+      },
+      "season_id": "4401f9fd-4170-2e4c-4bc3-f3b4d7d150d1",
+      "ranking_in_tier": 50,
+      "mmr_change_to_last_game": 18,
+      "elo": 1750,
+      "date": "Sunday, November 5, 2023 12:34 AM",
+      "date_raw": 1699144485
+    },
+    {
+      "currenttier": 22,
+      "currenttierpatched": "Ascendant 2",
+      "images": {
+        "small": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/smallicon.png",
+        "large": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/largeicon.png",
+        "triangle_down": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/ranktriangledown.png",
+        "triangle_up": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/22/ranktriangleup.png"
+      },
+      "match_id": "00000000-0000-0000-0000-000000000001",
+      "map": {
+        "name": "Ascent",
+        "id": "7eaecc1b-4337-bbf6-6ab9-04b8f06b3319"
+      },
+      "season_id": "4401f9fd-4170-2e4c-4bc3-f3b4d7d150d1",
+      "ranking_in_tier": 32,
+      "mmr_change_to_last_game": -15,
+      "elo": 1732,
+      "date": "Saturday, November 4, 2023 11:20 PM",
+      "date_raw": 1699140000
+    }
+  ]
+}
