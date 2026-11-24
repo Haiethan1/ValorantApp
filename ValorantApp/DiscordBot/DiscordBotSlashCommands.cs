@@ -20,9 +20,11 @@ namespace ValorantApp.DiscordBot
         private readonly IHttpClientFactory _httpClientFactory;
         private ILogger<ValorantApp> _logger;
         private readonly LinkCommandService _linkCommands;
-        public DiscordBotSlashCommands(DiscordSocketClient client, InteractionService interaction, IServiceProvider servicesProvider, IHttpClientFactory httpClientFactory, ILogger<ValorantApp> logger, LinkCommandService linkCommands)
+        private readonly MmrCommandService _mmrCommands;
+        public DiscordBotSlashCommands(DiscordSocketClient client, InteractionService interaction, IServiceProvider servicesProvider, IHttpClientFactory httpClientFactory, ILogger<ValorantApp> logger, LinkCommandService linkCommands, MmrCommandService mmrCommands)
         {
             _linkCommands = linkCommands;
+            _mmrCommands = mmrCommands;
             _client = client;
             _interaction = interaction;
             _servicesProvider = servicesProvider;
@@ -37,40 +39,28 @@ namespace ValorantApp.DiscordBot
         {
             SocketUser user = ((SocketSlashCommand)Context.Interaction).Data.Options.FirstOrDefault()?.Value as SocketUser ?? Context.User;
 
-            if (!GetUserAndProgram(user, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+            MmrCommandResult result = _mmrCommands.GetMmr(user.Id, user.Username, Context.Channel.Id);
+            if (!result.Success)
             {
-                await RespondErrorAsync($"Could not find Valorant User for Discord User {user.Username}");
+                await RespondErrorAsync(result.ErrorMessage!);
                 return;
             }
 
-            // Ensure a user can only query shamebot's users of the same guild.
-            if (!valorantUser.IsInChannel(Context.Channel.Id))
-            {
-                await RespondErrorAsync($"Valorant user must be connected to this channel to use this command.");
-                return;
-            }
-
-            MmrV2Json? mmr = valorantUser.GetMMR();
-            if (mmr == null)
-            {
-                await RespondErrorAsync($"API failed to respond.");
-                return;
-            }
-
+            MmrEmbedData data = result.Data!.Value;
             EmbedBuilder embed = new EmbedBuilder()
-                .WithThumbnailUrl($"{mmr.Current_Data.Images?.Small.Safe() ?? ""}")
+                .WithThumbnailUrl(data.ThumbnailUrl)
                 .WithAuthor
                 (new EmbedAuthorBuilder
                 {
-                    Name = $"{mmr.Name.Safe()}#{mmr.Tag.Safe()}"
+                    Name = data.AuthorName
                 }
                 )
-                .WithTitle(mmr.Current_Data.CurrentTierPatched.Safe())
-                .WithDescription($"Current RR: {mmr.Current_Data.Ranking_In_Tier}")
+                .WithTitle(data.Title)
+                .WithDescription(data.Description)
                 .WithFooter
                 (new EmbedFooterBuilder
                 {
-                    Text = $"RR Change to last game: {mmr.Current_Data.Mmr_Change_To_Last_Game}"
+                    Text = data.FooterText
                 }
                 );
 

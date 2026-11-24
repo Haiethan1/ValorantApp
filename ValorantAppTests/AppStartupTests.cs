@@ -143,6 +143,7 @@ namespace ValorantAppTests
             // The slash command module is built by the interaction service from this container at runtime.
             Assert.IsNotNull(provider.GetRequiredService<DiscordBotSlashCommands>());
             Assert.IsNotNull(provider.GetRequiredService<LinkCommandService>());
+            Assert.IsNotNull(provider.GetRequiredService<MmrCommandService>());
         }
 
         [TestMethod]
