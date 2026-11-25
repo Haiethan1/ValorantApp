@@ -149,4 +149,5 @@ jobs:
             ${{ runner.temp }}/replay/diff.txt
             ${{ runner.temp }}/replay/*/posts.jsonl
             ${{ runner.temp }}/replay/*/stdout.log
+            ${{ runner.temp }}/replay/*/fake_henrik.log
           if-no-files-found: ignore

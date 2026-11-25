@@ -189,14 +189,26 @@ def replay_side(name, out_bin, db, now, work):
     record = os.path.join(side, "posts.jsonl")
     open(record, "w").close()
 
+    fake_log_path = os.path.join(side, "fake_henrik.log")
+    fake_log = open(fake_log_path, "w", encoding="utf-8")
     fake = subprocess.Popen([sys.executable, "-I", os.path.join(REPO, "tools", "replay", "fake_henrik.py"),
                              "--fixtures", FIXTURES, "--db", db_copy, "--now", now],
-                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-    port = fake.stdout.readline().split()[1]
-    log = open(os.path.join(side, "stdout.log"), "w", encoding="utf-8")
-    app = start_app(out_bin, side, db_copy, record, now, f"http://127.0.0.1:{port}/valorant/")
+                            stdout=subprocess.PIPE, stderr=fake_log, text=True)
+    app = None
+    log = None
     errors = []
     try:
+        first = fake.stdout.readline().split()
+        if len(first) < 2:
+            fake.kill()
+            fake.wait(10)
+            fake_log.close()
+            with open(fake_log_path, encoding="utf-8") as f:
+                tail = f.read()[-2000:]
+            raise RuntimeError(f"fake_henrik.py did not start (exit {fake.returncode}):\n{tail}")
+        port = first[1]
+        log = open(os.path.join(side, "stdout.log"), "w", encoding="utf-8")
+        app = start_app(out_bin, side, db_copy, record, now, f"http://127.0.0.1:{port}/valorant/")
         lines = Lines(app.stdout, log)
         lines.wait_for(lambda l: l.strip() == "READY", 120)
         polls = math.ceil(user_count(db_copy) / USERS_PER_TICK) + 1
@@ -210,10 +222,12 @@ def replay_side(name, out_bin, db, now, work):
         app.stdin.flush()
         app.wait(30)
     finally:
-        if app.poll() is None:
+        if app is not None and app.poll() is None:
             app.kill()
         fake.kill()
-        log.close()
+        if log is not None:
+            log.close()
+        fake_log.close()
     with open(record, encoding="utf-8") as f:
         posts = [json.loads(l) for l in f if l.strip()]
     return posts, errors
