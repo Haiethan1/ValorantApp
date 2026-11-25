@@ -29,6 +29,7 @@ namespace ValorantAppTests
         public static void AssemblyCleanup()
         {
             SqliteConnection.ClearAllPools();
+            SqlServerContainer.StopAsync().GetAwaiter().GetResult();
             try
             {
                 if (_dbPath is not null) File.Delete(_dbPath);

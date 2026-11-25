@@ -51,6 +51,25 @@ namespace ValorantAppTests
             Assert.IsFalse(File.Exists(path), $"{path} should not be in the test output. Check ValorantAppTests.csproj.");
         }
 
+        [DataTestMethod]
+        [DataRow("Server=nas-host,1433;Database=Valorant;User Id=sa;Password=x")]
+        [DataRow("Server=192.168.1.20,1433;Database=Valorant")]
+        [DataRow("Server=tcp:valorant.example.com,1433;Database=Valorant")]
+        public void SqlServerContainerGuard_RejectsNonLocalServers(string connectionString)
+        {
+            // The only way a test may enable SQL Server is SqlServerContainer.Enable, which must refuse anything that
+            // isn't the local Testcontainers instance.
+            Assert.ThrowsException<AssertFailedException>(() => SqlServerContainer.AssertLocal(connectionString));
+        }
+
+        [DataTestMethod]
+        [DataRow("Server=127.0.0.1,49153;Database=Valorant")]
+        [DataRow("Server=localhost,49153;Database=Valorant")]
+        public void SqlServerContainerGuard_AcceptsLocalServers(string connectionString)
+        {
+            SqlServerContainer.AssertLocal(connectionString);
+        }
+
         [TestMethod]
         public void SqlServerOnlyDaos_AreNoOps()
         {

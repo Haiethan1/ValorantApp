@@ -5,8 +5,11 @@ How to prove a change works in this repo. Design and rationale: [plans/e2e-valid
 ## Commands
 ```bash
 dotnet build
-dotnet test        # all tests: pure, local, no secrets, no network, no Discord, no SQL Server
+dotnet test        # all tests: local, no secrets, no network, no Discord, never a real SQL Server
+dotnet test --filter "TestCategory!=SqlServer"   # skip the Docker-backed SQL Server tests (~1 min container start)
+dotnet tool restore && dotnet stryker            # mutation testing (scope in stryker-config.json), per release
 ```
+The `SqlServer` category needs Docker. Without it those tests are Inconclusive locally and **fail in CI**.
 `dotnet test` must be green before you call anything done. Two tests are skipped on purpose: one is `[Ignore]`d
 (`MatchTest_Premier_Success`, see [backlog](backlog.md)) and one is the opt-in real-Discord smoke test (below).
 
@@ -33,7 +36,13 @@ Notes:
 - sets `DbSettings.SqlServerEnabled = false`, so every SQL Server write is skipped or a no-op, and
 - points `DbSettings.Sqlite` at a throwaway temp file with the schema created.
 
-Never enable SQL Server in a test and never read `App.config` from one. `DbSettings` (in
+- the test build never contains `ValorantApp.dll.config` (guarded by `DbSettings.AppConfig_IsNotCopiedIntoTestOutput`).
+
+Never read `App.config` from a test. The **only** way a test may enable SQL Server is `SqlServerContainer.Enable()`
+(`ValorantAppTests/SqlServerContainer.cs`): it starts a throwaway SQL Server 2022 in Docker (Testcontainers, same image
+as the NAS), applies `db/sqlserver/*.sql`, refuses any non-local server, and returns a scope that turns SQL Server
+back off. Use it from `[TestInitialize]`/`[TestCleanup]` in a `[TestCategory("SqlServer")]` class, as
+`SqlServerDualWriteTests` does. Never set `DbSettings.SqlServerEnabled = true` or `DbSettings.SqlServer` directly. `DbSettings` (in
 `ValorantApp/Database/Extensions/DbSettings.cs`) defaults to the old behavior (config values, SQL Server on), so
 production is unchanged.
 

@@ -19,6 +19,7 @@
     <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
     <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
     <PackageReference Include="coverlet.collector" Version="3.2.0" />
+    <PackageReference Include="Testcontainers.MsSql" Version="4.17.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,6 +27,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- SQL Server schema, applied to the throwaway Testcontainers instance (see SqlServerContainer.cs). -->
+    <None Include="..\db\sqlserver\*.sql" Link="SqlServerSchema\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Snapshots\*.approved.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
