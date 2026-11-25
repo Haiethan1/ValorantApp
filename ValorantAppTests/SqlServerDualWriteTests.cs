@@ -159,7 +159,7 @@ namespace ValorantAppTests
                 Assert.AreEqual("Skye", SqlServerContainer.Scalar(
                     "SELECT val_character FROM lu_match_stats WHERE match_id = @m AND val_puuid = @p",
                     ("@m", stats.Match_id), ("@p", stats.Val_puuid)));
-                Assert.AreEqual((byte)18, SqlServerContainer.Scalar(
+                Assert.AreEqual((short)18, SqlServerContainer.Scalar(
                     "SELECT rr_change FROM lu_match_stats WHERE match_id = @m AND val_puuid = @p",
                     ("@m", stats.Match_id), ("@p", stats.Val_puuid)));
                 Assert.AreEqual((byte)19, SqlServerContainer.Scalar(
@@ -390,9 +390,10 @@ namespace ValorantAppTests
         }
 
         [TestMethod]
-        public void TypeEdgeCases_NegativeRrChange_ThrowsDueToTinyIntColumn()
+        public void TypeEdgeCases_NegativeRrChange_IsStored()
         {
-            // NOTE: possible bug: MatchStatsExtension.InsertRow fails when Rr_change is negative because lu_match_stats.rr_change is TINYINT in SQL Server.
+            // rr_change must hold RR losses. The original schema used TINYINT (0-255); prod is SMALLINT and
+            // db/sqlserver/2026-11_match_stats_rr_change_smallint.sql brings fresh databases in line.
             string matchId = "match-negative-rr-test";
             string puuid = "puuid-negative-rr-test";
 
@@ -404,9 +405,11 @@ namespace ValorantAppTests
 
             try
             {
-                var ex = Assert.ThrowsException<AggregateException>(() => MatchStatsExtension.InsertRow(matchStats));
-                Assert.IsInstanceOfType(ex.InnerException, typeof(InvalidOperationException));
-                Assert.IsTrue(ex.InnerException!.Message.Contains("Arithmetic overflow error for data type tinyint, value = -18"));
+                MatchStatsExtension.InsertRow(matchStats);
+
+                Assert.AreEqual((short)-18, SqlServerContainer.Scalar(
+                    "SELECT rr_change FROM lu_match_stats WHERE match_id = @m AND val_puuid = @p",
+                    ("@m", matchId), ("@p", puuid)));
             }
             finally
             {
