@@ -62,10 +62,38 @@ namespace ValorantAppTests
             Assert.IsNotNull(pollTimer, "Start should create the poll timer");
             Assert.IsNotNull(dailyTimer, "Start should create the daily timer");
 
-            program.Start(); // second call is a no-op
+            try
+            {
+                program.Start(); // second call is a no-op
 
-            Assert.AreSame(pollTimer, pollField.GetValue(program), "Second Start must not replace the poll timer");
-            Assert.AreSame(dailyTimer, dailyField.GetValue(program), "Second Start must not replace the daily timer");
+                Assert.AreSame(pollTimer, pollField.GetValue(program), "Second Start must not replace the poll timer");
+                Assert.AreSame(dailyTimer, dailyField.GetValue(program), "Second Start must not replace the daily timer");
+            }
+            finally
+            {
+                // Real timers: without this the poll timer keeps firing against the shared test DB for the rest of the run.
+                program.Dispose();
+            }
+        }
+
+        [TestMethod]
+        public void Dispose_StopsTimers_AndStartIsThenANoOp()
+        {
+            var (program, _) = CreateProgram();
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var pollField = typeof(BaseValorantProgram).GetField("ScheduledMessageTimer", flags)!;
+            var dailyField = typeof(BaseValorantProgram).GetField("DailyCheckTimer", flags)!;
+
+            program.Start();
+            program.Dispose();
+
+            Assert.IsNull(pollField.GetValue(program), "Dispose must release the poll timer");
+            Assert.IsNull(dailyField.GetValue(program), "Dispose must release the daily timer");
+
+            program.Start();
+            Assert.IsNull(pollField.GetValue(program), "Start after Dispose must not create new timers");
+
+            program.Dispose(); // idempotent
         }
     }
 }

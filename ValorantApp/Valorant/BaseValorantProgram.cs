@@ -13,7 +13,7 @@ using ValorantApp.Valorant.Helpers;
 
 namespace ValorantApp.Valorant
 {
-    public class BaseValorantProgram
+    public class BaseValorantProgram : IDisposable
     {
         private static readonly object DbLock = new object();
 
@@ -44,7 +44,7 @@ namespace ValorantApp.Valorant
         {
             lock (SendMessageTimerLock)
             {
-                if (ScheduledMessageTimer != null)
+                if (ScheduledMessageTimer != null || _disposed)
                 {
                     return;
                 }
@@ -71,6 +71,8 @@ namespace ValorantApp.Valorant
         private readonly object SendMessageTimerLock = new();
 
         private Timer? DailyCheckTimer;
+
+        private bool _disposed;
 
         #endregion
 
@@ -1148,6 +1150,24 @@ namespace ValorantApp.Valorant
             {
                 ScheduledMessageTimer?.Change(_pollInterval, _pollInterval);
             }
+        }
+
+        /// <summary>
+        /// Stops and releases both timers (production never calls this; tests and the DI container do). A poll tick
+        /// already running finishes, and its re-arm becomes a no-op. <see cref="Start"/> does nothing afterwards.
+        /// </summary>
+        public void Dispose()
+        {
+            lock (SendMessageTimerLock)
+            {
+                _disposed = true;
+                ScheduledMessageTimer?.Dispose();
+                ScheduledMessageTimer = null;
+                DailyCheckTimer?.Dispose();
+                DailyCheckTimer = null;
+            }
+
+            GC.SuppressFinalize(this);
         }
 
         #endregion Timer Utils
