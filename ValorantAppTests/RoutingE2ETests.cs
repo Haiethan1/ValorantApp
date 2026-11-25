@@ -28,8 +28,8 @@ namespace ValorantAppTests
     [DoNotParallelize]
     public class RoutingE2ETests
     {
-        private const string EthanPuuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
-        private const string OreoZPuuid = "1a13d7a1-d988-5e78-80e8-1cdd6531bcb3";
+        private const string EthanPuuid = "aaaaaaaa-0000-4000-8000-000000000501";
+        private const string OreoZPuuid = "aaaaaaaa-0000-4000-8000-000000000502";
         private const ulong EthanDiscordId = 111222333UL;
         private const ulong OreoZDiscordId = 444555666UL;
 
@@ -179,7 +179,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, ChannelAlpha, ChannelBeta);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, ChannelAlpha, ChannelBeta);
 
                 var (program, notifier, _) = CreateProgram(fixtureJson);
 
@@ -217,8 +217,8 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, ChannelAlpha);
-                SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, ChannelBeta);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, ChannelAlpha);
+                SeedUser(OreoZPuuid, "Player02", "TAG02", "na", OreoZDiscordId, ChannelBeta);
 
                 var (program, notifier, _) = CreateProgram(fixtureJson);
 
@@ -236,15 +236,15 @@ namespace ValorantAppTests
                 var sentAlpha = notifier.Sent.Single(s => s.ChannelId == ChannelAlpha);
                 Assert.AreEqual($"<@{EthanDiscordId}>", sentAlpha.Text);
                 Assert.AreEqual(2, sentAlpha.Embed.Fields.Length, "ChannelAlpha recap should have 1 player field and 1 match stats field");
-                StringAssert.Contains(sentAlpha.Embed.Fields[0].Name, "Ehtan");
-                Assert.IsFalse(sentAlpha.Embed.Fields.Any(f => f.Name.Contains("iiTzOreoZ")), "ChannelAlpha must not include OreoZ");
+                StringAssert.Contains(sentAlpha.Embed.Fields[0].Name, "Player01");
+                Assert.IsFalse(sentAlpha.Embed.Fields.Any(f => f.Name.Contains("Player02")), "ChannelAlpha must not include OreoZ");
 
                 // ChannelBeta recap has OreoZ only
                 var sentBeta = notifier.Sent.Single(s => s.ChannelId == ChannelBeta);
                 Assert.AreEqual($"<@{OreoZDiscordId}>", sentBeta.Text);
                 Assert.AreEqual(2, sentBeta.Embed.Fields.Length, "ChannelBeta recap should have 1 player field and 1 match stats field");
-                StringAssert.Contains(sentBeta.Embed.Fields[0].Name, "iiTzOreoZ");
-                Assert.IsFalse(sentBeta.Embed.Fields.Any(f => f.Name.Contains("Ehtan")), "ChannelBeta must not include Ethan");
+                StringAssert.Contains(sentBeta.Embed.Fields[0].Name, "Player02");
+                Assert.IsFalse(sentBeta.Embed.Fields.Any(f => f.Name.Contains("Player01")), "ChannelBeta must not include Ethan");
             }
             finally
             {
@@ -262,8 +262,8 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, ChannelAlpha);
-                SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, ChannelAlpha);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, ChannelAlpha);
+                SeedUser(OreoZPuuid, "Player02", "TAG02", "na", OreoZDiscordId, ChannelAlpha);
 
                 var (program, notifier, _) = CreateProgram(fixtureJson);
 
@@ -285,8 +285,8 @@ namespace ValorantAppTests
 
                 // 2 player fields + 1 match stats field
                 Assert.AreEqual(3, sent.Embed.Fields.Length);
-                Assert.IsTrue(sent.Embed.Fields.Any(f => f.Name.Contains("Ehtan")));
-                Assert.IsTrue(sent.Embed.Fields.Any(f => f.Name.Contains("iiTzOreoZ")));
+                Assert.IsTrue(sent.Embed.Fields.Any(f => f.Name.Contains("Player01")));
+                Assert.IsTrue(sent.Embed.Fields.Any(f => f.Name.Contains("Player02")));
             }
             finally
             {
@@ -303,7 +303,7 @@ namespace ValorantAppTests
             var (fixtureJson, matchId, _) = LoadRewrittenFixture(matchTime);
 
             // User seeded in ValorantUsers table with NO rows in ValorantChannelMappings
-            ValorantUsersExtension.InsertRow(new ValorantUsers("Ehtan", "NA1", "na", EthanPuuid, EthanDiscordId));
+            ValorantUsersExtension.InsertRow(new ValorantUsers("Player01", "NA1", "na", EthanPuuid, EthanDiscordId));
 
             try
             {
@@ -454,8 +454,8 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, ChannelAlpha);
-                SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, ChannelBeta);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, ChannelAlpha);
+                SeedUser(OreoZPuuid, "Player02", "TAG02", "na", OreoZDiscordId, ChannelBeta);
 
                 var (program, notifier, _) = CreateProgram(fixtureJson);
 
@@ -495,7 +495,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, ChannelAlpha, ChannelBeta);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, ChannelAlpha, ChannelBeta);
 
                 var (program, notifier, _) = CreateProgram(fixtureJson);
 
@@ -525,8 +525,8 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, ChannelAlpha);
-                SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, ChannelBeta);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, ChannelAlpha);
+                SeedUser(OreoZPuuid, "Player02", "TAG02", "na", OreoZDiscordId, ChannelBeta);
 
                 BaseValorantProgram? programRef = null;
                 Task<bool>? deleteTask = null;
@@ -588,8 +588,8 @@ namespace ValorantAppTests
             // Both users mapped to ChannelAlpha
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, ChannelAlpha);
-                SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, ChannelAlpha);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, ChannelAlpha);
+                SeedUser(OreoZPuuid, "Player02", "TAG02", "na", OreoZDiscordId, ChannelAlpha);
 
                 BaseValorantProgram? programRef = null;
 
@@ -615,7 +615,7 @@ namespace ValorantAppTests
                 Assert.AreEqual(ChannelAlpha, sent.ChannelId);
                 Assert.AreEqual($"<@{EthanDiscordId}>", sent.Text, "Recap should mention Ethan only (OreoZ was unlinked mid-tick)");
                 Assert.AreEqual(2, sent.Embed.Fields.Length, "Recap should have 1 player field for Ethan + 1 match stats field");
-                StringAssert.Contains(sent.Embed.Fields[0].Name, "Ehtan");
+                StringAssert.Contains(sent.Embed.Fields[0].Name, "Player01");
             }
             finally
             {

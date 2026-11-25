@@ -1,7 +1,7 @@
 {
   "title": "SwiftPlay - Ascent",
   "description": null,
-  "url": "https://tracker.gg/valorant/match/a492c7d9-4ecc-4ac1-94d7-cc25256e8a8f",
+  "url": "https://tracker.gg/valorant/match/bbbbbbbb-0000-4000-8000-000000000502",
   "color": "#E74C3C",
   "thumbnailUrl": "https://static.wikia.nocookie.net/valorant/images/3/36/Reyna_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202820",
   "imageUrl": null,
@@ -10,7 +10,7 @@
   "timestampPresence": false,
   "fields": [
     {
-      "name": "<:reyna:1251243990582300712> Ehtan | <:unr:1214734089165475850>",
+      "name": "<:reyna:1251243990582300712> Player01 | <:unr:1214734089165475850>",
       "value": "Combat Score: 227, K/D/A: 6/6/1\nHeadshot: 63.64%, RR: 0",
       "inline": false
     },

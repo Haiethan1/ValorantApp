@@ -128,7 +128,7 @@ namespace ValorantAppTests
             var mmr = new MmrHistoryJson { Mmr_change_to_last_game = 18, Currenttier = 19 };
             var matches = MatchesExtension.CreateFromJson(matchJson);
             Assert.IsNotNull(matches);
-            var stats = MatchStatsExtension.CreateFromJson(matchJson, mmr, "8c7276bd-a70b-56bf-803b-7e0fd9dba287");
+            var stats = MatchStatsExtension.CreateFromJson(matchJson, mmr, "aaaaaaaa-0000-4000-8000-000000000501");
             Assert.IsNotNull(stats);
 
             try

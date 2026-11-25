@@ -185,7 +185,7 @@ namespace ValorantApp.DiscordBot
         //        )
         //        .WithTitle($"{matchStats.First().Value.Matches.Map}")
         //        .WithDescription($"<@{userInfo.Id}> Match data {matchStats.First().Value.Matches.Match_Id}")
-        //        .AddField($"Ehtan", "KDA, combat, headshot, rr change", inline: false)
+        //        .AddField($"Player", "KDA, combat, headshot, rr change", inline: false)
         //        .WithFooter
         //        (new EmbedFooterBuilder
         //        {
@@ -276,7 +276,7 @@ namespace ValorantApp.DiscordBot
         //    //    )
         //    //    .WithTitle($"{matchStats.First().Value.Map}")
         //    //    .WithDescription($"Match data {matchStats.First().Value.Match_id}")
-        //    //    .AddField($"Ehtan", "KDA, combat, headshot, rr change", inline: false)
+        //    //    .AddField($"Player", "KDA, combat, headshot, rr change", inline: false)
         //    //    .AddField("Tokage", "KDA, combat, headshot, rr change", inline: false)
         //    //    .AddField($"bot1", "KDA, combat, headshot, rr change", inline: false)
         //    //    .AddField("bot2", "KDA, combat, headshot, rr change", inline: false)

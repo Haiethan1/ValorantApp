@@ -23,7 +23,7 @@ namespace ValorantAppTests
     [DoNotParallelize]
     public class GameContentGuardTests
     {
-        private const string EthanPuuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
+        private const string EthanPuuid = "aaaaaaaa-0000-4000-8000-000000000501";
         private const ulong TestChannelId = 987654321UL;
         private const ulong EthanDiscordId = 111222333UL;
 
@@ -292,7 +292,7 @@ namespace ValorantAppTests
             DateTime matchTime = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, DateTime.UtcNow.Hour, DateTime.UtcNow.Minute, 0, DateTimeKind.Utc);
             var (fixtureJson, matchId, _) = LoadRewrittenFixtureWithUnknowns(matchTime, unknownAgent, unknownMap, unknownMode);
 
-            SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+            SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
 
             try
             {
@@ -319,7 +319,7 @@ namespace ValorantAppTests
                 // 2. Player field name uses Agents.Unknown.Id() which falls back to "Unknown" placeholder text
                 Assert.IsTrue(embed.Fields.Length > 0, "Embed should contain player field");
                 var playerField = embed.Fields[0];
-                StringAssert.StartsWith(playerField.Name, "Unknown Ehtan",
+                StringAssert.StartsWith(playerField.Name, "Unknown Player01",
                     "Player field name should begin with 'Unknown' placeholder instead of agent emoji");
             }
             finally

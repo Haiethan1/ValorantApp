@@ -28,8 +28,8 @@ namespace ValorantAppTests
     [DoNotParallelize]
     public class EmbedSnapshotTests
     {
-        private const string EthanPuuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
-        private const string OreoZPuuid = "1a13d7a1-d988-5e78-80e8-1cdd6531bcb3";
+        private const string EthanPuuid = "aaaaaaaa-0000-4000-8000-000000000501";
+        private const string OreoZPuuid = "aaaaaaaa-0000-4000-8000-000000000502";
         private const ulong TestChannelId = 987654321UL;
         private const ulong EthanDiscordId = 111222333UL;
         private const ulong OreoZDiscordId = 444555666UL;
@@ -194,7 +194,7 @@ namespace ValorantAppTests
             return (program, notifier);
         }
 
-        private static void SeedUser(string puuid = EthanPuuid, string username = "Ehtan", string tag = "NA1", string affinity = "na", ulong discordId = EthanDiscordId, ulong channelId = TestChannelId)
+        private static void SeedUser(string puuid = EthanPuuid, string username = "Player01", string tag = "NA1", string affinity = "na", ulong discordId = EthanDiscordId, ulong channelId = TestChannelId)
         {
             ValorantUsersExtension.InsertRow(new ValorantUsers(username, tag, affinity, puuid, discordId));
             ValorantChannelMappingsExtension.InsertRow(new ValorantChannelMappings(puuid, channelId));
@@ -219,7 +219,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(fixtureJson, timeProvider: clock);
 
                 await program.RunPollTickAsync();
@@ -243,8 +243,8 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-                SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(OreoZPuuid, "Player02", "TAG02", "na", OreoZDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(fixtureJson, timeProvider: clock);
 
                 await program.RunPollTickAsync();
@@ -270,7 +270,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
@@ -296,7 +296,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
@@ -322,7 +322,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();

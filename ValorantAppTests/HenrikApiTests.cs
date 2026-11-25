@@ -16,10 +16,10 @@ namespace ValorantAppTests
     [TestClass]
     public class HenrikApiTests
     {
-        private readonly string _username = "Ehtan";
+        private readonly string _username = "Player01";
         private readonly string _tagName = "NA1";
         private readonly string _affinity = "na";
-        private readonly string _puuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
+        private readonly string _puuid = "aaaaaaaa-0000-4000-8000-000000000501";
 
         private MockRepository _mockRepository;
 
@@ -335,10 +335,10 @@ namespace ValorantAppTests
         {{
             ""status"": 200,
             ""data"": {{
-                ""puuid"": ""8c7276bd-a70b-56bf-803b-7e0fd9dba287"",
+                ""puuid"": ""aaaaaaaa-0000-4000-8000-000000000501"",
                 ""region"": ""na"",
                 ""account_level"": 314,
-                ""name"": ""Ehtan"",
+                ""name"": ""Player01"",
                 ""tag"": ""NA1"",
                 ""card"": {{
                     ""small"": ""https://media.valorant-api.com/playercards/5a33d85c-42c9-9b75-44c3-e0a447a8a894/smallart.png"",

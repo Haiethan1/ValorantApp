@@ -14,8 +14,8 @@ namespace ValorantAppTests
     [TestClass]
     public class MatchCreateFromJsonTests
     {
-        private const string EthanPuuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
-        private const string LawnmowerPuuid = "75bb7e82-e8f4-539e-96b3-8ebf547009c4";
+        private const string EthanPuuid = "aaaaaaaa-0000-4000-8000-000000000501";
+        private const string Player03Puuid = "aaaaaaaa-0000-4000-8000-000000000503";
 
         internal static MatchJson LoadMatch(string filename)
         {
@@ -33,7 +33,7 @@ namespace ValorantAppTests
 
             var matches = MatchesExtension.CreateFromJson(matchJson);
             Assert.IsNotNull(matches);
-            Assert.AreEqual("26e19cf3-4eec-42a5-864e-1b31a0f630de", matches.Match_Id);
+            Assert.AreEqual("bbbbbbbb-0000-4000-8000-000000000511", matches.Match_Id);
             Assert.AreEqual("Lotus", matches.Map);
             Assert.AreEqual("Competitive", matches.Mode);
             Assert.AreEqual("competitive", matches.Mode_Id);
@@ -51,7 +51,7 @@ namespace ValorantAppTests
 
             var stats = MatchStatsExtension.CreateFromJson(matchJson, mmr, EthanPuuid);
             Assert.IsNotNull(stats);
-            Assert.AreEqual("26e19cf3-4eec-42a5-864e-1b31a0f630de", stats.Match_id);
+            Assert.AreEqual("bbbbbbbb-0000-4000-8000-000000000511", stats.Match_id);
             Assert.AreEqual(EthanPuuid, stats.Val_puuid);
             Assert.AreEqual("Lotus", stats.Map);
             Assert.AreEqual("Competitive", stats.Mode);
@@ -94,7 +94,7 @@ namespace ValorantAppTests
 
             var matches = MatchesExtension.CreateFromJson(matchJson);
             Assert.IsNotNull(matches);
-            Assert.AreEqual("a492c7d9-4ecc-4ac1-94d7-cc25256e8a8f", matches.Match_Id);
+            Assert.AreEqual("bbbbbbbb-0000-4000-8000-000000000502", matches.Match_Id);
             Assert.AreEqual("Ascent", matches.Map);
             Assert.AreEqual("Swiftplay", matches.Mode);
             Assert.AreEqual("swiftplay", matches.Mode_Id);
@@ -112,7 +112,7 @@ namespace ValorantAppTests
             // Null mmr verified: Rr_change defaults to 0 and New_Tier defaults to 0
             var stats = MatchStatsExtension.CreateFromJson(matchJson, null, EthanPuuid);
             Assert.IsNotNull(stats);
-            Assert.AreEqual("a492c7d9-4ecc-4ac1-94d7-cc25256e8a8f", stats.Match_id);
+            Assert.AreEqual("bbbbbbbb-0000-4000-8000-000000000502", stats.Match_id);
             Assert.AreEqual(EthanPuuid, stats.Val_puuid);
             Assert.AreEqual("Ascent", stats.Map);
             Assert.AreEqual("Swiftplay", stats.Mode);
@@ -153,7 +153,7 @@ namespace ValorantAppTests
 
             var matches = MatchesExtension.CreateFromJson(matchJson);
             Assert.IsNotNull(matches);
-            Assert.AreEqual("c2c4a94d-6750-4e16-b9bf-ed7236b35a56", matches.Match_Id);
+            Assert.AreEqual("bbbbbbbb-0000-4000-8000-000000000501", matches.Match_Id);
             Assert.AreEqual("Bind", matches.Map);
             Assert.AreEqual("Deathmatch", matches.Mode);
             Assert.AreEqual("deathmatch", matches.Mode_Id);
@@ -169,10 +169,10 @@ namespace ValorantAppTests
             Assert.AreEqual(false, matches.Blue_Team_Win);
             Assert.AreEqual("ec876e6c-43e8-fa63-ffc1-2e8d4db25525", matches.Season_Id);
 
-            var stats = MatchStatsExtension.CreateFromJson(matchJson, null, LawnmowerPuuid);
+            var stats = MatchStatsExtension.CreateFromJson(matchJson, null, Player03Puuid);
             Assert.IsNotNull(stats);
-            Assert.AreEqual("c2c4a94d-6750-4e16-b9bf-ed7236b35a56", stats.Match_id);
-            Assert.AreEqual(LawnmowerPuuid, stats.Val_puuid);
+            Assert.AreEqual("bbbbbbbb-0000-4000-8000-000000000501", stats.Match_id);
+            Assert.AreEqual(Player03Puuid, stats.Val_puuid);
             Assert.AreEqual("Bind", stats.Map);
             Assert.AreEqual("Deathmatch", stats.Mode);
             Assert.AreEqual((byte)1, stats.Rounds);
@@ -202,7 +202,7 @@ namespace ValorantAppTests
             Assert.AreEqual(new DateTime(2024, 1, 10, 22, 11, 0), stats.Game_Start_Patched);
             Assert.IsFalse(stats.MVP);
             Assert.AreEqual((byte)0, stats.Current_Tier);
-            Assert.AreEqual(LawnmowerPuuid, stats.Team);
+            Assert.AreEqual(Player03Puuid, stats.Team);
             Assert.AreEqual((byte)0, stats.New_Tier);
         }
 

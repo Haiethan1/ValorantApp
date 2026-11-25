@@ -27,8 +27,8 @@ namespace ValorantAppTests
     [DoNotParallelize]
     public class PollTickE2ETests
     {
-        private const string EthanPuuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
-        private const string OreoZPuuid = "1a13d7a1-d988-5e78-80e8-1cdd6531bcb3";
+        private const string EthanPuuid = "aaaaaaaa-0000-4000-8000-000000000501";
+        private const string OreoZPuuid = "aaaaaaaa-0000-4000-8000-000000000502";
         private const ulong TestChannelId = 987654321UL;
         private const ulong EthanDiscordId = 111222333UL;
         private const ulong OreoZDiscordId = 444555666UL;
@@ -128,7 +128,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, handler) = CreateProgram(fixtureJson);
 
                 await program.RunPollTickAsync();
@@ -153,7 +153,7 @@ namespace ValorantAppTests
                 Assert.AreEqual("https://static.wikia.nocookie.net/valorant/images/3/36/Reyna_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202820", embed.Thumbnail?.Url);
 
                 Assert.AreEqual(2, embed.Fields.Length);
-                Assert.AreEqual("<:reyna:1251243990582300712> Ehtan | <:unr:1214734089165475850>", embed.Fields[0].Name);
+                Assert.AreEqual("<:reyna:1251243990582300712> Player01 | <:unr:1214734089165475850>", embed.Fields[0].Name);
                 Assert.AreEqual("Combat Score: 227, K/D/A: 6/6/1\nHeadshot: 63.64%, RR: 0", embed.Fields[0].Value);
 
                 Assert.AreEqual($"__{new string(' ', 40)}__\n\nMatch Stats", embed.Fields[1].Name);
@@ -179,7 +179,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, handler) = CreateProgram(fixtureJson);
                 int MatchesRequests() => handler.RequestedUrls.Count(u => u.Contains("v3/by-puuid/matches", StringComparison.OrdinalIgnoreCase));
 
@@ -213,7 +213,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, handler) = CreateProgram(fixtureJson, clock);
 
                 await program.RunPollTickAsync();
@@ -238,8 +238,8 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
-                SeedUser(OreoZPuuid, "iiTzOreoZ", "6642", "na", OreoZDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(OreoZPuuid, "Player02", "TAG02", "na", OreoZDiscordId, TestChannelId);
                 var (program, notifier, _) = CreateProgram(fixtureJson);
 
                 await program.RunPollTickAsync();
@@ -259,8 +259,8 @@ namespace ValorantAppTests
                 Assert.AreEqual("SwiftPlay - Ascent", embed.Title);
                 // Combined embed contains 2 player fields (sorted by score descending: OreoZ first, Ethan second) + 1 match info field
                 Assert.AreEqual(3, embed.Fields.Length);
-                StringAssert.Contains(embed.Fields[0].Name, "iiTzOreoZ");
-                StringAssert.Contains(embed.Fields[1].Name, "Ehtan");
+                StringAssert.Contains(embed.Fields[0].Name, "Player02");
+                StringAssert.Contains(embed.Fields[1].Name, "Player01");
                 Assert.AreEqual($"__{new string(' ', 40)}__\n\nMatch Stats", embed.Fields[2].Name);
                 Assert.AreEqual($"<t:{epoch}:f>, 11 minutes\nRounds 3 : 5\nAverage Ranks <:unr:1214734089165475850> : <:unr:1214734089165475850>", embed.Fields[2].Value);
             }

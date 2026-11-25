@@ -23,7 +23,7 @@ namespace ValorantAppTests
     [DoNotParallelize]
     public class OutOfProcessE2ETests
     {
-        private const string EthanPuuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
+        private const string EthanPuuid = "aaaaaaaa-0000-4000-8000-000000000501";
         private const ulong TestChannelId = 987654321UL;
         private const ulong EthanDiscordId = 111222333UL;
 
@@ -52,7 +52,7 @@ namespace ValorantAppTests
             cmd.CommandText = @"
                 INSERT INTO ValorantUsers (val_username, val_tagname, val_affinity, val_puuid, disc_id) VALUES (@u, @t, @a, @p, @d);
                 INSERT INTO ValorantChannelMapping (val_puuid, disc_channel_id) VALUES (@p, @c);";
-            cmd.Parameters.AddWithValue("@u", "Ehtan");
+            cmd.Parameters.AddWithValue("@u", "Player01");
             cmd.Parameters.AddWithValue("@t", "NA1");
             cmd.Parameters.AddWithValue("@a", "na");
             cmd.Parameters.AddWithValue("@p", puuid);
@@ -325,7 +325,7 @@ namespace ValorantAppTests
 
             var fields = (JArray)embed["fields"]!;
             Assert.AreEqual(2, fields.Count);
-            Assert.AreEqual("<:reyna:1251243990582300712> Ehtan | <:unr:1214734089165475850>", fields[0]["name"]!.Value<string>());
+            Assert.AreEqual("<:reyna:1251243990582300712> Player01 | <:unr:1214734089165475850>", fields[0]["name"]!.Value<string>());
             Assert.AreEqual("Combat Score: 227, K/D/A: 6/6/1\nHeadshot: 63.64%, RR: 0", fields[0]["value"]!.Value<string>());
             Assert.AreEqual($"__{new string(' ', 40)}__\n\nMatch Stats", fields[1]["name"]!.Value<string>());
             Assert.AreEqual($"<t:{epoch}:f>, 11 minutes\nRounds 3 : 5\nAverage Ranks <:unr:1214734089165475850> : <:unr:1214734089165475850>", fields[1]["value"]!.Value<string>());

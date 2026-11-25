@@ -1,7 +1,7 @@
 {
   "title": "Competitive - Lotus",
   "description": null,
-  "url": "https://tracker.gg/valorant/match/26e19cf3-4eec-42a5-864e-1b31a0f630de",
+  "url": "https://tracker.gg/valorant/match/bbbbbbbb-0000-4000-8000-000000000511",
   "color": "#2ECC71",
   "thumbnailUrl": "https://static.wikia.nocookie.net/valorant/images/7/7f/Skye_Artwork_Full.png/revision/latest/scale-to-width-down/1000?cb=20220810202828",
   "imageUrl": null,
@@ -10,7 +10,7 @@
   "timestampPresence": false,
   "fields": [
     {
-      "name": "<:skye:1251244001063993366> Ehtan | <:asc2:1214384834936569898>",
+      "name": "<:skye:1251244001063993366> Player01 | <:asc2:1214384834936569898>",
       "value": "Combat Score: 278, K/D/A: 19/15/13\nHeadshot: 42.50%, RR: 18",
       "inline": false
     },

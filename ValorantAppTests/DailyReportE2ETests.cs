@@ -25,7 +25,7 @@ namespace ValorantAppTests
     [DoNotParallelize]
     public class DailyReportE2ETests
     {
-        private const string EthanPuuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
+        private const string EthanPuuid = "aaaaaaaa-0000-4000-8000-000000000501";
         private const ulong TestChannelId = 987654321UL;
         private const ulong EthanDiscordId = 111222333UL;
 
@@ -66,7 +66,7 @@ namespace ValorantAppTests
             return (matches, stats, matchId);
         }
 
-        private static void SeedUser(string puuid = EthanPuuid, string username = "Ehtan", string tag = "NA1", string affinity = "na", ulong discordId = EthanDiscordId, ulong channelId = TestChannelId)
+        private static void SeedUser(string puuid = EthanPuuid, string username = "Player01", string tag = "NA1", string affinity = "na", ulong discordId = EthanDiscordId, ulong channelId = TestChannelId)
         {
             ValorantUsersExtension.InsertRow(new ValorantUsers(username, tag, affinity, puuid, discordId));
             ValorantChannelMappingsExtension.InsertRow(new ValorantChannelMappings(puuid, channelId));
@@ -119,7 +119,7 @@ namespace ValorantAppTests
                 Assert.AreEqual(Color.DarkBlue, embed.Color);
 
                 Assert.AreEqual(1, embed.Fields.Length);
-                Assert.AreEqual("Ehtan#NA1 <:asc2:1214384834936569898> :arrow_right: <:dia2:1214384335063490620> +18 RR", embed.Fields[0].Name);
+                Assert.AreEqual("Player01#NA1 <:asc2:1214384834936569898> :arrow_right: <:dia2:1214384335063490620> +18 RR", embed.Fields[0].Name);
                 Assert.AreEqual("Matches: 1 | Minutes: 31 | Aces: 0\nK/D/A: 19/15/13 | Most Played: <:skye:1251244001063993366>\nHeadshot: 42.5% | Bodyshot: 52.5%", embed.Fields[0].Value);
 
                 Assert.AreEqual(1, notifier.Statuses.Count);

@@ -27,7 +27,8 @@ NAME_KEYS = {"name", "tag"}  # only replaced inside player / account / roster ob
 
 
 class Faker:
-    def __init__(self):
+    def __init__(self, id_base=0):
+        self.id_base = id_base
         self.maps = {"puuid": {}, "match": {}, "party": {}, "roster": {}}
         self.prefix = {"puuid": "aaaaaaaa", "match": "bbbbbbbb", "party": "cccccccc", "roster": "dddddddd"}
         self.names = {}       # real name -> fake name
@@ -37,7 +38,7 @@ class Faker:
     def fake_id(self, kind, real):
         m = self.maps[kind]
         if real not in m:
-            m[real] = f"{self.prefix[kind]}-0000-4000-8000-{len(m) + 1:012d}"
+            m[real] = f"{self.prefix[kind]}-0000-4000-8000-{self.id_base + len(m) + 1:012d}"
         return m[real]
 
     def add_player(self, puuid, name, tag):
@@ -55,7 +56,7 @@ class Faker:
 
 
 def load(path):
-    with open(path, encoding="utf-8") as f:
+    with open(path, encoding="utf-8-sig") as f:
         return json.load(f)
 
 
@@ -64,7 +65,7 @@ def players_of(match):
     return p.get("all_players") or []
 
 
-def collect(docs, faker, owner_puuid):
+def collect(docs, faker, owner_puuid, tracked=()):
     """First pass: learn every identity, owner first so they get index 01."""
     owner_name = owner_tag = None
     for doc in docs.values():
@@ -78,6 +79,16 @@ def collect(docs, faker, owner_puuid):
     if owner_name is None:
         sys.exit(f"Owner puuid {owner_puuid} not found in any match or account file")
     faker.add_player(owner_puuid, owner_name, owner_tag)
+
+    # Extra tracked players get the next fixed indexes (Player02, Player03, ...) so tests can name them.
+    for extra in tracked:
+        for doc in docs.values():
+            hit = next((p for m in data_list(doc) for p in players_of(m) if p.get("puuid", "").lower() == extra), None)
+            if hit:
+                faker.add_player(extra, hit.get("name"), hit.get("tag"))
+                break
+        else:
+            sys.exit(f"Tracked puuid {extra} not found in any match file")
 
     for doc in docs.values():
         for m in data_list(doc):
@@ -164,6 +175,8 @@ def main():
     ap.add_argument("raw_dir")
     ap.add_argument("out_dir")
     ap.add_argument("--owner-puuid", required=True)
+    ap.add_argument("--tracked", nargs="*", default=[], help="more puuids to pin as Player02, Player03, ...")
+    ap.add_argument("--id-base", type=int, default=0, help="offset for fake ids, so separate fixture sets don't collide")
     args = ap.parse_args()
 
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -171,9 +184,9 @@ def main():
         sys.exit("Raw files must live outside the repository.")
 
     docs = {f: load(os.path.join(args.raw_dir, f)) for f in sorted(os.listdir(args.raw_dir)) if f.endswith(".json")}
-    faker = Faker()
+    faker = Faker(args.id_base)
     owner = args.owner_puuid.lower()
-    collect(docs, faker, owner)
+    collect(docs, faker, owner, [t.lower() for t in args.tracked])
 
     id_lookup = {real: fake for _, real, fake in faker.all_ids()}
     display_lookup = {}

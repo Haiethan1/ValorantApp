@@ -29,7 +29,7 @@ namespace ValorantAppTests
     [DoNotParallelize]
     public class CompetitiveE2ETests
     {
-        private const string EthanPuuid = "8c7276bd-a70b-56bf-803b-7e0fd9dba287";
+        private const string EthanPuuid = "aaaaaaaa-0000-4000-8000-000000000501";
         private const ulong TestChannelId = 987654321UL;
         private const ulong EthanDiscordId = 111222333UL;
 
@@ -134,7 +134,7 @@ namespace ValorantAppTests
             return (program, notifier, handler);
         }
 
-        private static void SeedUser(string puuid = EthanPuuid, string username = "Ehtan", string tag = "NA1", string affinity = "na", ulong discordId = EthanDiscordId, ulong channelId = TestChannelId)
+        private static void SeedUser(string puuid = EthanPuuid, string username = "Player01", string tag = "NA1", string affinity = "na", ulong discordId = EthanDiscordId, ulong channelId = TestChannelId)
         {
             ValorantUsersExtension.InsertRow(new ValorantUsers(username, tag, affinity, puuid, discordId));
             ValorantChannelMappingsExtension.InsertRow(new ValorantChannelMappings(puuid, channelId));
@@ -161,7 +161,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, handler) = CreateProgram(matchesJson, mmrHistoryJson, clock);
                 int MatchesRequests() => handler.RequestedUrls.Count(u => u.Contains("v3/by-puuid/matches", StringComparison.OrdinalIgnoreCase));
 
@@ -184,7 +184,7 @@ namespace ValorantAppTests
                 Assert.AreEqual(AgentsExtension.AgentFromString("Skye").ImageURLFromAgent(), embed.Thumbnail?.Url);
 
                 Assert.AreEqual(2, embed.Fields.Length);
-                StringAssert.Contains(embed.Fields[0].Name, "Ehtan");
+                StringAssert.Contains(embed.Fields[0].Name, "Player01");
                 StringAssert.Contains(embed.Fields[0].Name, RankEmojis.Ascendant2.Id());
                 Assert.AreEqual("Combat Score: 278, K/D/A: 19/15/13\nHeadshot: 42.50%, RR: 18", embed.Fields[0].Value);
 
@@ -220,7 +220,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, _) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
@@ -238,7 +238,7 @@ namespace ValorantAppTests
                 Assert.AreEqual($"<@{EthanDiscordId}>", tierMsg.Text);
 
                 var embed = tierMsg.Embed;
-                Assert.AreEqual($"Ehtan#NA1 {MemeEmojisEnum.Sunglasses.Id()}", embed.Title);
+                Assert.AreEqual($"Player01#TAG01 {MemeEmojisEnum.Sunglasses.Id()}", embed.Title);
                 Assert.AreEqual(
                     $"{RankEmojis.Ascendant2.Id()} {MemeEmojisEnum.ArrowUp.Id()} {RankEmojis.Ascendant3.Id()}",
                     embed.Description);
@@ -267,7 +267,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, _) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
@@ -285,7 +285,7 @@ namespace ValorantAppTests
                 Assert.AreEqual($"<@{EthanDiscordId}>", tierMsg.Text);
 
                 var embed = tierMsg.Embed;
-                Assert.AreEqual($"Ehtan#NA1 {MemeEmojisEnum.Clown.Id()}", embed.Title);
+                Assert.AreEqual($"Player01#TAG01 {MemeEmojisEnum.Clown.Id()}", embed.Title);
                 Assert.AreEqual(
                     $"{RankEmojis.Ascendant2.Id()} {MemeEmojisEnum.ArrowDown.Id()} {RankEmojis.Ascendant1.Id()}",
                     embed.Description);
@@ -314,7 +314,7 @@ namespace ValorantAppTests
 
             try
             {
-                SeedUser(EthanPuuid, "Ehtan", "NA1", "na", EthanDiscordId, TestChannelId);
+                SeedUser(EthanPuuid, "Player01", "NA1", "na", EthanDiscordId, TestChannelId);
                 var (program, notifier, _) = CreateProgram(matchesJson, mmrHistoryJson, clock);
 
                 await program.RunPollTickAsync();
