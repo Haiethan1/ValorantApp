@@ -119,3 +119,34 @@ jobs:
         with:
           name: coverage-report
           path: ./TestResults/**/coverage.cobertura.xml
+
+  # Old-vs-new replay on a generated fake database (tools/replay, docs/testing.md). Builds the PR's base and head, runs
+  # both offline in test mode, and reports whether any Discord post would change: IDENTICAL, or DIFFERENT with the diff
+  # in the job summary and the replay-output artifact. Changed posts don't fail the job (a reviewer judges them); new
+  # errors in the PR's version, or a broken harness, do.
+  replay:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Replay against base
+        run: python3 -I tools/replay/replay.py --base "origin/${{ github.base_ref }}" --synthetic --ci --out "$RUNNER_TEMP/replay"
+
+      - name: Upload replay output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replay-output
+          path: |
+            ${{ runner.temp }}/replay/diff.txt
+            ${{ runner.temp }}/replay/*/posts.jsonl
+            ${{ runner.temp }}/replay/*/stdout.log
+          if-no-files-found: ignore

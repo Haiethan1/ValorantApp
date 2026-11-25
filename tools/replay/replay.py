@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 """
-Old-vs-new replay: run two versions of the bot on the same database copy and the same fake HenrikDev responses,
-and diff what each would have posted to Discord. The strongest "does this change alter behavior?" check.
+Old-vs-new replay: run two versions of the bot on the same database and the same fake HenrikDev responses, and diff
+what each would have posted to Discord. Answers "does this change alter any post?".
 
-For each side (base ref, head ref or the current working tree) it:
-  1. checks out the ref in a temporary git worktree (the working tree is used as-is for WORKTREE),
-  2. builds it (Release) into a temp folder,
-  3. copies the database, starts tools/replay/fake_henrik.py on a free port,
-  4. runs the app in test mode with a frozen clock and manual commands (VALORANTAPP_MANUAL=1):
-     enough "poll" commands to cover every tracked user, then "daily",
-  5. collects the JSON-lines recording of every post.
-Then it diffs the two recordings. Exit 0 = identical, 1 = different, 2 = harness error.
+For each side (base ref, head ref or the current working tree) it builds the app (Release), copies the database,
+starts tools/replay/fake_henrik.py (every tracked user "just played" a recorded match), runs the app in test mode with
+a frozen clock and manual commands (VALORANTAPP_MANUAL=1): enough "poll" commands to cover every tracked user, then
+"daily". Then it diffs the two recordings.
 
-Both refs must support manual test mode (added on branch aiReady, 2026-11). Never point --db at the live
-database: use a downloaded copy. Outputs contain real names from that database, so --out must be outside the repo.
+Database:
+  --db <copy>    a COPY of a prod myDatabase.db (outside the repo; real data, local runs only)
+  --synthetic    a generated fake database (tools/replay/make_synthetic_db.py); used by CI
+
+Exit codes: 0 identical (or skipped, or DIFFERENT with --ci), 1 different, 2 harness error.
+--ci also writes a Markdown summary to $GITHUB_STEP_SUMMARY when set.
+
+Both refs must support manual test mode (added 2026-11). If the base doesn't, the replay is skipped (exit 0).
 
 Usage:
   python -I tools/replay/replay.py --base develop --db <copy of myDatabase.db> [--head WORKTREE] [--now ISO] [--out DIR]
+  python -I tools/replay/replay.py --base origin/develop --synthetic --ci
 """
 import argparse
 import difflib
@@ -35,6 +38,8 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 FIXTURES = os.path.join(REPO, "ValorantAppTests", "MockJsonResponse", "Recorded")
 USERS_PER_TICK = 15
 COMMAND_TIMEOUT_S = 300
+SYNTHETIC_NOW = "2026-01-15T11:30:00Z"
+SUPPORT_MARKER = "VALORANTAPP_MANUAL"
 
 
 def ro_uri(path):
@@ -51,6 +56,14 @@ def run(cmd, **kw):
 
 def inside_repo(path):
     return os.path.abspath(path).startswith(REPO + os.sep)
+
+
+def ref_supports_replay(ref):
+    if ref == "WORKTREE":
+        path = os.path.join(REPO, "ValorantApp", "AppOptions.cs")
+        return os.path.exists(path) and SUPPORT_MARKER in open(path, encoding="utf-8-sig").read()
+    r = subprocess.run(["git", "-C", REPO, "show", f"{ref}:ValorantApp/AppOptions.cs"], capture_output=True, text=True)
+    return r.returncode == 0 and SUPPORT_MARKER in r.stdout
 
 
 def default_now(db):
@@ -90,11 +103,11 @@ class Lines:
 
     def wait_for(self, predicate, timeout):
         start = 0
-        with self.cv:
-            deadline = threading.Event()
-            timer = threading.Timer(timeout, lambda: (deadline.set(), self._notify()))
-            timer.start()
-            try:
+        deadline = threading.Event()
+        timer = threading.Timer(timeout, lambda: (deadline.set(), self._notify()))
+        timer.start()
+        try:
+            with self.cv:
                 while True:
                     for i in range(start, len(self.lines)):
                         line = self.lines[i]
@@ -107,116 +120,197 @@ class Lines:
                     if deadline.is_set():
                         raise RuntimeError("timed out")
                     self.cv.wait()
-            finally:
-                timer.cancel()
+        finally:
+            timer.cancel()
 
     def _notify(self):
         with self.cv:
             self.cv.notify_all()
 
 
-def run_side(name, ref, db, now, work):
+def build(name, ref, work):
+    """Builds a ref (or the working tree) into <work>/<name>/bin and returns that folder."""
     side = os.path.join(work, name)
-    os.makedirs(side)
-    if ref == "WORKTREE":
-        src = REPO
-    else:
+    os.makedirs(side, exist_ok=True)
+    src = REPO
+    if ref != "WORKTREE":
         src = os.path.join(side, "src")
         run(["git", "-C", REPO, "worktree", "add", "--detach", src, ref])
     try:
         out_bin = os.path.join(side, "bin")
         print(f"[{name}] building {ref} ...", flush=True)
         run(["dotnet", "build", os.path.join(src, "ValorantApp", "ValorantApp.csproj"), "-c", "Release", "-o", out_bin, "--nologo", "-v", "q"])
-
-        db_copy = os.path.join(side, "replay.db")
-        shutil.copyfile(db, db_copy)
-        record = os.path.join(side, "posts.jsonl")
-        open(record, "w").close()
-
-        fake = subprocess.Popen([sys.executable, "-I", os.path.join(REPO, "tools", "replay", "fake_henrik.py"),
-                                 "--fixtures", FIXTURES, "--db", db_copy, "--now", now],
-                                stdout=subprocess.PIPE, text=True)
-        port = fake.stdout.readline().split()[1]
-
-        env = {k: v for k, v in os.environ.items() if not k.startswith("VALORANTAPP_")}
-        env.update({
-            "VALORANTAPP_TESTMODE": "1",
-            "VALORANTAPP_HENRIK_URL": f"http://127.0.0.1:{port}/valorant/",
-            "VALORANTAPP_SQLITE_PATH": db_copy,
-            "VALORANTAPP_RECORD_PATH": record,
-            "VALORANTAPP_NOW": now,
-            "VALORANTAPP_MANUAL": "1",
-        })
-        log = open(os.path.join(side, "stdout.log"), "w", encoding="utf-8")
-        app = subprocess.Popen(["dotnet", os.path.join(out_bin, "ValorantApp.dll")], cwd=side, env=env,
-                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        errors = []
-        try:
-            lines = Lines(app.stdout, log)
-            lines.wait_for(lambda l: l.strip() == "READY", 120)
-            polls = math.ceil(user_count(db_copy) / USERS_PER_TICK) + 1
-            for cmd in ["poll"] * polls + ["daily"]:
-                app.stdin.write(cmd + "\n")
-                app.stdin.flush()
-                answer = lines.wait_for(lambda l: l.startswith(f"OK {cmd}") or l.startswith(f"ERR {cmd}") or l.startswith("ERR unknown"), COMMAND_TIMEOUT_S)
-                if answer.startswith("ERR"):
-                    errors.append(answer)
-            app.stdin.write("quit\n")
-            app.stdin.flush()
-            app.wait(30)
-        finally:
-            if app.poll() is None:
-                app.kill()
-            fake.kill()
-            log.close()
-        with open(record, encoding="utf-8") as f:
-            posts = [json.dumps(json.loads(l), sort_keys=True, ensure_ascii=False) for l in f if l.strip()]
-        return posts, errors
+        return out_bin
     finally:
         if ref != "WORKTREE":
             subprocess.run(["git", "-C", REPO, "worktree", "remove", "--force", src], capture_output=True)
 
 
+def start_app(out_bin, cwd, db, record, now, henrik_url):
+    env = {k: v for k, v in os.environ.items() if not k.startswith("VALORANTAPP_")}
+    env.update({
+        "VALORANTAPP_TESTMODE": "1",
+        "VALORANTAPP_HENRIK_URL": henrik_url,
+        "VALORANTAPP_SQLITE_PATH": db,
+        "VALORANTAPP_RECORD_PATH": record,
+        "VALORANTAPP_NOW": now,
+        "VALORANTAPP_MANUAL": "1",
+    })
+    return subprocess.Popen(["dotnet", os.path.join(out_bin, "ValorantApp.dll")], cwd=cwd, env=env,
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+
+def create_synthetic_db(out_bin, work, now):
+    """Lets the base build create the schema in an empty file, then fills it with generated fake data."""
+    folder = os.path.join(work, "synthetic")
+    os.makedirs(folder, exist_ok=True)
+    db = os.path.join(folder, "synthetic.db")
+    log = open(os.path.join(folder, "schema.log"), "w", encoding="utf-8")
+    app = start_app(out_bin, folder, db, os.path.join(folder, "unused.jsonl"), now, "http://127.0.0.1:9/valorant/")
+    try:
+        lines = Lines(app.stdout, log)
+        lines.wait_for(lambda l: l.strip() == "READY", 120)
+        app.stdin.write("quit\n")
+        app.stdin.flush()
+        app.wait(30)
+    finally:
+        if app.poll() is None:
+            app.kill()
+        log.close()
+    run([sys.executable, "-I", os.path.join(REPO, "tools", "replay", "make_synthetic_db.py"), db, "--now", now])
+    return db
+
+
+def replay_side(name, out_bin, db, now, work):
+    side = os.path.join(work, name)
+    os.makedirs(side, exist_ok=True)
+    db_copy = os.path.join(side, "replay.db")
+    shutil.copyfile(db, db_copy)
+    record = os.path.join(side, "posts.jsonl")
+    open(record, "w").close()
+
+    fake = subprocess.Popen([sys.executable, "-I", os.path.join(REPO, "tools", "replay", "fake_henrik.py"),
+                             "--fixtures", FIXTURES, "--db", db_copy, "--now", now],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    port = fake.stdout.readline().split()[1]
+    log = open(os.path.join(side, "stdout.log"), "w", encoding="utf-8")
+    app = start_app(out_bin, side, db_copy, record, now, f"http://127.0.0.1:{port}/valorant/")
+    errors = []
+    try:
+        lines = Lines(app.stdout, log)
+        lines.wait_for(lambda l: l.strip() == "READY", 120)
+        polls = math.ceil(user_count(db_copy) / USERS_PER_TICK) + 1
+        for cmd in ["poll"] * polls + ["daily"]:
+            app.stdin.write(cmd + "\n")
+            app.stdin.flush()
+            answer = lines.wait_for(lambda l: l.startswith(f"OK {cmd}") or l.startswith(f"ERR {cmd}") or l.startswith("ERR unknown"), COMMAND_TIMEOUT_S)
+            if answer.startswith("ERR"):
+                errors.append(answer)
+        app.stdin.write("quit\n")
+        app.stdin.flush()
+        app.wait(30)
+    finally:
+        if app.poll() is None:
+            app.kill()
+        fake.kill()
+        log.close()
+    with open(record, encoding="utf-8") as f:
+        posts = [json.loads(l) for l in f if l.strip()]
+    return posts, errors
+
+
+def post_lines(posts):
+    """Pretty-printed posts, so a diff shows the changed field rather than a whole one-line post."""
+    out = []
+    for i, p in enumerate(posts):
+        out.append(f"=== post {i + 1}: {p.get('type')} to channel {p.get('channelId')}: {p.get('title') or p.get('text')}")
+        out.extend(json.dumps(p, sort_keys=True, indent=1, ensure_ascii=False).splitlines())
+    return out
+
+
+def write_summary(text):
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if path:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(text + "\n")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--base", required=True, help="git ref for the old version (e.g. develop, main, a SHA)")
+    ap.add_argument("--base", required=True, help="git ref for the old version (e.g. develop, origin/develop, a SHA)")
     ap.add_argument("--head", default="WORKTREE", help="git ref for the new version, or WORKTREE (default) for the current files")
-    ap.add_argument("--db", required=True, help="a COPY of a prod myDatabase.db (outside the repo)")
-    ap.add_argument("--now", help="frozen clock, ISO-8601 UTC (default: 11:30 UTC the day after the newest match in --db)")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--db", help="a COPY of a prod myDatabase.db (outside the repo)")
+    src.add_argument("--synthetic", action="store_true", help="use a generated fake database (CI)")
+    ap.add_argument("--now", help="frozen clock, ISO-8601 UTC")
     ap.add_argument("--out", help="output folder outside the repo (default: a temp folder)")
+    ap.add_argument("--ci", action="store_true", help="exit 0 on DIFFERENT and write a GitHub step summary")
     args = ap.parse_args()
 
-    if inside_repo(args.db):
+    if args.db and inside_repo(args.db):
         sys.exit("--db must be outside the repository (it holds real user data).")
     out = args.out or tempfile.mkdtemp(prefix="valorant-replay-")
-    if inside_repo(out):
+    if args.db and inside_repo(out):
         sys.exit("--out must be outside the repository (outputs contain real names).")
     os.makedirs(out, exist_ok=True)
-    now = args.now or default_now(args.db)
-    print(f"Replay at {now} with {user_count(args.db)} tracked users. Output: {out}", flush=True)
+
+    if not ref_supports_replay(args.base):
+        msg = f"SKIPPED: base `{args.base}` predates replay support (manual test mode), nothing to compare."
+        print(msg)
+        write_summary(f"### Replay\n{msg}")
+        return 0
 
     try:
-        base_posts, base_err = run_side("base", args.base, args.db, now, out)
-        head_posts, head_err = run_side("head", args.head, args.db, now, out)
+        base_bin = build("base", args.base, out)
+        head_bin = build("head", args.head, out)
+        if args.synthetic:
+            now = args.now or SYNTHETIC_NOW
+            db = create_synthetic_db(base_bin, out, now)
+        else:
+            now = args.now or default_now(args.db)
+            db = args.db
+        print(f"Replay at {now} with {user_count(db)} tracked users. Output: {out}", flush=True)
+        base_posts, base_err = replay_side("base", base_bin, db, now, out)
+        head_posts, head_err = replay_side("head", head_bin, db, now, out)
     except Exception as e:
         print(f"HARNESS ERROR: {e}", file=sys.stderr)
+        write_summary(f"### Replay\nHarness error: `{str(e)[:500]}`")
         return 2
 
-    diff = list(difflib.unified_diff(base_posts, head_posts, f"base ({args.base})", f"head ({args.head})", lineterm="", n=1))
-    with open(os.path.join(out, "diff.txt"), "w", encoding="utf-8") as f:
+    diff = list(difflib.unified_diff(post_lines(base_posts), post_lines(head_posts),
+                                     f"base ({args.base})", f"head ({args.head})", lineterm="", n=3))
+    diff_path = os.path.join(out, "diff.txt")
+    with open(diff_path, "w", encoding="utf-8") as f:
         f.write("\n".join(diff))
 
-    print(f"base: {len(base_posts)} posts, {len(base_err)} errors | head: {len(head_posts)} posts, {len(head_err)} errors")
+    base_json = [json.dumps(p, sort_keys=True) for p in base_posts]
+    head_json = [json.dumps(p, sort_keys=True) for p in head_posts]
+    changed = sum(1 for p in head_json if p not in base_json) + max(0, len(base_json) - len(head_json))
+    stats = f"base: {len(base_posts)} posts, {len(base_err)} errors | head: {len(head_posts)} posts, {len(head_err)} errors"
+    print(stats)
     for e in base_err:
         print(f"  base {e}")
     for e in head_err:
         print(f"  head {e}")
-    if not diff and base_err == head_err:
-        print("IDENTICAL: the change does not alter any post.")
-        return 0
-    changed = sum(1 for l in diff if l.startswith("+") and not l.startswith("+++"))
-    print(f"DIFFERENT: {changed} added/changed post lines. See {os.path.join(out, 'diff.txt')}")
-    return 1
+
+    identical = not diff and base_err == head_err
+    verdict = "IDENTICAL: the change does not alter any post." if identical else f"DIFFERENT: about {changed} posts changed. See {diff_path}"
+    print(verdict)
+    source = "synthetic database" if args.synthetic else "database copy"
+    summary = [f"### Replay vs `{args.base}` ({source}, clock {now})", "", f"**{verdict.split(':')[0]}**: {stats}", ""]
+    if head_err != base_err:
+        summary += ["Errors (head):", *[f"- `{e}`" for e in head_err], ""]
+    if not identical:
+        shown = "\n".join(diff[:300])
+        summary += ["<details><summary>Diff (first 300 lines; full diff in the replay artifact)</summary>", "",
+                    "```diff", shown, "```", "</details>"]
+    write_summary("\n".join(summary))
+
+    if args.ci:
+        # Changed posts are for a human to judge; new errors in head (the app threw on poll/daily) are a failure.
+        new_errors = [e for e in head_err if e not in base_err]
+        return 1 if new_errors else 0
+    return 0 if identical else 1
 
 
 if __name__ == "__main__":
