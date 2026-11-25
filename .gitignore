@@ -18,3 +18,7 @@
 
 # Snapshot test output
 *.received.json
+
+# Stryker mutation testing output
+StrykerOutput/
+
