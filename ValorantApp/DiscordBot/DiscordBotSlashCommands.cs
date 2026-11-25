@@ -3,6 +3,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.GenericExtensions;
@@ -18,8 +19,12 @@ namespace ValorantApp.DiscordBot
         private IServiceProvider _servicesProvider;
         private readonly IHttpClientFactory _httpClientFactory;
         private ILogger<ValorantApp> _logger;
-        public DiscordBotSlashCommands(DiscordSocketClient client, InteractionService interaction, IServiceProvider servicesProvider, IHttpClientFactory httpClientFactory, ILogger<ValorantApp> logger)
+        private readonly LinkCommandService _linkCommands;
+        private readonly MmrCommandService _mmrCommands;
+        public DiscordBotSlashCommands(DiscordSocketClient client, InteractionService interaction, IServiceProvider servicesProvider, IHttpClientFactory httpClientFactory, ILogger<ValorantApp> logger, LinkCommandService linkCommands, MmrCommandService mmrCommands)
         {
+            _linkCommands = linkCommands;
+            _mmrCommands = mmrCommands;
             _client = client;
             _interaction = interaction;
             _servicesProvider = servicesProvider;
@@ -34,40 +39,28 @@ namespace ValorantApp.DiscordBot
         {
             SocketUser user = ((SocketSlashCommand)Context.Interaction).Data.Options.FirstOrDefault()?.Value as SocketUser ?? Context.User;
 
-            if (!GetUserAndProgram(user, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+            MmrCommandResult result = _mmrCommands.GetMmr(user.Id, user.Username, Context.Channel.Id);
+            if (!result.Success)
             {
-                await RespondErrorAsync($"Could not find Valorant User for Discord User {user.Username}");
+                await RespondErrorAsync(result.ErrorMessage!);
                 return;
             }
 
-            // Ensure a user can only query shamebot's users of the same guild.
-            if (!valorantUser.IsInChannel(Context.Channel.Id))
-            {
-                await RespondErrorAsync($"Valorant user must be connected to this channel to use this command.");
-                return;
-            }
-
-            MmrV2Json? mmr = valorantUser.GetMMR();
-            if (mmr == null)
-            {
-                await RespondErrorAsync($"API failed to respond.");
-                return;
-            }
-
+            MmrEmbedData data = result.Data!.Value;
             EmbedBuilder embed = new EmbedBuilder()
-                .WithThumbnailUrl($"{mmr.Current_Data.Images?.Small.Safe() ?? ""}")
+                .WithThumbnailUrl(data.ThumbnailUrl)
                 .WithAuthor
                 (new EmbedAuthorBuilder
                 {
-                    Name = $"{mmr.Name.Safe()}#{mmr.Tag.Safe()}"
+                    Name = data.AuthorName
                 }
                 )
-                .WithTitle(mmr.Current_Data.CurrentTierPatched.Safe())
-                .WithDescription($"Current RR: {mmr.Current_Data.Ranking_In_Tier}")
+                .WithTitle(data.Title)
+                .WithDescription(data.Description)
                 .WithFooter
                 (new EmbedFooterBuilder
                 {
-                    Text = $"RR Change to last game: {mmr.Current_Data.Mmr_Change_To_Last_Game}"
+                    Text = data.FooterText
                 }
                 );
 
@@ -80,73 +73,8 @@ namespace ValorantApp.DiscordBot
             IReadOnlyCollection<SocketSlashCommandDataOption> slashCommandOptions = ((SocketSlashCommand)Context.Interaction).Data.Options;
             string username = (string)slashCommandOptions.FirstOrDefault();
             string tagname = (string)slashCommandOptions.ElementAtOrDefault(1);
-            string result;
-            if (username.IsNullOrEmpty() || tagname.IsNullOrEmpty())
-            {
-                result = "Riot username or tagname cannot be empty";
-                await RespondErrorAsync(result);
-                return;
-            }
 
-            SocketUser userInfo = Context.User;
-
-            // Keep it to a discord user can only have one account linked for now.
-            if (ValorantUsersExtension.GetRowDiscordId(userInfo.Id) != null)
-            {
-                result = "Shamebot only accepts one valorant account per discord user!";
-                await RespondErrorAsync(result);
-                return;
-            }
-
-            BaseValorantUser? valorantUser = null;
-            try
-            {
-                // Try creating the user. This can throw an exception if the username, tagname, and affinity don't match to a valorant account
-                valorantUser = new BaseValorantUser(username, tagname, "na", userInfo.Id, _httpClientFactory, _servicesProvider.GetRequiredService<ILogger<BaseValorantProgram>>());
-            }
-            catch (Exception e)
-            {
-                _logger.LogWarning($"{nameof(AddUser)} - Exception: {e.Message}");
-            }
-
-            // Could not find the valorant account
-            if (valorantUser == null)
-            {
-                result = "Valorant user cannot be found or API failed to respond. Please check the user info again.";
-                await RespondErrorAsync(result);
-                return;
-            }
-
-            // Keep it to a valorant user can only be added once in shamebot.
-            if (ValorantUsersExtension.GetRow(valorantUser.Puuid) != null)
-            {
-                result = "Shamebot only accepts one instance of a valorant account! Please ensure no one else is using your account.";
-                await RespondErrorAsync(result);
-                return;
-            }
-
-            // The valorant user can be added to shamebot now.
-            // Persist the user info and add the channel id of the current channel.
-            valorantUser.PersistUser();
-            valorantUser.AddChannelId(Context.Channel.Id);
-
-            BaseValorantProgram program = _servicesProvider.GetRequiredService<BaseValorantProgram>();
-
-            // Reload the program. This will restart the queue of users.
-            // Grab the reloaded user to ensure it created in the valorant program
-            program.ReloadFromDB();
-            valorantUser = program.GetValorantUser(valorantUser.Puuid);
-
-            if (valorantUser == null)
-            {
-                result = "Valorant user was unable to be created after being added to the database. Error.";
-                _logger.LogError($"{username}#{tagname} was not created after reloading the DB.");
-                await RespondErrorAsync(result);
-                return;
-            }
-
-            result = $"Valorant User {valorantUser.UserInfo.Val_username}#{valorantUser.UserInfo.Val_tagname} created!";
-            await RespondSuccessAsync(result);
+            await RespondAsync(_linkCommands.AddUser(Context.User.Id, username, tagname, Context.Channel.Id));
         }
 
         [SlashCommand("addchannel", "Add this channel to shamebot's send messages for you")]
@@ -154,20 +82,7 @@ namespace ValorantApp.DiscordBot
         {
             SocketUser user = Context.User;
 
-            if (!GetUserAndProgram(user, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
-            {
-                await RespondErrorAsync($"Could not find Valorant User for Discord User {user.Username}");
-                return;
-            }
-
-            if (!valorantUser.AddChannelId(Context.Channel.Id))
-            {
-                await RespondErrorAsync($"Channel is already present or could not be added for Discord User {user.Username}");
-                return;
-            }
-
-            await RespondSuccessAsync($"Channel is added for Discord User {user.Username}");
-            return;
+            await RespondAsync(_linkCommands.AddChannel(user.Id, user.Username, Context.Channel.Id));
         }
 
         [SlashCommand("deletechannel", "Delete this channel to shamebot's send messages for you. This will delete shamebot's link to your account if this is the only channel it is linked to.")]
@@ -175,29 +90,7 @@ namespace ValorantApp.DiscordBot
         {
             SocketUser user = Context.User;
 
-            if (!GetUserAndProgram(user, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
-            {
-                await RespondErrorAsync($"Could not find Valorant User for Discord User {user.Username}");
-                return;
-            }
-
-            // Remove the channel from the user
-            if (!valorantUser.RemoveChannelId(Context.Channel.Id))
-            {
-                await RespondErrorAsync($"Channel is not present or could not be removed for Discord User {user.Username}");
-                return;
-            }
-
-            // Remove user if this is their only channel.
-            if (valorantUser.ChannelIds.IsNullOrEmpty())
-            {
-                program.DeleteUser(valorantUser.Puuid);
-                await RespondSuccessAsync($"Discord User {user.Username} is no longer associated to Shamebot.");
-                return;
-            }
-
-            await RespondSuccessAsync($"Channel is deleted for Discord User {user.Username}");
-            return;
+            await RespondAsync(_linkCommands.RemoveChannel(user.Id, user.Username, Context.Channel.Id));
         }
 
         [SlashCommand("deleteuser", "Delete a discord user from shamebot (Admins only)")]
@@ -210,29 +103,47 @@ namespace ValorantApp.DiscordBot
                 return;
             }
 
-            if (!GetUserAndProgram(user, out BaseValorantProgram? program, out BaseValorantUser? valorantUser) || program == null || valorantUser == null)
+            await RespondAsync(_linkCommands.RemoveChannel(user.Id, user.Username, Context.Channel.Id));
+        }
+
+        /// <summary>
+        /// DEV ONLY. Registered in Program.ReadyAsync only when a debugger is attached (dev bot), and guarded again here.
+        /// Forgets your latest stored match (SQLite + SQL Server) so the poller re-fetches and re-posts it.
+        /// </summary>
+        [SlashCommand("devdeletematch", "DEV ONLY: forget your latest stored match so it is re-posted on the next poll")]
+        public async Task DevDeleteLastMatch()
+        {
+            if (!Debugger.IsAttached)
             {
-                await RespondErrorAsync($"Could not find Valorant User for Discord User {user.Username}");
+                await RespondErrorAsync("This command is only available on the dev bot.");
                 return;
             }
 
-            // Remove the channel from the user
-            if (!valorantUser.RemoveChannelId(Context.Channel.Id))
+            // Bot application owner, so no user id is hardcoded here.
+            IApplication app = await Context.Client.GetApplicationInfoAsync();
+            if (Context.User.Id != app.Owner.Id)
             {
-                await RespondErrorAsync($"Channel is not present or could not be removed for Discord User {user.Username}");
+                await RespondErrorAsync("Only the bot owner can use this command.");
                 return;
             }
 
-            // Remove user if this is their only channel.
-            if (valorantUser.ChannelIds.IsNullOrEmpty())
+            ValorantUsers? valorantUser = ValorantUsersExtension.GetRowDiscordId(Context.User.Id);
+            if (valorantUser == null)
             {
-                program.DeleteUser(valorantUser.Puuid);
-                await RespondSuccessAsync($"Discord User {user.Username} is no longer associated to Shamebot.");
+                await RespondErrorAsync("No Valorant account is linked to you. Use /addme first.");
                 return;
             }
 
-            await RespondSuccessAsync($"Channel is deleted for Discord User {user.Username}");
-            return;
+            string? matchId = DevToolsExtension.GetLatestMatchIdForUser(valorantUser.Val_puuid);
+            if (matchId == null)
+            {
+                await RespondErrorAsync("No stored match found for your account.");
+                return;
+            }
+
+            bool deleted = DevToolsExtension.DeleteMatchEverywhere(matchId);
+            _logger.LogWarning($"DEV: deleted match {matchId} (found in SQLite: {deleted}) for {valorantUser.Val_username}#{valorantUser.Val_tagname}");
+            await RespondSuccessAsync($"Deleted match `{matchId}`. It will be re-posted on the next poll if it is still your latest match and under 3 days old.");
         }
 
         // Only competitive matches.
@@ -500,6 +411,9 @@ namespace ValorantApp.DiscordBot
 
             await RespondAsync(embed: embed.Build());
         }
+
+        private Task RespondAsync(CommandResult result) =>
+            result.Success ? RespondSuccessAsync(result.Message) : RespondErrorAsync(result.Message);
 
         private async Task RespondSuccessAsync(EmbedBuilder embed)
         {

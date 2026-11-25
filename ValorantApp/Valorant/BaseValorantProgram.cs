@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
+using ValorantApp.DiscordBot;
 using ValorantApp.GenericExtensions;
 using ValorantApp.GenericUtils;
 using ValorantApp.HenrikJson;
@@ -12,25 +13,46 @@ using ValorantApp.Valorant.Helpers;
 
 namespace ValorantApp.Valorant
 {
-    public class BaseValorantProgram
+    public class BaseValorantProgram : IDisposable
     {
         private static readonly object DbLock = new object();
 
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly DiscordSocketClient _client;
+        private readonly IDiscordNotifier _notifier;
+        private readonly TimeProvider _timeProvider;
         private readonly ILogger<BaseValorantProgram> Logger;
 
-        public BaseValorantProgram(DiscordSocketClient client, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger)
+        /// <summary>Current UTC time from the injected clock (the system clock in production).</summary>
+        private DateTime NowUtc => _timeProvider.GetUtcNow().UtcDateTime;
+
+        public BaseValorantProgram(IDiscordNotifier notifier, IHttpClientFactory httpClientFactory, ILogger<BaseValorantProgram> logger, TimeProvider? timeProvider = null)
         {
             Users = new();
             QueueUsers = new();
             _httpClientFactory = httpClientFactory;
-            _client = client;
+            _notifier = notifier;
+            _timeProvider = timeProvider ?? TimeProvider.System;
             Logger = logger;
             ReloadFromDB();
+        }
 
-            ScheduledMessageTimer = new Timer(SendScheduledMessageTimer, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(0.5));
-            DailyCheckTimer = new Timer(SendDailyCheckTimer, null, TimerUtils.TimeSpanUntilUTC(11, 0, 0), TimeSpan.FromDays(1));
+        /// <summary>
+        /// Starts the poll and daily timers. Called once from <c>ValorantApp.RunBotAsync</c>; the constructor no longer
+        /// starts timers, so tests can build the program and drive ticks themselves. Safe to call more than once.
+        /// </summary>
+        public void Start(TimeSpan? pollInitialDelay = null, TimeSpan? pollInterval = null)
+        {
+            lock (SendMessageTimerLock)
+            {
+                if (ScheduledMessageTimer != null || _disposed)
+                {
+                    return;
+                }
+
+                _pollInterval = pollInterval ?? DefaultPollInterval;
+                ScheduledMessageTimer = new Timer(SendScheduledMessageTimer, null, pollInitialDelay ?? DefaultPollInitialDelay, _pollInterval);
+                DailyCheckTimer = new Timer(SendDailyCheckTimer, null, TimerUtils.TimeSpanUntilUTC(11, 0, 0, NowUtc), TimeSpan.FromDays(1));
+            }
         }
 
         #region Globals
@@ -41,10 +63,16 @@ namespace ValorantApp.Valorant
 
         private static readonly object QueueUsersLock = new();
 
-        private readonly Timer ScheduledMessageTimer;
+        private static readonly TimeSpan DefaultPollInitialDelay = TimeSpan.FromMinutes(1);
+        private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMinutes(0.5);
+        private TimeSpan _pollInterval = DefaultPollInterval;
+
+        private Timer? ScheduledMessageTimer;
         private readonly object SendMessageTimerLock = new();
 
-        private readonly Timer DailyCheckTimer;
+        private Timer? DailyCheckTimer;
+
+        private bool _disposed;
 
         #endregion
 
@@ -216,6 +244,12 @@ namespace ValorantApp.Valorant
             }
         }
 
+        /// <summary>
+        /// Runs one poll tick on demand (no timer involved). Exceptions propagate, unlike the timer wrapper.
+        /// Used by tests.
+        /// </summary>
+        internal Task RunPollTickAsync() => SendScheduledMessage();
+
         private async Task SendScheduledMessage()
         {
             Logger.LogInformation("Starting Send of scheduled messages.");
@@ -320,7 +354,7 @@ namespace ValorantApp.Valorant
                             // other user's mmr history might not have this match anymore.
                             // Not a system error, as there will be many users who haven't played in 3 days.
                             if (DateTime.TryParse(match.Metadata.Game_Start_Patched, out DateTime gameStartPatched)
-                                && gameStartPatched < DateTime.UtcNow.AddDays(-3))
+                                && gameStartPatched < NowUtc.AddDays(-3))
                             {
                                 continue;
                             }
@@ -714,7 +748,7 @@ namespace ValorantApp.Valorant
             SetUpMatchInfo(embed, stats, matches);
 
             Logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending user data for {baseValorantMatch.UserInfo.Val_username}#{baseValorantMatch.UserInfo.Val_tagname}");
-            await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, userUpdated, embed, Logger);
+            await _notifier.SendEmbedAsync(channelId, userUpdated, embed);
 
             return true;
         }
@@ -749,7 +783,7 @@ namespace ValorantApp.Valorant
             SetUpMatchInfo(embed, setupMatchStats, setupMatches);
 
             Logger.LogInformation($"{nameof(SendScheduledMessage)}: Successfully sending users data for match id {setupMatches.Match_Id}");
-            await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, userUpdated, embed, Logger);
+            await _notifier.SendEmbedAsync(channelId, userUpdated, embed);
 
             return true;
         }
@@ -828,7 +862,7 @@ namespace ValorantApp.Valorant
                 if (valorantUser.UpdateCurrentTier(match.MatchStats, match.Matches, out int previousTier))
                 {
                     int currentTier = valorantUser.CurrentTier ?? 0;
-                    IEnumerable<BaseValorantMatch> seasonMatchStats = valorantUser.GetBaseValorantMatchBySeason(EpisodeActExtension.GetEpisodeActInfosForDate(DateTime.UtcNow));
+                    IEnumerable<BaseValorantMatch> seasonMatchStats = valorantUser.GetBaseValorantMatchBySeason(EpisodeActExtension.GetEpisodeActInfosForDate(NowUtc));
                     IEnumerable<BaseValorantMatch> seasonMatchStatsPreviousTier = seasonMatchStats.Where(x => x.MatchStats.Current_Tier?.Equals((byte)previousTier) ?? false);
 
                     string userUpdated = $"<@{match.UserInfo.Disc_id}>";
@@ -871,7 +905,7 @@ namespace ValorantApp.Valorant
                     HashSet<ulong> channelIds = valorantUser.ChannelIds ?? [];
                     foreach (ulong channelId in channelIds)
                     {
-                        await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, userUpdated, embed, Logger);
+                        await _notifier.SendEmbedAsync(channelId, userUpdated, embed);
                     }
                 }
             }
@@ -892,18 +926,7 @@ namespace ValorantApp.Valorant
             Logger.LogInformation($"Starting {nameof(SendDailyCheckTimer)}");
             try
             {
-                EpisodeActInfos? episodeActInfos = EpisodeActExtension.GetEpisodeActInfosForEndDate(DateTime.UtcNow);
-                if (episodeActInfos == null)
-                {
-                    await SendDailyReport();
-                }
-                else
-                {
-                    await SendEpisodeActInfoReport(episodeActInfos);
-                }
-
-                await UpdateDiscordBotConfig();
-                CleanUpMatchEvents();
+                await RunDailyCheckAsync();
             }
             catch (Exception ex)
             {
@@ -911,9 +934,29 @@ namespace ValorantApp.Valorant
             }
         }
 
+        /// <summary>
+        /// Runs the daily job on demand (no timer involved). Exceptions propagate, unlike the timer wrapper.
+        /// Used by tests.
+        /// </summary>
+        internal async Task RunDailyCheckAsync()
+        {
+            EpisodeActInfos? episodeActInfos = EpisodeActExtension.GetEpisodeActInfosForEndDate(NowUtc);
+            if (episodeActInfos == null)
+            {
+                await SendDailyReport();
+            }
+            else
+            {
+                await SendEpisodeActInfoReport(episodeActInfos);
+            }
+
+            await UpdateDiscordBotConfig();
+            CleanUpMatchEvents();
+        }
+
         private async Task SendDailyReport()
         {
-            DateTime nowUTC = DateTime.UtcNow;
+            DateTime nowUTC = NowUtc;
             DateTime endDateUTC = new(nowUTC.Year, nowUTC.Month, nowUTC.Day, 11, 0, 0, DateTimeKind.Utc);
             DateTime startDateUTC = endDateUTC.AddDays(-1).AddSeconds(1);
 
@@ -1046,7 +1089,7 @@ namespace ValorantApp.Valorant
                         // Check if we have reached 20 fields
                         if (fieldCount % 20 == 0 || fieldCount == fieldByChannels.Count)
                         {
-                            await DiscordExtensions.CheckChannelAndSendMessageAsync(_client, channelId, null, embed, Logger);
+                            await _notifier.SendEmbedAsync(channelId, null, embed);
 
                             // Re-initialize the embed for the next page if there are more fields
                             if (fieldCount < fieldByChannels.Count)
@@ -1074,10 +1117,10 @@ namespace ValorantApp.Valorant
         /// <returns></returns>
         public async Task UpdateDiscordBotConfig()
         {
-            int serverCount = _client.Guilds.Count;
+            int serverCount = _notifier.GuildCount;
             int matchesFound = MatchStatsExtension.MatchTotalCount();
             int eventsFound = MatchEventsExtension.EventTotalCount();
-            await _client.SetGameAsync($"Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)} | Events Processed (New) {eventsFound}", type: ActivityType.CustomStatus);
+            await _notifier.SetStatusAsync($"Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? string.Empty : "s")} | Events Processed (New) {eventsFound}");
         }
 
         /// <summary>
@@ -1097,7 +1140,7 @@ namespace ValorantApp.Valorant
         {
             lock (SendMessageTimerLock)
             {
-                ScheduledMessageTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                ScheduledMessageTimer?.Change(Timeout.Infinite, Timeout.Infinite);
             }
         }
 
@@ -1105,8 +1148,26 @@ namespace ValorantApp.Valorant
         {
             lock (SendMessageTimerLock)
             {
-                ScheduledMessageTimer.Change(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5));
+                ScheduledMessageTimer?.Change(_pollInterval, _pollInterval);
             }
+        }
+
+        /// <summary>
+        /// Stops and releases both timers (production never calls this; tests and the DI container do). A poll tick
+        /// already running finishes, and its re-arm becomes a no-op. <see cref="Start"/> does nothing afterwards.
+        /// </summary>
+        public void Dispose()
+        {
+            lock (SendMessageTimerLock)
+            {
+                _disposed = true;
+                ScheduledMessageTimer?.Dispose();
+                ScheduledMessageTimer = null;
+                DailyCheckTimer?.Dispose();
+                DailyCheckTimer = null;
+            }
+
+            GC.SuppressFinalize(this);
         }
 
         #endregion Timer Utils

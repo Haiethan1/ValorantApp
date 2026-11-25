@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="ValorantAppTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Images\Agents\Astra_icon.webp" />
     <None Remove="Images\Agents\Breach_icon.webp" />
     <None Remove="Images\Agents\Brimstone_icon.webp" />

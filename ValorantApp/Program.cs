@@ -27,21 +27,34 @@ namespace ValorantApp
 
         static void Main(string[] args)
         {
-            string connectionString = ConfigurationManager.ConnectionStrings["Database"].ConnectionString;
-            ITable.CreateTables(connectionString);
+            AppOptions options = AppOptions.FromEnvironment();
 
-            DiscordSocketConfig discordSocketConfig = new DiscordSocketConfig()
+            if (options.TestMode)
             {
-                // Other config options can be presented here.
-                GatewayIntents = GatewayIntents.All
-            };
+                // Fail closed: never the configured database, never SQL Server.
+                DbSettings.Sqlite = $"Data Source={options.SqlitePath}";
+                DbSettings.SqlServerEnabled = false;
+            }
 
-            //DiscordRestConfig discordRestConfig = new DiscordRestConfig()
-            //{
-            //    // Other config options can be presented here.
-            //    GatewayIntents = GatewayIntents.All
-            //};
+            ITable.CreateTables(DbSettings.Sqlite);
 
+            ConfigureLogging();
+
+            ServiceProvider serviceProvider = BuildServices(options);
+
+            if (options.TestMode)
+            {
+                RunTestMode(serviceProvider, options);
+                return;
+            }
+
+            ValorantApp program = serviceProvider.GetRequiredService<ValorantApp>();
+
+            program.RunBotAsync().GetAwaiter().GetResult();
+        }
+
+        private static void ConfigureLogging()
+        {
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Conditional(
                     x => !x.Properties.ContainsKey("ApiLog"),
@@ -62,15 +75,44 @@ namespace ValorantApp
                     )
                 )
                 .CreateLogger();
+        }
+
+        /// <summary>
+        /// Builds the service container. Creating it has no side effects on Discord (the client is constructed but
+        /// never connected until <see cref="RunBotAsync"/>), so tests can call it too.
+        /// </summary>
+        internal static ServiceProvider BuildServices(AppOptions options)
+        {
+            DiscordSocketConfig discordSocketConfig = new DiscordSocketConfig()
+            {
+                // Other config options can be presented here.
+                GatewayIntents = GatewayIntents.All
+            };
+
+            //DiscordRestConfig discordRestConfig = new DiscordRestConfig()
+            //{
+            //    // Other config options can be presented here.
+            //    GatewayIntents = GatewayIntents.All
+            //};
 
             ServiceCollection services = new ServiceCollection();
             services.AddHttpClient("HenrikApiClient", client =>
             {
-                client.BaseAddress = new Uri("https://api.henrikdev.xyz/valorant/");
-                client.DefaultRequestHeaders.Add("Authorization", ConfigurationManager.AppSettings["HenrikToken"]);
+                client.BaseAddress = new Uri(options.HenrikBaseUrl);
+                // Test mode never reads real credentials.
+                client.DefaultRequestHeaders.Add("Authorization", options.TestMode ? "test-mode-token" : ConfigurationManager.AppSettings["HenrikToken"]);
             });
             services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
             services.UseMinimalHttpLogger();
+            services.AddSingleton<TimeProvider>(options.TestMode && options.FixedNow.HasValue ? new FixedTimeProvider(options.FixedNow.Value) : TimeProvider.System);
+            if (options.TestMode)
+            {
+                services.AddSingleton<IDiscordNotifier>(new JsonLinesNotifier(options.RecordPath!));
+            }
+            else
+            {
+                services.AddSingleton<IDiscordNotifier, DiscordNotifier>();
+            }
             services.AddSingleton<BaseValorantProgram>();
             services.AddSingleton(new DiscordSocketClient(discordSocketConfig));
             //services.AddSingleton(new DiscordRestClient(discordRestConfig));
@@ -78,14 +120,70 @@ namespace ValorantApp
             services.AddSingleton(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>()));
             //services.AddSingleton<InteractionHandler>();
             services.AddSingleton<ValorantApp>();
+            services.AddSingleton<LinkCommandService>();
+            services.AddSingleton<MmrCommandService>();
             services.AddSingleton<DiscordBotSlashCommands>();
 
             //services.AddLogging()
 
-            ServiceProvider serviceProvider = services.BuildServiceProvider();
-            ValorantApp program = serviceProvider.GetRequiredService<ValorantApp>();
+            return services.BuildServiceProvider();
+        }
 
-            program.RunBotAsync().GetAwaiter().GetResult();
+        /// <summary>
+        /// Test mode: run the real polling engine with the fakes from <see cref="BuildServices"/>, without ever
+        /// logging into Discord. Prints READY once the timers are running, then blocks until stdin is closed.
+        /// </summary>
+        private static void RunTestMode(ServiceProvider serviceProvider, AppOptions options)
+        {
+            BaseValorantProgram program = serviceProvider.GetRequiredService<BaseValorantProgram>();
+            if (!options.Manual)
+            {
+                program.Start(options.PollInitialDelay, options.PollInterval);
+            }
+
+            Console.WriteLine("READY");
+
+            // Manual mode (replays): each command runs to completion before the answer line, so a driver can sequence work.
+            string? line;
+            while ((line = Console.In.ReadLine()) != null)
+            {
+                string command = line.Trim().ToLowerInvariant();
+                if (!options.Manual || command.Length == 0)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    switch (command)
+                    {
+                        case "poll":
+                            program.RunPollTickAsync().GetAwaiter().GetResult();
+                            break;
+                        case "daily":
+                            program.RunDailyCheckAsync().GetAwaiter().GetResult();
+                            break;
+                        case "quit":
+                            Console.WriteLine("OK quit");
+                            return;
+                        default:
+                            Console.WriteLine($"ERR unknown command '{command}'");
+                            continue;
+                    }
+
+                    Console.WriteLine($"OK {command}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"ERR {command}: {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Test mode only: a clock frozen at <see cref="AppOptions.FixedNow"/>.</summary>
+        private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+        {
+            public override DateTimeOffset GetUtcNow() => now;
         }
 
         public ValorantApp(BaseValorantProgram program, DiscordSocketClient client, CommandService commands, InteractionService interaction, IServiceProvider servicesProvider, ILogger<ValorantApp> logger)
@@ -103,6 +201,9 @@ namespace ValorantApp
         public async Task RunBotAsync()
         {
             string? token = ConfigurationManager.AppSettings[Debugger.IsAttached ? "DevelopBotToken" : "BotToken"];
+
+            // Timers used to start in BaseValorantProgram's constructor; start them here, at the same point in startup.
+            _program.Start();
 
             _client.Log += LogAsync;
 
@@ -162,6 +263,16 @@ namespace ValorantApp
 
             };
 
+            // Dev-only commands: only registered with a debugger attached (dev bot token). Because registration is a
+            // bulk overwrite, a prod start removes them from the prod bot.
+            if (Debugger.IsAttached)
+            {
+                globalCommandList.Add(new SlashCommandBuilder()
+                    .WithName("devdeletematch")
+                    .WithDescription("DEV ONLY: forget your latest stored match so it is re-posted on the next poll")
+                    .WithContextTypes(InteractionContextType.Guild));
+            }
+
             //var commands = await _client.GetGlobalApplicationCommandsAsync();
             //List<SlashCommandBuilder> newGlobalCommands = new();
             //foreach (SlashCommandBuilder scb in globalCommandList)
@@ -178,7 +289,8 @@ namespace ValorantApp
             try
             {
                 // With global commands we don't need the guild.
-                await _client.BulkOverwriteGlobalApplicationCommandsAsync(globalCommandList.Select(gcmd => gcmd.Build() as ApplicationCommandProperties).ToArray());
+                var registeredCommands = await _client.BulkOverwriteGlobalApplicationCommandsAsync(globalCommandList.Select(gcmd => gcmd.Build() as ApplicationCommandProperties).ToArray());
+                _logger.LogInformation($"Registered global commands: {string.Join(", ", registeredCommands.Select(c => c.Name))}");
                 // Using the ready event is a simple implementation for the sake of the example. Suitable for testing and development.
                 // For a production bot, it is recommended to only run the CreateGlobalApplicationCommandAsync() once for each command.
             }

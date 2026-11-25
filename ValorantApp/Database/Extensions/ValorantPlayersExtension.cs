@@ -10,6 +10,8 @@ namespace ValorantApp.Database.Extensions
 
         public static void InsertRow(string puuid)
         {
+            if (!SqlServerEnabled) return;
+
             using SqlConnection sqlConnection = new(sqlConnectionString);
             sqlConnection.Open();
             string InsertRowQuery =

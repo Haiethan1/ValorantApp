@@ -36,6 +36,8 @@ namespace ValorantApp.Database.Extensions
             int result = insertCommand.ExecuteNonQuery();
             connection.Close();
 
+            if (!SqlServerEnabled) return result > 0;
+
             using SqlConnection sqlConnection = new(sqlConnectionString);
             sqlConnection.Open();
             string InsertSqlRowQuery =
@@ -68,6 +70,8 @@ namespace ValorantApp.Database.Extensions
 
             int result = command.ExecuteNonQuery();
             connection.Close();
+
+            if (!SqlServerEnabled) return result > 0;
 
             using SqlConnection sqlConnection = new(sqlConnectionString);
             sqlConnection.Open();

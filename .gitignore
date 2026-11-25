@@ -12,3 +12,23 @@
 
 # Temporary files
 *.temp
+
+# Local-only files (owner machine specifics; never commit)
+*.local.md
+
+# Snapshot test output
+*.received.json
+
+# Stryker mutation testing output
+StrykerOutput/
+
+
+# Python bytecode (tools/)
+__pycache__/
+
+# Runtime files the app writes to its working directory (real usernames in logs, real data in the DB).
+# Running from the repo root (e.g. `dotnet run --project ValorantApp`) would otherwise leave them here.
+logs*.txt
+apilogs*.txt
+myDatabase.db
+nohup.out

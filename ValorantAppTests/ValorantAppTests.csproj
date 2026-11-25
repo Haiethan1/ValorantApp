@@ -7,6 +7,10 @@
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+
+    <!-- Don't copy ValorantApp.dll.config (built from App.config, which holds real secrets locally) into the test
+         output. Tests and test mode never read it. The default list also includes .dll.config and .exe.config. -->
+    <AllowedReferenceRelatedFileExtensions>.pdb;.xml;.pri</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,10 +19,21 @@
     <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
     <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
     <PackageReference Include="coverlet.collector" Version="3.2.0" />
+    <PackageReference Include="Testcontainers.MsSql" Version="4.17.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ValorantApp\ValorantApp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SQL Server schema, applied to the throwaway Testcontainers instance (see SqlServerContainer.cs). -->
+    <None Include="..\db\sqlserver\*.sql" Link="SqlServerSchema\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Snapshots\*.approved.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -1,12 +1,10 @@
-﻿using System.Configuration;
-using System.Diagnostics;
-
-namespace ValorantApp.Database.Extensions
+﻿namespace ValorantApp.Database.Extensions
 {
     public abstract class BaseTable : ITable
     {
-        protected static readonly string connectionString = ConfigurationManager.ConnectionStrings["Database"].ConnectionString;
-        protected static readonly string sqlConnectionString = ConfigurationManager.ConnectionStrings[Debugger.IsAttached ? "DatabaseDev" : "DatabaseProd"].ConnectionString;
+        protected static string connectionString => DbSettings.Sqlite;
+        protected static string sqlConnectionString => DbSettings.SqlServer;
+        protected static bool SqlServerEnabled => DbSettings.SqlServerEnabled;
 
         public BaseTable()
         {

@@ -5,9 +5,9 @@
         internal const int HALF_SECOND_MS = 500;
         internal const int QUARTER_SECOND_MS = 250;
 
-        public static TimeSpan TimeSpanUntilUTC(int hourUTC, int minuteUTC, int secondUTC)
+        public static TimeSpan TimeSpanUntilUTC(int hourUTC, int minuteUTC, int secondUTC, DateTime? nowUtc = null)
         {
-            DateTime now = DateTime.UtcNow;
+            DateTime now = nowUtc ?? DateTime.UtcNow;
             DateTime target = new(now.Year, now.Month, now.Day, hourUTC, minuteUTC, secondUTC, DateTimeKind.Utc);
 
             // If it's already past 11:00 AM UTC today, schedule for 11:00 AM UTC tomorrow
