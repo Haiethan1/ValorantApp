@@ -85,6 +85,8 @@ docs/                        project knowledge for humans and agents
 - Validating a change: build, `dotnet test`, then (for behavior changes) run against the **dev** bot/Discord server
   with a debugger attached (see docs/hosting.md#development). How tests are organized, the safety rules (tests can
   never reach SQL Server or prod), and how to write them: [docs/testing.md](docs/testing.md).
+- Refactors and other changes that shouldn't alter output: run the old-vs-new replay (`tools/replay/replay.py`, see
+  docs/testing.md) with a DB copy the owner provides, and report whether it's IDENTICAL.
 - Re-triggering a recap on the dev bot: the dev-only slash command `/devdeletematch` (registered only with a
   debugger attached, bot-owner only) deletes your latest stored match from SQLite and SQL Server so the poller
   re-posts it on the next tick. Logic lives in `Database/Extensions/DevToolsExtension.cs`.

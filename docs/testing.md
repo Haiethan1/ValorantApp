@@ -113,6 +113,23 @@ triggered by a bot, so their logic is tested through `LinkCommandService` instea
   ```
 - All snapshots are deterministic: they use injected `FixedTimeProvider` instances and fake fixtures with no wall-clock dependencies or randomized identifiers.
 
+## Recorded API fixtures (contract tests)
+`ValorantAppTests/MockJsonResponse/Recorded/` holds real HenrikDev responses (2026-11) with every identity replaced by
+consistent fakes. See its README for the file list and the refresh steps (`tools/fixtures/fetch_henrik_fixtures.sh`,
+then `tools/fixtures/scrub_henrik_fixtures.py`, which refuses to write if any real identifier survives). Raw files never
+go in the repo. `RecordedFixtureContractTests` runs the real parsing and processing over them, so a HenrikDev format
+change fails a test. Refresh roughly monthly, or when the API announces changes.
+
+## Old-vs-new replay (does this change alter any post?)
+```bash
+python -I tools/replay/replay.py --base develop --db <copy of a prod myDatabase.db>   # head = current working tree
+```
+Builds both versions, runs each in manual test mode (`VALORANTAPP_MANUAL=1`, frozen clock `VALORANTAPP_NOW`) on its own
+copy of the database, with `tools/replay/fake_henrik.py` giving every tracked user a recorded match, then runs the daily
+report and diffs every post. Exit 0 = identical, 1 = different (see `diff.txt`), 2 = harness error. Use it for refactors
+(expect IDENTICAL) and to review the exact effect of intended changes. The database copy and the output hold real
+names: both must be outside the repo (the script enforces it). The owner provides the copy; agents never fetch it.
+
 ## Writing tests
 - **Static state:** DAOs are static and the temp DB is shared across the run, so tests must not run in parallel
   (MSTest is sequential by default; don't add `[Parallelize]`; E2E classes are `[DoNotParallelize]`) and must **clean up

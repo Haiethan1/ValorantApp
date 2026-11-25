@@ -22,3 +22,6 @@
 # Stryker mutation testing output
 StrykerOutput/
 
+
+# Python bytecode (tools/)
+__pycache__/

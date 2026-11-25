@@ -141,6 +141,8 @@ def main():
     args = ap.parse_args()
     now = datetime.fromisoformat(args.now.replace("Z", "+00:00")).astimezone(timezone.utc)
     fx = Fixtures(args.fixtures, args.db, now)
+    # The bot fires up to 15 requests at once; the default listen backlog (5) refuses some of them.
+    ThreadingHTTPServer.request_queue_size = 128
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(fx))
     print(f"LISTENING {server.server_address[1]}", flush=True)
     try:
