@@ -277,11 +277,40 @@ namespace ValorantAppTests
                 Assert.AreEqual(username, userRow.Val_username);
                 Assert.AreEqual(tagname, userRow.Val_tagname);
                 Assert.AreEqual(discordId, userRow.Disc_id);
+                Assert.AreEqual("na", userRow.Val_affinity);
 
                 Assert.IsTrue(ValorantChannelMappingsExtension.GetRowDiscordId(puuid).ToHashSet().Contains(channelId));
                 var programUser = program.GetValorantUser(puuid);
                 Assert.IsNotNull(programUser);
                 Assert.AreEqual(username, programUser.UserInfo.Val_username);
+                Assert.AreEqual("na", programUser.UserInfo.Val_affinity);
+            }
+            finally
+            {
+                CleanupUser(puuid, discordId);
+            }
+        }
+
+        [TestMethod]
+        public void AddUser_CreatesUserWithNaAffinity()
+        {
+            const string puuid = "10000000-0000-0000-0000-000000000020";
+            const ulong discordId = 100020UL, channelId = 200020UL;
+            const string username = "AffinityUser", tagname = "NA1";
+            var handler = new StubHttpMessageHandler(CreateAccountJson(puuid, username, tagname));
+            var (service, program) = CreateService(handler);
+            try
+            {
+                var result = service.AddUser(discordId, username, tagname, channelId);
+                Assert.IsTrue(result.Success);
+
+                var userRow = ValorantUsersExtension.GetRow(puuid);
+                Assert.IsNotNull(userRow);
+                Assert.AreEqual("na", userRow.Val_affinity);
+
+                var programUser = program.GetValorantUser(puuid);
+                Assert.IsNotNull(programUser);
+                Assert.AreEqual("na", programUser.UserInfo.Val_affinity);
             }
             finally
             {
