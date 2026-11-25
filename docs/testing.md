@@ -10,8 +10,10 @@ dotnet test --filter "TestCategory!=SqlServer"   # skip the Docker-backed SQL Se
 dotnet tool restore && dotnet stryker            # mutation testing (scope in stryker-config.json), per release
 ```
 The `SqlServer` category needs Docker. Without it those tests are Inconclusive locally and **fail in CI**.
-`dotnet test` must be green before you call anything done. Two tests are skipped on purpose: one is `[Ignore]`d
-(`MatchTest_Premier_Success`, see [backlog](backlog.md)) and one is the opt-in real-Discord smoke test (below).
+`dotnet test` must be green before you call anything done. Some tests are skipped on purpose: the opt-in
+real-Discord smoke test (below), and `[Ignore]`d tests that pin known bugs or stale game content until they're fixed
+(each has a [backlog](backlog.md) entry or issue; `grep -rn '\[Ignore' ValorantAppTests` lists them). Never treat an
+`[Ignore]`d area as covered, and remove the `[Ignore]` in the same change that fixes it.
 
 ## CI
 `.github/workflows/ci.yml` runs restore, build (Release) and test on Linux for every PR and for pushes to `main` and
@@ -86,10 +88,15 @@ Opt-in with `VALORANTAPP_TESTMODE=1`; fails closed (`ValorantApp/AppOptions.cs`)
 - `VALORANTAPP_SQLITE_PATH`: the SQLite file to use (never falls back to the configured database),
 - `VALORANTAPP_HENRIK_URL`: must be a **loopback** http(s) URL (a fake server),
 - `VALORANTAPP_RECORD_PATH`: a JSON-lines file where `JsonLinesNotifier` appends every embed and status,
-- optional `VALORANTAPP_POLL_INITIAL_DELAY_MS` / `VALORANTAPP_POLL_INTERVAL_MS` (default 200 ms / 500 ms).
+- optional `VALORANTAPP_POLL_INITIAL_DELAY_MS` / `VALORANTAPP_POLL_INTERVAL_MS` (default 200 ms / 500 ms),
+- optional `VALORANTAPP_NOW`: a frozen ISO-8601 UTC clock for the program (e.g. `2026-01-15T11:30:00Z`),
+- optional `VALORANTAPP_MANUAL=1`: don't start the timers; drive the process from stdin instead with `poll` (one poll
+  tick), `daily` (the 11:00 UTC job) and `quit`. Each command runs to completion and is answered with
+  `OK <command>` or `ERR <command>: <exception>`. This is what the replay uses.
 
 In test mode the app never reads bot tokens or `HenrikToken`, never logs into Discord, and disables SQL Server writes.
-It prints `READY` once the timers run, then blocks until stdin is closed. Outside test mode these variables must not
+It prints `READY` once started (timers running, or waiting for commands in manual mode), then blocks until
+stdin is closed. Outside test mode these variables must not
 be set: startup throws if they are, so they can never look like production overrides.
 
 ## Real Discord smoke test (local only)
@@ -145,7 +152,7 @@ The local real-data run (above) is still worth doing before deploys and for risk
   ids on first read.
 - **Fixtures are old.** The poller drops matches older than 3 days, so rewrite a fixture's start time before serving
   it (or fix the clock). Prefer the non-competitive Swiftplay fixture (`Matches_10_31_2023.json`) for poll-tick tests:
-  competitive matches also need an mmr-history response (no fixture yet) and trigger SQL-Server-only heatmap code. The
+  competitive matches also need an mmr-history response (see `CompetitiveE2ETests`) and trigger SQL-Server-only heatmap code. The
   daily report only counts **competitive** matches, so its tests use the competitive fixture seeded straight into SQLite.
 - **Time:** inject a `FixedTimeProvider` instead of relying on the real date.
 - **E2E recipe** (copy `PollTickE2ETests`): seed via DAOs, build the program with `RecordingNotifier` and a
@@ -168,7 +175,9 @@ test mode: that selects the prod token.
    SQL Server `lu_matches`/`lu_match_stats`.
 
 ## Not covered yet
-- `/mmr` and `/heatmap` logic (still inside `DiscordBotSlashCommands`; `/heatmap` is unfinished).
-- Tier-change flow and the competitive poll-tick flow (need an mmr-history fixture).
-- SQL Server dual writes (tests disable them by design; verify manually on the dev bot).
-- Fixture refresh process when the HenrikDev JSON shape changes.
+- `/heatmap` and the other heatmap commands (unfinished, owner-only, still inside `DiscordBotSlashCommands`).
+- Slash-command wiring itself (option parsing, embed building in `DiscordBotSlashCommands`): bots can't trigger slash
+  commands, so only the logic behind them is tested (`LinkCommandService`, `MmrCommandService`). Check on the dev bot.
+- Two tracked players in the same match in the replay: `fake_henrik.py` gives each user their own match, so combined
+  recaps are only covered in-process (`RoutingE2ETests`, `EmbedSnapshotTests`).
+- Whatever the `[Ignore]`d tests pin (see Commands above).

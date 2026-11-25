@@ -19,7 +19,7 @@ so treat prod data and deploys with care.
 ## Commands
 ```bash
 dotnet build                      # from repo root (ValorantApp.sln)
-dotnet test                       # MSTest + Moq; MatchTest_Premier_Success is quarantined with [Ignore] (see backlog)
+dotnet test                       # MSTest + Moq; some tests are [Ignore]d on purpose (see docs/testing.md)
 dotnet run --project ValorantApp  # needs a filled-in App.config (see Secrets); connects to Discord!
 dotnet publish ValorantApp -p:PublishProfile=FolderProfile   # linux-arm64 self-contained build for the Pi
 ```
