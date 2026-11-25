@@ -95,11 +95,11 @@ namespace ValorantAppTests
             var match1 = new Matches(matchId1, "Lotus", "Competitive", "competitive", 1800u, 1699144485L, DateTime.UtcNow, 20, 13, 7, 18, 17, true, "season-1");
             var match2 = new Matches(matchId2, "Bind", "Competitive", "competitive", 1900u, 1699144485L, DateTime.UtcNow, 24, 11, 13, 15, 16, false, "season-1");
 
-            MatchesExtension.InsertRow(match1);
-            MatchesExtension.InsertRow(match2);
-
             try
             {
+                MatchesExtension.InsertRow(match1);
+                MatchesExtension.InsertRow(match2);
+
                 var results = MatchesExtension.GetListOfRows(new[] { matchId1, matchId2 }).ToList();
                 Assert.AreEqual(2, results.Count);
                 Assert.IsTrue(results.Any(m => m.Match_Id == matchId1));

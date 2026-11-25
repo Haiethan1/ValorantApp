@@ -5,7 +5,7 @@ validation layer covers the bot's real scenarios. Background and design: [e2e-va
 How the tests work: [../testing.md](../testing.md). Known bugs and gaps: [../backlog.md](../backlog.md).
 
 ## Where we are
-Branch `aiReady`. 221 passing tests, 4 skipped on purpose. Line coverage was ~52% (branch ~42%) before the
+Branch `aiReady`. 231 passing tests, 4 skipped on purpose. Line coverage was ~52% (branch ~42%) before the
 latest additions; re-measure with `dotnet test --collect:"XPlat Code Coverage"` (CI now prints a summary).
 
 Built so far:
@@ -34,7 +34,7 @@ Antigravity, Claude reviews.
 | 8 | Opt-in fixture recorder (dev HenrikDev key, strip personal data) + contract test over all fixtures; refresh monthly | M | Claude designs | Not started. Needs the owner's API key and live matches |
 | 9 | Old-vs-new replay: run base and PR commits in test mode on the same fixtures and a copy of the prod DB, diff the recorder output | M | Claude | Not started. Strongest "trust the change" signal |
 | 10 | SQL Server in CI (Testcontainers `mssql/server:2022`) to test dual writes, events and locations | L | Claude sets up, Gemini writes asserts | Done (`SqlServerContainer`, `SqlServerDualWriteTests`; found the `rr_change` TINYINT bug, see backlog) |
-| 11 | Mutation testing (Stryker.NET) on engine, `LinkCommandService`, `MatchesExtension`, `MatchStatsExtension`; per release | M | Gemini runs, Claude triages | Config + first scoped run done (MatchesExtension ~64%); gap tests in progress |
+| 11 | Mutation testing (Stryker.NET) on engine, `LinkCommandService`, `MatchesExtension`, `MatchStatsExtension`; per release | M | Gemini runs, Claude triages | Done for the first scope: MatchesExtension 64% -> 74%, LinkCommandService 82%, MmrCommandService 91%; remaining survivors are equivalent mutants. Widen `mutate` in `stryker-config.json` per release |
 | 12 | Move `/mmr` logic into a service like `LinkCommandService` and test it; fix review nits and stale docs | S-M | Gemini | Done (`MmrCommandService` + tests; null `Current_Data` now replies instead of throwing) |
 
 Review nits: all fixed except `DateTime.TryParse` using machine culture (pre-existing production behavior, left as is).
