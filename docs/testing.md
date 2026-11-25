@@ -130,6 +130,13 @@ report and diffs every post. Exit 0 = identical, 1 = different (see `diff.txt`),
 (expect IDENTICAL) and to review the exact effect of intended changes. The database copy and the output hold real
 names: both must be outside the repo (the script enforces it). The owner provides the copy; agents never fetch it.
 
+**In CI** (`replay` job in `.github/workflows/ci.yml`, pull requests only) the same replay runs against the PR's base
+branch on a generated fake database (`--synthetic`: `tools/replay/make_synthetic_db.py`, 30 fake users, 3 channels, 90
+days of history, deterministic). The job summary says IDENTICAL or shows the diff, and the full output is uploaded as
+the `replay-output` artifact. Changed posts don't fail the job, because a reviewer judges whether they were intended.
+New errors in the PR's version, or a broken harness, do. If the base predates manual test mode the job reports SKIPPED.
+The local real-data run (above) is still worth doing before deploys and for risky changes.
+
 ## Writing tests
 - **Static state:** DAOs are static and the temp DB is shared across the run, so tests must not run in parallel
   (MSTest is sequential by default; don't add `[Parallelize]`; E2E classes are `[DoNotParallelize]`) and must **clean up
