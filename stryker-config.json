@@ -1,0 +1,17 @@
+{
+  "stryker-config": {
+    "project": "ValorantApp.csproj",
+    "mutate": [
+      "**/LinkCommandService.cs",
+      "**/MmrCommandService.cs",
+      "**/MatchesExtension.cs"
+    ],
+    "reporters": [
+      "cleartext",
+      "json",
+      "html"
+    ],
+    "concurrency": 1,
+    "test-case-filter": "TestCategory!=RealDiscord"
+  }
+}
