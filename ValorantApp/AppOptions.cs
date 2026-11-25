@@ -19,8 +19,10 @@ namespace ValorantApp
         public const string RecordPathVar = "VALORANTAPP_RECORD_PATH";
         public const string PollInitialDelayMsVar = "VALORANTAPP_POLL_INITIAL_DELAY_MS";
         public const string PollIntervalMsVar = "VALORANTAPP_POLL_INTERVAL_MS";
+        public const string NowVar = "VALORANTAPP_NOW";
+        public const string ManualVar = "VALORANTAPP_MANUAL";
 
-        private static readonly string[] TestOnlyVars = [HenrikUrlVar, SqlitePathVar, RecordPathVar, PollInitialDelayMsVar, PollIntervalMsVar];
+        private static readonly string[] TestOnlyVars = [HenrikUrlVar, SqlitePathVar, RecordPathVar, PollInitialDelayMsVar, PollIntervalMsVar, NowVar, ManualVar];
 
         public bool TestMode { get; init; }
 
@@ -36,6 +38,15 @@ namespace ValorantApp
         public TimeSpan PollInitialDelay { get; init; } = TimeSpan.FromMinutes(1);
 
         public TimeSpan PollInterval { get; init; } = TimeSpan.FromMinutes(0.5);
+
+        /// <summary>Test mode only: a frozen "now" (ISO-8601 UTC) used by the program's clock, for deterministic replays.</summary>
+        public DateTimeOffset? FixedNow { get; init; }
+
+        /// <summary>
+        /// Test mode only: don't start the timers. The process is driven by stdin commands instead
+        /// ("poll", "daily", "quit"), each answered with "OK &lt;command&gt;" or "ERR &lt;message&gt;".
+        /// </summary>
+        public bool Manual { get; init; }
 
         /// <summary>Reads options from environment variables. <paramref name="getEnv"/> exists for tests.</summary>
         public static AppOptions FromEnvironment(Func<string, string?>? getEnv = null)
@@ -81,7 +92,25 @@ namespace ValorantApp
                 RecordPath = recordPath,
                 PollInitialDelay = ParseMilliseconds(Get(PollInitialDelayMsVar), PollInitialDelayMsVar, allowZero: true) ?? TimeSpan.FromMilliseconds(200),
                 PollInterval = ParseMilliseconds(Get(PollIntervalMsVar), PollIntervalMsVar, allowZero: false) ?? TimeSpan.FromMilliseconds(500),
+                FixedNow = ParseNow(Get(NowVar)),
+                Manual = Get(ManualVar) is "1" || string.Equals(Get(ManualVar), "true", StringComparison.OrdinalIgnoreCase),
             };
+        }
+
+        private static DateTimeOffset? ParseNow(string? value)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            if (!DateTimeOffset.TryParse(value, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out DateTimeOffset now))
+            {
+                throw new InvalidOperationException($"{NowVar} must be an ISO-8601 date/time, e.g. 2025-12-29T10:30:00Z.");
+            }
+
+            return now;
         }
 
         private static TimeSpan? ParseMilliseconds(string? value, string name, bool allowZero)

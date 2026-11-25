@@ -104,7 +104,7 @@ namespace ValorantApp
             });
             services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
             services.UseMinimalHttpLogger();
-            services.AddSingleton(TimeProvider.System);
+            services.AddSingleton<TimeProvider>(options.TestMode && options.FixedNow.HasValue ? new FixedTimeProvider(options.FixedNow.Value) : TimeProvider.System);
             if (options.TestMode)
             {
                 services.AddSingleton<IDiscordNotifier>(new JsonLinesNotifier(options.RecordPath!));
@@ -136,13 +136,54 @@ namespace ValorantApp
         private static void RunTestMode(ServiceProvider serviceProvider, AppOptions options)
         {
             BaseValorantProgram program = serviceProvider.GetRequiredService<BaseValorantProgram>();
-            program.Start(options.PollInitialDelay, options.PollInterval);
+            if (!options.Manual)
+            {
+                program.Start(options.PollInitialDelay, options.PollInterval);
+            }
 
             Console.WriteLine("READY");
 
-            while (Console.In.ReadLine() != null)
+            // Manual mode (replays): each command runs to completion before the answer line, so a driver can sequence work.
+            string? line;
+            while ((line = Console.In.ReadLine()) != null)
             {
+                string command = line.Trim().ToLowerInvariant();
+                if (!options.Manual || command.Length == 0)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    switch (command)
+                    {
+                        case "poll":
+                            program.RunPollTickAsync().GetAwaiter().GetResult();
+                            break;
+                        case "daily":
+                            program.RunDailyCheckAsync().GetAwaiter().GetResult();
+                            break;
+                        case "quit":
+                            Console.WriteLine("OK quit");
+                            return;
+                        default:
+                            Console.WriteLine($"ERR unknown command '{command}'");
+                            continue;
+                    }
+
+                    Console.WriteLine($"OK {command}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"ERR {command}: {ex.GetType().Name}: {ex.Message}");
+                }
             }
+        }
+
+        /// <summary>Test mode only: a clock frozen at <see cref="AppOptions.FixedNow"/>.</summary>
+        private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+        {
+            public override DateTimeOffset GetUtcNow() => now;
         }
 
         public ValorantApp(BaseValorantProgram program, DiscordSocketClient client, CommandService commands, InteractionService interaction, IServiceProvider servicesProvider, ILogger<ValorantApp> logger)
