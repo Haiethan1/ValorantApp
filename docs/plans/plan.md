@@ -5,7 +5,7 @@ validation layer covers the bot's real scenarios. Background and design: [e2e-va
 How the tests work: [../testing.md](../testing.md). Known bugs and gaps: [../backlog.md](../backlog.md).
 
 ## Where we are
-Branch `aiReady`. 204 passing tests, 4 skipped on purpose. Line coverage was ~52% (branch ~42%) before the
+Branch `aiReady`. 221 passing tests, 4 skipped on purpose. Line coverage was ~52% (branch ~42%) before the
 latest additions; re-measure with `dotnet test --collect:"XPlat Code Coverage"` (CI now prints a summary).
 
 Built so far:
@@ -33,8 +33,8 @@ Antigravity, Claude reviews.
 | 7 | Embed-limit tests (Discord 6000 total, 25 fields, etc.) | S | Gemini | Done, found a bug (issue #142) |
 | 8 | Opt-in fixture recorder (dev HenrikDev key, strip personal data) + contract test over all fixtures; refresh monthly | M | Claude designs | Not started. Needs the owner's API key and live matches |
 | 9 | Old-vs-new replay: run base and PR commits in test mode on the same fixtures and a copy of the prod DB, diff the recorder output | M | Claude | Not started. Strongest "trust the change" signal |
-| 10 | SQL Server in CI (Testcontainers `mssql/server:2022`) to test dual writes, events and locations | L | Claude sets up, Gemini writes asserts | Not started. Docker isn't running locally; CI (ubuntu) has it |
-| 11 | Mutation testing (Stryker.NET) on engine, `LinkCommandService`, `MatchesExtension`, `MatchStatsExtension`; per release | M | Gemini runs, Claude triages | Not started |
+| 10 | SQL Server in CI (Testcontainers `mssql/server:2022`) to test dual writes, events and locations | L | Claude sets up, Gemini writes asserts | Done (`SqlServerContainer`, `SqlServerDualWriteTests`; found the `rr_change` TINYINT bug, see backlog) |
+| 11 | Mutation testing (Stryker.NET) on engine, `LinkCommandService`, `MatchesExtension`, `MatchStatsExtension`; per release | M | Gemini runs, Claude triages | Config + first scoped run done (MatchesExtension ~64%); gap tests in progress |
 | 12 | Move `/mmr` logic into a service like `LinkCommandService` and test it; fix review nits and stale docs | S-M | Gemini | Done (`MmrCommandService` + tests; null `Current_Data` now replies instead of throwing) |
 
 Review nits: all fixed except `DateTime.TryParse` using machine culture (pre-existing production behavior, left as is).
@@ -48,7 +48,6 @@ Review nits: all fixed except `DateTime.TryParse` using machine culture (pre-exi
 
 ## Open questions for the owner
 - Item 8 (fixture recorder): needs the owner's HenrikDev key and a decision on scope.
-- Item 10: run SQL Server tests only in CI, or also locally with Docker Desktop?
 - Pi deployment docs (`docs/hosting.md`, `deploy-pi` skill) need the owner's review.
 
 ## What will honestly still need a human
