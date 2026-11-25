@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -223,6 +224,195 @@ namespace ValorantAppTests
             var matchJson = LoadMatch("Matches_11_4_2023.json");
             var stats = MatchStatsExtension.CreateFromJson(matchJson, null, "unknown-puuid-00000000");
             Assert.IsNull(stats);
+        }
+
+        private static JObject LoadMatchJObject(string filename)
+        {
+            string path = File.Exists(Path.Combine("../../../MockJsonResponse", filename))
+                ? Path.Combine("../../../MockJsonResponse", filename)
+                : Path.Combine(AppContext.BaseDirectory, "../../../MockJsonResponse", filename);
+            string json = File.ReadAllText(path);
+            return JObject.Parse(json);
+        }
+
+        [TestMethod]
+        public void CreateFromJson_CraftedTiers_ExactIron1BoundaryAndMixedAndUnranked()
+        {
+            var root = LoadMatchJObject("Matches_11_4_2023.json");
+            var players = (JObject)root["data"]![0]!["players"]!;
+
+            // Blue team: 5 players with tiers [3, 0, 2, 3, 6] -> qualifying [3, 3, 6], sum = 12, count = 3, avg = 4
+            var bluePlayers = new JArray
+            {
+                new JObject { ["currenttier"] = 3, ["name"] = "B1" },
+                new JObject { ["currenttier"] = 0, ["name"] = "B2" },
+                new JObject { ["currenttier"] = 2, ["name"] = "B3" },
+                new JObject { ["currenttier"] = 3, ["name"] = "B4" },
+                new JObject { ["currenttier"] = 6, ["name"] = "B5" }
+            };
+            players["blue"] = bluePlayers;
+
+            // Red team: 3 players with tiers [3, 0, 5] -> qualifying [3, 5], sum = 8, count = 2, avg = 4
+            var redPlayers = new JArray
+            {
+                new JObject { ["currenttier"] = 3, ["name"] = "R1" },
+                new JObject { ["currenttier"] = 0, ["name"] = "R2" },
+                new JObject { ["currenttier"] = 5, ["name"] = "R3" }
+            };
+            players["red"] = redPlayers;
+
+            var matchJson = root["data"]![0]!.ToObject<MatchJson>()!;
+            var matches = MatchesExtension.CreateFromJson(matchJson);
+
+            Assert.IsNotNull(matches);
+            Assert.AreEqual((short)4, matches.Blue_Team_Average_Rank);
+            Assert.AreEqual((short)4, matches.Red_Team_Average_Rank);
+        }
+
+        [TestMethod]
+        public void CreateFromJson_CraftedTiers_OnlyIron1BoundaryAndOnlyUnranked()
+        {
+            var root = LoadMatchJObject("Matches_11_4_2023.json");
+            var players = (JObject)root["data"]![0]!["players"]!;
+
+            // Blue team: players only at tier 3 boundary -> qualifying [3, 3], sum = 6, count = 2, avg = 3
+            var bluePlayers = new JArray
+            {
+                new JObject { ["currenttier"] = 3, ["name"] = "B1" },
+                new JObject { ["currenttier"] = 3, ["name"] = "B2" }
+            };
+            players["blue"] = bluePlayers;
+
+            // Red team: players only below tier 3 -> unranked, count = 0, avg = 0
+            var redPlayers = new JArray
+            {
+                new JObject { ["currenttier"] = 0, ["name"] = "R1" },
+                new JObject { ["currenttier"] = 2, ["name"] = "R2" }
+            };
+            players["red"] = redPlayers;
+
+            var matchJson = root["data"]![0]!.ToObject<MatchJson>()!;
+            var matches = MatchesExtension.CreateFromJson(matchJson);
+
+            Assert.IsNotNull(matches);
+            Assert.AreEqual((short)3, matches.Blue_Team_Average_Rank);
+            Assert.AreEqual((short)0, matches.Red_Team_Average_Rank);
+        }
+
+        [TestMethod]
+        public void CreateFromJson_Deathmatch_CraftedTiers()
+        {
+            var root = LoadMatchJObject("Deathmatch_1_10_2024.json");
+            var players = (JObject)root["data"]![0]!["players"]!;
+
+            // All_Players: [3, 0, 5, 2] -> qualifying [3, 5], sum = 8, count = 2, avg = 4
+            var allPlayers = new JArray
+            {
+                new JObject { ["currenttier"] = 3, ["name"] = "P1" },
+                new JObject { ["currenttier"] = 0, ["name"] = "P2" },
+                new JObject { ["currenttier"] = 5, ["name"] = "P3" },
+                new JObject { ["currenttier"] = 2, ["name"] = "P4" }
+            };
+            players["all_players"] = allPlayers;
+
+            var matchJson = root["data"]![0]!.ToObject<MatchJson>()!;
+            var matches = MatchesExtension.CreateFromJson(matchJson);
+
+            Assert.IsNotNull(matches);
+            // NOTE: possible bug: MatchesExtension.CreateFromJson assigns all-player avg rank to Blue_Team_Average_Rank in DM
+            Assert.AreEqual((short)4, matches.Blue_Team_Average_Rank);
+            Assert.AreEqual((short)0, matches.Red_Team_Average_Rank);
+        }
+
+        [TestMethod]
+        public void CreateFromJson_Deathmatch_NullAllPlayers_DefaultsRankToZero()
+        {
+            var root = LoadMatchJObject("Deathmatch_1_10_2024.json");
+            var players = (JObject)root["data"]![0]!["players"]!;
+            players["all_players"] = null;
+
+            var matchJson = root["data"]![0]!.ToObject<MatchJson>()!;
+            var matches = MatchesExtension.CreateFromJson(matchJson);
+
+            Assert.IsNotNull(matches);
+            Assert.AreEqual((short)0, matches.Blue_Team_Average_Rank);
+            Assert.AreEqual((short)0, matches.Red_Team_Average_Rank);
+        }
+
+        [TestMethod]
+        public void CreateFromJson_NullTeams_NonNullPlayers_DoesNotThrowAndDefaultsToZero()
+        {
+            var root = LoadMatchJObject("Matches_11_4_2023.json");
+            root["data"]![0]!["teams"] = null;
+
+            var matchJson = root["data"]![0]!.ToObject<MatchJson>()!;
+            var matches = MatchesExtension.CreateFromJson(matchJson);
+
+            Assert.IsNotNull(matches);
+            Assert.AreEqual((byte)0, matches.Blue_Team_Rounds_Won);
+            Assert.AreEqual((byte)0, matches.Red_Team_Rounds_Won);
+            Assert.AreEqual((short)0, matches.Blue_Team_Average_Rank);
+            Assert.AreEqual((short)0, matches.Red_Team_Average_Rank);
+            Assert.IsFalse(matches.Blue_Team_Win);
+        }
+
+        [TestMethod]
+        public void CreateFromJson_NonNullTeams_NullPlayersArrays_DoesNotThrowAndDefaultsToZero()
+        {
+            var root = LoadMatchJObject("Matches_11_4_2023.json");
+            var players = (JObject)root["data"]![0]!["players"]!;
+            players["blue"] = null;
+            players["red"] = null;
+
+            var matchJson = root["data"]![0]!.ToObject<MatchJson>()!;
+            var matches = MatchesExtension.CreateFromJson(matchJson);
+
+            Assert.IsNotNull(matches);
+            Assert.AreEqual((byte)0, matches.Blue_Team_Rounds_Won);
+            Assert.AreEqual((byte)0, matches.Red_Team_Rounds_Won);
+            Assert.AreEqual((short)0, matches.Blue_Team_Average_Rank);
+            Assert.AreEqual((short)0, matches.Red_Team_Average_Rank);
+            Assert.IsFalse(matches.Blue_Team_Win);
+        }
+
+        [TestMethod]
+        public void CreateFromJson_BlueTeamNullWithPlayers_RedPlayersNullWithTeam_DoesNotThrow()
+        {
+            var root = LoadMatchJObject("Matches_11_4_2023.json");
+            var teams = (JObject)root["data"]![0]!["teams"]!;
+            var players = (JObject)root["data"]![0]!["players"]!;
+            teams["blue"] = null;
+            players["red"] = null;
+
+            var matchJson = root["data"]![0]!.ToObject<MatchJson>()!;
+            var matches = MatchesExtension.CreateFromJson(matchJson);
+
+            Assert.IsNotNull(matches);
+            Assert.AreEqual((byte)0, matches.Blue_Team_Rounds_Won);
+            Assert.AreEqual((byte)0, matches.Red_Team_Rounds_Won);
+            Assert.AreEqual((short)0, matches.Blue_Team_Average_Rank);
+            Assert.AreEqual((short)0, matches.Red_Team_Average_Rank);
+            Assert.IsFalse(matches.Blue_Team_Win);
+        }
+
+        [TestMethod]
+        public void CreateFromJson_BluePlayersNullWithTeam_RedTeamNullWithPlayers_DoesNotThrow()
+        {
+            var root = LoadMatchJObject("Matches_11_4_2023.json");
+            var teams = (JObject)root["data"]![0]!["teams"]!;
+            var players = (JObject)root["data"]![0]!["players"]!;
+            players["blue"] = null;
+            teams["red"] = null;
+
+            var matchJson = root["data"]![0]!.ToObject<MatchJson>()!;
+            var matches = MatchesExtension.CreateFromJson(matchJson);
+
+            Assert.IsNotNull(matches);
+            Assert.AreEqual((byte)0, matches.Blue_Team_Rounds_Won);
+            Assert.AreEqual((byte)0, matches.Red_Team_Rounds_Won);
+            Assert.AreEqual((short)0, matches.Blue_Team_Average_Rank);
+            Assert.AreEqual((short)0, matches.Red_Team_Average_Rank);
+            Assert.IsFalse(matches.Blue_Team_Win);
         }
     }
 }

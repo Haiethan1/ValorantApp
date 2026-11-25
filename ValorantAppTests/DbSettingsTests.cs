@@ -1,4 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using ValorantApp.Database.Extensions;
 using ValorantApp.Database.Tables;
 using ValorantApp.Valorant.Enums;
@@ -62,6 +66,31 @@ namespace ValorantAppTests
             ValorantPlayersExtension.InsertRow("puuid");
             MatchPlayersExtension.InsertRow("match", "puuid", 0, Agents.Jett);
             PlayerLocationsExtension.InsertRow(1, "puuid", 0, 0, null);
+        }
+
+        [TestMethod]
+        public void GetListOfRows_MultipleIds_ReturnsMatchingMatches()
+        {
+            string matchId1 = "match-getlist-1";
+            string matchId2 = "match-getlist-2";
+            var match1 = new Matches(matchId1, "Lotus", "Competitive", "competitive", 1800u, 1699144485L, DateTime.UtcNow, 20, 13, 7, 18, 17, true, "season-1");
+            var match2 = new Matches(matchId2, "Bind", "Competitive", "competitive", 1900u, 1699144485L, DateTime.UtcNow, 24, 11, 13, 15, 16, false, "season-1");
+
+            MatchesExtension.InsertRow(match1);
+            MatchesExtension.InsertRow(match2);
+
+            try
+            {
+                var results = MatchesExtension.GetListOfRows(new[] { matchId1, matchId2 }).ToList();
+                Assert.AreEqual(2, results.Count);
+                Assert.IsTrue(results.Any(m => m.Match_Id == matchId1));
+                Assert.IsTrue(results.Any(m => m.Match_Id == matchId2));
+            }
+            finally
+            {
+                DevToolsExtension.DeleteMatchEverywhere(matchId1);
+                DevToolsExtension.DeleteMatchEverywhere(matchId2);
+            }
         }
     }
 }
