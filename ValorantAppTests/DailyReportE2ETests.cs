@@ -123,8 +123,7 @@ namespace ValorantAppTests
                 Assert.AreEqual("Matches: 1 | Minutes: 31 | Aces: 0\nK/D/A: 19/15/13 | Most Played: <:skye:1251244001063993366>\nHeadshot: 42.5% | Bodyshot: 52.5%", embed.Fields[0].Value);
 
                 Assert.AreEqual(1, notifier.Statuses.Count);
-                // NOTE: possible bug: BaseValorantProgram.UpdateDiscordBotConfig pluralizes serverCount backwards: (serverCount == 1 ? 's' : string.Empty) -> "1 Servers"
-                Assert.AreEqual("Matches Found 1 | 1 Servers | Events Processed (New) 0", notifier.Statuses[0]);
+                Assert.AreEqual("Matches Found 1 | 1 Server | Events Processed (New) 0", notifier.Statuses[0]);
             }
             finally
             {
@@ -160,7 +159,7 @@ namespace ValorantAppTests
 
                 Assert.AreEqual(0, notifier.Sent.Count, "Matches outside the window must not trigger report posts");
                 Assert.AreEqual(1, notifier.Statuses.Count, "Status must still be updated even when no report is sent");
-                Assert.AreEqual("Matches Found 2 | 1 Servers | Events Processed (New) 0", notifier.Statuses[0]);
+                Assert.AreEqual("Matches Found 2 | 1 Server | Events Processed (New) 0", notifier.Statuses[0]);
             }
             finally
             {
@@ -231,13 +230,29 @@ namespace ValorantAppTests
 
                 Assert.AreEqual(1, embed.Fields.Length);
                 Assert.AreEqual(1, notifier.Statuses.Count);
-                Assert.AreEqual("Matches Found 1 | 1 Servers | Events Processed (New) 0", notifier.Statuses[0]);
+                Assert.AreEqual("Matches Found 1 | 1 Server | Events Processed (New) 0", notifier.Statuses[0]);
             }
             finally
             {
                 DevToolsExtension.DeleteMatchEverywhere(matchId);
                 CleanUser();
             }
+        }
+
+        [TestMethod]
+        [DataRow(1, "1 Server |")]
+        [DataRow(2, "2 Servers |")]
+        [DataRow(0, "0 Servers |")]
+        public async Task UpdateDiscordBotConfig_PluralizesServerCount(int guildCount, string expected)
+        {
+            var clock = new FixedTimeProvider(new DateTimeOffset(2026, 11, 23, 11, 30, 0, TimeSpan.Zero));
+            var (program, notifier) = CreateProgram(clock);
+            notifier.GuildCount = guildCount;
+
+            await program.UpdateDiscordBotConfig();
+
+            Assert.AreEqual(1, notifier.Statuses.Count);
+            StringAssert.Contains(notifier.Statuses[0], $"| {expected}");
         }
 
         #endregion

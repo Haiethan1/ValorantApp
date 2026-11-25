@@ -1118,7 +1118,7 @@ namespace ValorantApp.Valorant
             int serverCount = _notifier.GuildCount;
             int matchesFound = MatchStatsExtension.MatchTotalCount();
             int eventsFound = MatchEventsExtension.EventTotalCount();
-            await _notifier.SetStatusAsync($"Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? 's' : string.Empty)} | Events Processed (New) {eventsFound}");
+            await _notifier.SetStatusAsync($"Matches Found {matchesFound} | {serverCount} Server{(serverCount == 1 ? string.Empty : "s")} | Events Processed (New) {eventsFound}");
         }
 
         /// <summary>
