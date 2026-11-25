@@ -1,6 +1,7 @@
 -- lu_match_stats.rr_change was created as TINYINT (0-255) in 2024-11_schema.sql, which can't hold RR losses.
--- Prod was already changed to SMALLINT by hand (confirmed 2026-11-24), so this only brings fresh databases
--- (dev, test containers) in line with prod. Safe to run on prod: it does nothing when the column is already SMALLINT.
+-- Dev and prod are already SMALLINT (confirmed 2026-11-24); the change was applied with a script that never made
+-- it into db/. This brings fresh databases (test containers, rebuilds) in line. It does nothing when the column is
+-- already SMALLINT, so it's safe to run anywhere.
 USE [Valorant];
 GO
 
