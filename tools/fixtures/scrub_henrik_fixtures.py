@@ -103,6 +103,10 @@ def collect(docs, faker, owner_puuid, tracked=()):
                 roster = ((m.get("teams") or {}).get(side) or {}).get("roster") or {}
                 if roster.get("id"):
                     faker.fake_id("roster", roster["id"].lower())
+                # Roster members are player puuids, including teammates who didn't play this match.
+                for member in roster.get("members") or []:
+                    if isinstance(member, str) and UUID_RE.match(member):
+                        faker.fake_id("puuid", member.lower())
                 if roster.get("name") and roster["name"] not in faker.roster_names:
                     faker.roster_names[roster["name"]] = f"Team{len(faker.roster_names) + 1:02d}"
         # mmr-history entries reference match ids too
@@ -159,6 +163,22 @@ def scrub(o, faker, id_lookup, display_lookup, in_identity=False, real_name=None
     return scrub_value(o, faker, id_lookup, display_lookup)
 
 
+IDENTITY_KEYS = {"puuid", "members", "party_id", "matchid", "match_id"}
+FAKE_ID_RE = re.compile(r"^(aaaaaaaa|bbbbbbbb|cccccccc|dddddddd)-0000-4000-8000-[0-9]{12}$")
+
+
+def identity_values(o, key=None):
+    """(key, value) for every string under a key that holds a player, party or match id."""
+    if isinstance(o, dict):
+        for k, v in o.items():
+            yield from identity_values(v, k)
+    elif isinstance(o, list):
+        for v in o:
+            yield from identity_values(v, key)
+    elif isinstance(o, str) and key in IDENTITY_KEYS:
+        yield key, o
+
+
 def strings(o):
     if isinstance(o, dict):
         for k, v in o.items():
@@ -205,6 +225,11 @@ def main():
                 if secret.lower() == low or (len(secret) >= 8 and secret.lower() in low):
                     leaks.append((f, secret[:3] + "..."))
                     break
+    # Structural check: identity fields must hold fakes, even for ids the scan above never learned.
+    for f, doc in scrubbed.items():
+        for key, value in identity_values(doc):
+            if UUID_RE.match(value) and not FAKE_ID_RE.match(value):
+                leaks.append((f, f"{key}={value[:3]}..."))
     if leaks:
         print(f"LEAK SCAN FAILED: {len(leaks)} values still contain original identifiers, nothing written.", file=sys.stderr)
         for f, hint in leaks[:20]:
